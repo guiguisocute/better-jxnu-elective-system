@@ -217,7 +217,7 @@ export function CourseDetailPage() {
           rel="noopener noreferrer"
           className="block w-full py-3 rounded-xl bg-red-500 text-white text-sm font-medium text-center hover:bg-red-600 active:bg-red-700 transition-colors shadow-sm"
         >
-          点击跳转选课界面
+          点击跳转此课程选课界面
         </a>
       </main>
 

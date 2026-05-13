@@ -9,6 +9,16 @@ import { CourseDetail } from "./CourseDetail";
 import { Pagination } from "./Pagination";
 import type { Course } from "../types";
 
+const GITHUB_URL = "https://github.com/guiguisocute/better-jxnu-elective-system";
+
+function GithubIcon() {
+  return (
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+    </svg>
+  );
+}
+
 export function HomePage() {
   const { courses, loading, error, allDepts, allCredits, courseTypes, subTags } = useCourseData();
   const filter = useCourseFilter(courses);
@@ -28,6 +38,15 @@ export function HomePage() {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
+
+  // Body scroll lock when mobile filter is open
+  useEffect(() => {
+    if (showMobileFilter) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [showMobileFilter]);
 
   const handleSelect = (course: Course) => {
     if (window.innerWidth >= 768) {
@@ -76,18 +95,8 @@ export function HomePage() {
               <span className="text-xs hidden sm:inline" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
             <div className="flex items-center gap-3">
-              <a
-                href="https://github.com/guiguisocute/better-jxnu-elective-system"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-              >
-                <svg className="w-4 h-4" style={{ color: "#FFFFFF" }} fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-              </a>
               <button
-                onClick={() => setShowMobileFilter(!showMobileFilter)}
+                onClick={() => setShowMobileFilter(true)}
                 className="md:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
               >
                 <svg className="w-4 h-4" style={{ color: "#FFFFFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,63 +151,86 @@ export function HomePage() {
         </div>
       </header>
 
-      {/* Mobile filter drawer */}
-      {showMobileFilter && (
-        <div className="md:hidden fixed inset-0 z-50" onClick={() => setShowMobileFilter(false)}>
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
-          <div
-            className="absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-800">筛选条件</h2>
-              <button onClick={() => setShowMobileFilter(false)} className="p-1 text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-5">
-              <FilterBar
-                filters={filter.filters}
-                updateFilter={filter.updateFilter}
-                cycleCredit={filter.cycleCredit}
-                cycleDept={filter.cycleDept}
-                cycleType={filter.cycleType}
-                cycleTag={filter.cycleTag}
-                clearAll={filter.clearAll}
-                hasActiveFilters={filter.hasActiveFilters}
-                allDepts={allDepts}
-                allCredits={allCredits}
-                courseTypes={courseTypes}
-                subTags={subTags}
-              />
-            </div>
+      {/* Mobile filter drawer — always mounted, animated with translate */}
+      <div
+        className={`md:hidden fixed inset-0 z-50 transition-opacity duration-300 ${showMobileFilter ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setShowMobileFilter(false)}
+      >
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+        <div
+          className={`absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white overflow-y-auto shadow-2xl transition-transform duration-300 ease-out ${showMobileFilter ? "translate-x-0" : "translate-x-full"}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-800">筛选条件</h2>
+            <button onClick={() => setShowMobileFilter(false)} className="p-1 text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="p-5 pb-8">
+            <FilterBar
+              filters={filter.filters}
+              updateFilter={filter.updateFilter}
+              cycleCredit={filter.cycleCredit}
+              cycleDept={filter.cycleDept}
+              cycleType={filter.cycleType}
+              cycleTag={filter.cycleTag}
+              clearAll={filter.clearAll}
+              hasActiveFilters={filter.hasActiveFilters}
+              allDepts={allDepts}
+              allCredits={allCredits}
+              courseTypes={courseTypes}
+              subTags={subTags}
+            />
+            {/* GitHub link at bottom of mobile drawer */}
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 mt-6 py-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors text-xs"
+            >
+              <GithubIcon />
+              <span>GitHub</span>
+            </a>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Main layout */}
       <div className="max-w-[2000px] mx-auto flex px-3 md:px-6 pt-5 gap-5">
         {/* Desktop left sidebar */}
         <aside
-          className="hidden md:block w-[300px] shrink-0 overflow-y-auto rounded-t-2xl bg-white border border-gray-100 px-6 py-5 shadow-sm"
+          className="hidden md:flex md:flex-col w-[300px] shrink-0 rounded-t-2xl bg-white border border-gray-100 shadow-sm"
           style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
         >
-          <FilterBar
-            filters={filter.filters}
-            updateFilter={filter.updateFilter}
-            cycleCredit={filter.cycleCredit}
-            cycleDept={filter.cycleDept}
-            cycleType={filter.cycleType}
-            cycleTag={filter.cycleTag}
-            clearAll={filter.clearAll}
-            hasActiveFilters={filter.hasActiveFilters}
-            allDepts={allDepts}
-            allCredits={allCredits}
-            courseTypes={courseTypes}
-            subTags={subTags}
-          />
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <FilterBar
+              filters={filter.filters}
+              updateFilter={filter.updateFilter}
+              cycleCredit={filter.cycleCredit}
+              cycleDept={filter.cycleDept}
+              cycleType={filter.cycleType}
+              cycleTag={filter.cycleTag}
+              clearAll={filter.clearAll}
+              hasActiveFilters={filter.hasActiveFilters}
+              allDepts={allDepts}
+              allCredits={allCredits}
+              courseTypes={courseTypes}
+              subTags={subTags}
+            />
+          </div>
+          {/* GitHub link at bottom of desktop sidebar */}
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-6 py-3 border-t border-gray-100 text-gray-300 hover:text-gray-500 transition-colors text-xs shrink-0"
+          >
+            <GithubIcon />
+            <span>GitHub</span>
+          </a>
         </aside>
 
         {/* Center - course list */}

@@ -182,7 +182,7 @@ export function CourseDetail({ course, onClose }: Props) {
             rel="noopener noreferrer"
             className="block w-full py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium text-center hover:bg-red-600 active:bg-red-700 transition-colors"
           >
-            点击跳转选课界面
+            点击跳转此课程选课界面
           </a>
         </div>
       </div>
