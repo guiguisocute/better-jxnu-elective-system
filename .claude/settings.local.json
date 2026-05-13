@@ -46,7 +46,17 @@
       "Bash(git init *)",
       "Bash(git branch *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(npx wrangler *)",
+      "Bash(curl *)",
+      "Bash(pkill -f \"wrangler pages dev\")",
+      "Bash(pkill -f \"wrangler\")",
+      "Bash(cp .wrangler/state/v3/d1/miniflare-D1DatabaseObject/4790caf945f4c2dcb3eae868a32998b398f5c418f5ef67a1b25142c0d441e678.sqlite .wrangler/state/v3/d1/miniflare-D1DatabaseObject/33c2dc52efcdaec53c8c2e76960e784a8340bf714cb38ddcfb8c5f00b8c23283.sqlite)",
+      "Bash(pkill -f \"vite\")"
     ]
   }
 }

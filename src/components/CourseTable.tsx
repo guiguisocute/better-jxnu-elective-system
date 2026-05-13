@@ -1,5 +1,6 @@
 import type { Course } from "../types";
 import { TagBadge } from "./TagBadge";
+import { StarRating } from "./StarRating";
 
 interface Props {
   courses: Course[];
@@ -7,7 +8,10 @@ interface Props {
   onSelect: (course: Course) => void;
   sortAsc: boolean;
   setSortAsc: (v: boolean) => void;
+  ratingSortAsc: boolean | null;
+  setRatingSortAsc: (v: boolean | null) => void;
   stickyTop?: number;
+  getCourseAvg?: (courseId: string) => number | null;
 }
 
 function getCreditColor(credits: number): string {
@@ -22,8 +26,19 @@ function getCreditColor(credits: number): string {
   return "bg-red-500 text-white";
 }
 
-export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc, stickyTop = 0 }: Props) {
-  const handleSort = () => setSortAsc(!sortAsc);
+export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc, stickyTop = 0, getCourseAvg }: Props) {
+  const handleSort = () => {
+    setRatingSortAsc(null);
+    setSortAsc(!sortAsc);
+  };
+
+  const handleRatingSort = () => {
+    if (ratingSortAsc === null) {
+      setRatingSortAsc(false);
+    } else {
+      setRatingSortAsc(!ratingSortAsc);
+    }
+  };
 
   if (courses.length === 0) {
     return (
@@ -52,7 +67,13 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
               </th>
               <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">开课学院</th>
               <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">标签</th>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 rounded-tr-2xl">教师</th>
+              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">教师</th>
+              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 rounded-tr-2xl cursor-pointer select-none hover:text-gray-700" onClick={handleRatingSort}>
+                评分
+                {ratingSortAsc !== null && (
+                  <span className="ml-1 text-gray-400">{ratingSortAsc ? "↑" : "↓"}</span>
+                )}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -94,6 +115,9 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
                   <td className="px-5 py-4 text-xs text-gray-500 max-w-[150px] truncate border-b border-gray-50">
                     {c.teachers.map((t) => t.name).join(", ") || "—"}
                   </td>
+                  <td className="px-5 py-4 border-b border-gray-50">
+                    <StarRating rating={getCourseAvg?.(c.id) ?? null} />
+                  </td>
                 </tr>
               );
             })}
@@ -128,6 +152,9 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
                 {c.teachers.map((t) => t.name).join(", ")}
               </p>
             )}
+            <div className="mt-2">
+              <StarRating rating={getCourseAvg?.(c.id) ?? null} />
+            </div>
           </div>
         ))}
       </div>

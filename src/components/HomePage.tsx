@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
 import { useCourseFilter } from "../hooks/useCourseFilter";
+import { useAllRatings } from "../hooks/useRatings";
 import { FilterBar } from "./FilterBar";
 import { CourseTable } from "./CourseTable";
 import { CourseDetail } from "./CourseDetail";
@@ -11,7 +12,9 @@ import type { Course } from "../types";
 export function HomePage() {
   const { courses, loading, error, allDepts, allCredits, courseTypes, subTags } = useCourseData();
   const filter = useCourseFilter(courses);
+  const { getCourseAvg } = useAllRatings();
   const [selected, setSelected] = useState<Course | null>(null);
+  const [ratingSortAsc, setRatingSortAsc] = useState<boolean | null>(null);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
   const navigate = useNavigate();
   const headerRef = useRef<HTMLElement>(null);
@@ -66,7 +69,7 @@ export function HomePage() {
       <header ref={headerRef} className="sticky top-0 z-40">
         {/* Layer 1: Red status bar */}
         <div style={{ backgroundColor: "#CC3C3C" }}>
-          <div className="max-w-[1800px] mx-auto px-6 flex items-center justify-between py-2.5">
+          <div className="max-w-[2000px] mx-auto px-6 flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2.5">
               <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain" />
               <h1 className="text-sm font-bold tracking-tight" style={{ color: "#FFFFFF" }}>JXNU选课PLUS</h1>
@@ -87,7 +90,7 @@ export function HomePage() {
 
         {/* Layer 2: White search bar */}
         <div className="bg-white border-b border-gray-100 shadow-sm">
-          <div className="max-w-[1800px] mx-auto px-6 py-3 flex items-center gap-4">
+          <div className="max-w-[2000px] mx-auto px-6 py-3 flex items-center gap-4">
             {/* Desktop search - centered */}
             <div className="hidden md:flex flex-1 justify-center">
               <div className="relative w-full max-w-3xl">
@@ -166,7 +169,7 @@ export function HomePage() {
       )}
 
       {/* Main layout */}
-      <div className="max-w-[1800px] mx-auto flex px-3 md:px-6 pt-5 gap-5">
+      <div className="max-w-[2000px] mx-auto flex px-3 md:px-6 pt-5 gap-5">
         {/* Desktop left sidebar */}
         <aside
           className="hidden md:block w-[300px] shrink-0 overflow-y-auto rounded-t-2xl bg-white border border-gray-100 px-6 py-5 shadow-sm"
@@ -196,7 +199,10 @@ export function HomePage() {
             onSelect={handleSelect}
             sortAsc={filter.sortAsc}
             setSortAsc={filter.setSortAsc}
+            ratingSortAsc={ratingSortAsc}
+            setRatingSortAsc={setRatingSortAsc}
             stickyTop={stickyTop}
+            getCourseAvg={getCourseAvg}
           />
           <Pagination
             page={filter.page}

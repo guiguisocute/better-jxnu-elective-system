@@ -1,11 +1,47 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
+import { useRatings } from "../hooks/useRatings";
+import { getVoterId } from "../lib/voter";
 import { TagBadge } from "./TagBadge";
+import { StarRating } from "./StarRating";
+import { StarRatingInput } from "./StarRatingInput";
+import { ConfirmModal } from "./ConfirmModal";
 
 export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { courses, loading, error } = useCourseData();
+  const { getAvg, refresh } = useRatings(id);
+  const [ratingTarget, setRatingTarget] = useState<{ teacherId: string; name: string; rating: number } | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const course = courses.find((c) => c.id === id);
+
+  const handleSubmit = async () => {
+    if (!ratingTarget || !id) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: id,
+          teacherId: ratingTarget.teacherId,
+          rating: ratingTarget.rating,
+          voterId: getVoterId(),
+        }),
+      });
+      await refresh(id);
+      setRatingTarget(null);
+      setShowModal(false);
+    } catch {
+      // ignore
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -24,8 +60,6 @@ export function CourseDetailPage() {
       </div>
     );
   }
-
-  const course = courses.find((c) => c.id === id);
 
   if (!course) {
     return (
@@ -104,22 +138,64 @@ export function CourseDetailPage() {
               任课教师 ({course.teachers.length})
             </h3>
             <div className="space-y-2">
-              {course.teachers.map((t, i) => (
-                <div key={i} className="flex items-center gap-3.5 bg-gray-50 rounded-xl px-4 py-3">
-                  <div className="w-9 h-9 rounded-full bg-red-50 text-red-400 flex items-center justify-center text-sm font-semibold shrink-0">
-                    {t.name[0]}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-gray-800">
-                      {t.name}
-                      <span className="text-gray-400 font-normal ml-1.5 text-xs">{t.gender}</span>
+              {course.teachers.map((t, i) => {
+                const avg = getAvg(t.id);
+                const isRating = ratingTarget?.teacherId === t.id;
+                return (
+                  <div key={i} className="bg-gray-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-9 h-9 rounded-full bg-red-50 text-red-400 flex items-center justify-center text-sm font-semibold shrink-0">
+                        {t.name[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-medium text-gray-800">
+                          {t.name}
+                          <span className="text-gray-400 font-normal ml-1.5 text-xs">{t.gender}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          教号 {t.id} · {t.dept}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setRatingTarget(isRating ? null : { teacherId: t.id, name: t.name, rating: 0 })}
+                        className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors self-center"
+                        style={{
+                          backgroundColor: isRating ? "#FEE2E2" : avg ? "#FEF3C7" : "#FEE2E2",
+                          color: isRating ? "#DC2626" : avg ? "#D97706" : "#DC2626",
+                        }}
+                      >
+                        {isRating ? "收起" : avg ? "修改评分" : "评分"}
+                      </button>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      教号 {t.id} · {t.dept}
+                    <div className="flex items-center mt-2 pl-[52px]">
+                      <StarRating rating={avg?.avg_rating ?? null} count={avg?.count} />
                     </div>
+                    {isRating && (
+                      <div className="mt-3 pl-[52px]">
+                        <StarRatingInput
+                          value={ratingTarget.rating}
+                          onChange={(v) => setRatingTarget({ ...ratingTarget, rating: v })}
+                        />
+                        <div className="flex gap-2 mt-2.5">
+                          <button
+                            onClick={() => setRatingTarget(null)}
+                            className="flex-1 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50"
+                          >
+                            取消
+                          </button>
+                          <button
+                            onClick={() => ratingTarget.rating > 0 && setShowModal(true)}
+                            disabled={ratingTarget.rating === 0}
+                            className="flex-1 py-2 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            提交评分
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -130,6 +206,11 @@ export function CourseDetailPage() {
           </div>
         )}
 
+        {/* Disclaimer */}
+        <p className="text-[11px] text-red-300 text-center leading-relaxed">
+          以上评分均为用户主观评价，仅反映其对任课教师在本课程中表现的个人看法，不代表作者立场，仅供参考
+        </p>
+
         <a
           href={`https://xk.jxnu.edu.cn/Step1/AddCourse.aspx?kch=${course.id}`}
           target="_blank"
@@ -139,6 +220,16 @@ export function CourseDetailPage() {
           点击跳转选课界面
         </a>
       </main>
+
+      <ConfirmModal
+        open={showModal}
+        teacherName={ratingTarget?.name ?? ""}
+        rating={ratingTarget?.rating ?? 0}
+        existingRating={ratingTarget ? (getAvg(ratingTarget.teacherId)?.avg_rating ?? null) : null}
+        onConfirm={handleSubmit}
+        onCancel={() => setShowModal(false)}
+        submitting={submitting}
+      />
     </div>
   );
 }

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-JXNU选课PLUS — a static single-page React application for browsing Jiangxi Normal University (江西师范大学) course catalog. The UI is entirely in Chinese (zh-CN). All data processing happens at build time via Python; there is no backend server.
+JXNU选课PLUS — a single-page React application for browsing Jiangxi Normal University (江西师范大学) course catalog. The UI is entirely in Chinese (zh-CN). Course data is static (build-time Python pipeline), but teacher ratings use Cloudflare D1 via Pages Functions.
 
 ## Commands
 
@@ -18,7 +18,15 @@ JXNU选课PLUS — a static single-page React application for browsing Jiangxi N
 
 **Data pipeline**: Raw university JSON exports (`JXNU课程数据_*.json`, `JXNU开课安排_*.json`) are processed by `build_data.py` into `public/courses.json`. The Python script normalizes Chinese field names to English, classifies courses by type (公选课/公共必修课/专业课) using course ID prefixes and schedule data, and builds a `_search` index field.
 
-**Client-side SPA**: The React app fetches `courses.json` on mount and performs all filtering/sorting/pagination entirely client-side. No API calls, no database.
+**Client-side SPA**: The React app fetches `courses.json` on mount and performs all filtering/sorting/pagination entirely client-side.
+
+**Rating system**: Cloudflare Pages Functions (`functions/api/`) backed by D1 database. Schema in `d1_schema.sql`. Binding name: `DB`. Endpoints:
+- `GET /api/ratings?courseId=xxx` — teacher averages for one course
+- `GET /api/ratings/all` — all ratings (used by table view)
+- `GET /api/ratings/check?teacherId=xxx&voterId=xxx` — check if user rated
+- `POST /api/ratings` — submit rating (courseId, teacherId, rating, voterId)
+
+Voter deduplication uses localStorage UUID (`src/lib/voter.ts`). D1 binding configured in CF Dashboard.
 
 **Component layout**:
 - Desktop: 3-column layout — `FilterBar` (left), `CourseTable` (center), `CourseDetail` (right sidebar)
@@ -29,9 +37,11 @@ JXNU选课PLUS — a static single-page React application for browsing Jiangxi N
 - `/` → `HomePage` (main browsing)
 - `/course/:id` → `CourseDetailPage` (mobile detail view)
 
-**State management**: No external library. Two custom hooks encapsulate all logic:
+**State management**: No external library. Custom hooks:
 - `useCourseData` — fetches `courses.json`, computes filter options
 - `useCourseFilter` — filtering, sorting, pagination with `sessionStorage` persistence
+- `useRatings` — per-course teacher ratings from D1
+- `useAllRatings` — bulk ratings for table view
 
 **Filter system**: Tri-state cycle: default → include → exclude → default. Each filter dimension (type, credits, dept, tags, teacher) supports both inclusion and exclusion.
 

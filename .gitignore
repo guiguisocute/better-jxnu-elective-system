@@ -1,3 +1,7 @@
 node_modules/
 dist/
+.wrangler/
 *.local
+JXNU课程数据_*.json
+JXNU开课安排_*.json
+d1_seed.sql
