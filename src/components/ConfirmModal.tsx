@@ -7,10 +7,9 @@ interface Props {
   existingRating: number | null;
   onConfirm: () => void;
   onCancel: () => void;
-  submitting?: boolean;
 }
 
-export function ConfirmModal({ open, teacherName, rating, existingRating, onConfirm, onCancel, submitting }: Props) {
+export function ConfirmModal({ open, teacherName, rating, existingRating, onConfirm, onCancel }: Props) {
   if (!open) return null;
 
   return createPortal(
@@ -65,17 +64,15 @@ export function ConfirmModal({ open, teacherName, rating, existingRating, onConf
         <div className="flex gap-3 mt-3">
           <button
             onClick={onCancel}
-            disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
           >
             取消
           </button>
           <button
             onClick={onConfirm}
-            disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 active:bg-red-700 transition-colors disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 active:bg-red-700 transition-colors"
           >
-            {submitting ? "提交中..." : "确认"}
+            确认
           </button>
         </div>
       </div>

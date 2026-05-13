@@ -12,35 +12,27 @@ export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { courses, loading, error } = useCourseData();
-  const { getAvg, refresh } = useRatings(id);
+  const { getAvg, applyOptimistic, refresh } = useRatings(id);
   const [ratingTarget, setRatingTarget] = useState<{ teacherId: string; name: string; rating: number } | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   const course = courses.find((c) => c.id === id);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!ratingTarget || !id) return;
-    setSubmitting(true);
-    try {
-      await fetch("/api/ratings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: id,
-          teacherId: ratingTarget.teacherId,
-          rating: ratingTarget.rating,
-          voterId: getVoterId(),
-        }),
-      });
-      await refresh(id);
-      setRatingTarget(null);
-      setShowModal(false);
-    } catch {
-      // ignore
-    } finally {
-      setSubmitting(false);
-    }
+    applyOptimistic(ratingTarget.teacherId, ratingTarget.rating);
+    setRatingTarget(null);
+    setShowModal(false);
+    fetch("/api/ratings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseId: id,
+        teacherId: ratingTarget.teacherId,
+        rating: ratingTarget.rating,
+        voterId: getVoterId(),
+      }),
+    }).then(() => refresh(id)).catch(() => {});
   };
 
   if (loading) {
@@ -228,7 +220,6 @@ export function CourseDetailPage() {
         existingRating={ratingTarget ? (getAvg(ratingTarget.teacherId)?.avg_rating ?? null) : null}
         onConfirm={handleSubmit}
         onCancel={() => setShowModal(false)}
-        submitting={submitting}
       />
     </div>
   );
