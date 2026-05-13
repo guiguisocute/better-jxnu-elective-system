@@ -232,10 +232,10 @@ export function HomePage() {
       <div className="max-w-[2000px] mx-auto flex px-3 md:px-6 pt-5 gap-5">
         {/* Desktop left sidebar */}
         <aside
-          className="hidden md:flex md:flex-col w-[300px] shrink-0 rounded-t-2xl bg-white border border-gray-100 shadow-sm"
+          className="hidden md:block w-[340px] shrink-0 overflow-y-auto rounded-t-2xl bg-white border border-gray-100 shadow-sm"
           style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
         >
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="px-6 py-5">
             <FilterBar
               filters={filter.filters}
               updateFilter={filter.updateFilter}
@@ -251,12 +251,11 @@ export function HomePage() {
               subTags={subTags}
             />
           </div>
-          {/* GitHub link at bottom of desktop sidebar */}
           <a
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 px-6 py-3 text-gray-300 hover:text-gray-500 transition-colors text-xs shrink-0"
+            className="flex items-center justify-center gap-1.5 px-6 py-3 text-gray-300 hover:text-gray-500 transition-colors text-xs"
           >
             <GithubIcon />
             <span>GitHub</span>
