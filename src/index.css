@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #F8F9FA;
+  color: #1F2937;
+}
+
+header.sticky::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -32px;
+  height: 32px;
+  background: linear-gradient(
+    to bottom,
+    rgba(248, 249, 250, 1),
+    rgba(248, 249, 250, 0.98) 68%,
+    rgba(248, 249, 250, 0.82)
+  );
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  z-index: 39;
+  pointer-events: none;
+}
