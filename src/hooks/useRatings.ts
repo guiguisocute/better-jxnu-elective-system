@@ -98,7 +98,16 @@ export function useRatings(courseId: string | undefined) {
     const map = new Map<string, TeacherRating>();
     for (const r of data) map.set(r.teacher_id, r);
     setRatings(map);
-    setOptimistic(new Map());
+    // Only clear optimistic values confirmed by server
+    setOptimistic((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Map(prev);
+      for (const [tid, val] of prev) {
+        const server = map.get(tid);
+        if (server && Math.abs(server.avg_rating - val) < 0.01) next.delete(tid);
+      }
+      return next;
+    });
   }, []);
 
   return { ratings, loading, getAvg, getCourseAvg, applyOptimistic, refresh };
