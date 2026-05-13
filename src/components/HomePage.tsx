@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
 import { useCourseFilter } from "../hooks/useCourseFilter";
 import { useAllRatings } from "../hooks/useRatings";
@@ -24,9 +23,10 @@ export function HomePage() {
   const filter = useCourseFilter(courses);
   const { getCourseAvg } = useAllRatings();
   const [selected, setSelected] = useState<Course | null>(null);
+  const [mobileCourse, setMobileCourse] = useState<Course | null>(null);
+  const closingRef = useRef(false);
   const [ratingSortAsc, setRatingSortAsc] = useState<boolean | null>(null);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
-  const navigate = useNavigate();
   const headerRef = useRef<HTMLElement>(null);
   const [headerH, setHeaderH] = useState(0);
 
@@ -39,21 +39,38 @@ export function HomePage() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // Body scroll lock when mobile filter is open
+  // Body scroll lock when mobile filter or mobile course overlay is open
   useEffect(() => {
-    if (showMobileFilter) {
+    if (showMobileFilter || mobileCourse) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => { document.body.style.overflow = prev; };
     }
-  }, [showMobileFilter]);
+  }, [showMobileFilter, mobileCourse]);
+
+  // Back button closes mobile course overlay
+  useEffect(() => {
+    if (!mobileCourse) return;
+    const onPopState = () => setMobileCourse(null);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [mobileCourse]);
 
   const handleSelect = (course: Course) => {
     if (window.innerWidth >= 768) {
       setSelected(course);
     } else {
-      navigate(`/course/${course.id}`);
+      if (closingRef.current) return;
+      setMobileCourse(course);
+      window.history.pushState({ courseId: course.id }, "", `/course/${course.id}`);
     }
+  };
+
+  const closeMobileCourse = () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    window.history.back();
+    setTimeout(() => { closingRef.current = false; }, 400);
   };
 
   if (loading) {
@@ -195,6 +212,20 @@ export function HomePage() {
               <span>GitHub</span>
             </a>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile course detail overlay — slides up from bottom */}
+      <div
+        className={`md:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${mobileCourse ? "translate-y-0" : "translate-y-full"}`}
+      >
+        <div className="h-full bg-[#F8F9FA] overflow-y-auto">
+          {mobileCourse && (
+            <CourseDetail
+              course={mobileCourse}
+              onClose={closeMobileCourse}
+            />
+          )}
         </div>
       </div>
 

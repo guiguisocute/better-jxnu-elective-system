@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+
 interface Props {
   open: boolean;
   teacherName: string;
@@ -11,7 +13,7 @@ interface Props {
 export function ConfirmModal({ open, teacherName, rating, existingRating, onConfirm, onCancel, submitting }: Props) {
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onCancel}>
       <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
       <div
@@ -77,6 +79,7 @@ export function ConfirmModal({ open, teacherName, rating, existingRating, onConf
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
