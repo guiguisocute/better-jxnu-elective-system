@@ -1,65 +1,91 @@
 import { useState, useEffect, useCallback } from "react";
+import {
+  subscribe,
+  getSnapshot,
+  applyOptimistic as storeApplyOptimistic,
+  fetchAndSet,
+  fetchAllAndSet,
+} from "../lib/ratingsStore";
 
-interface TeacherRating {
-  teacher_id: string;
-  avg_rating: number;
-  count: number;
-}
+// Shared cache to deduplicate initial fetch
+const fetchedCourses = new Set<string>();
+let allFetched = false;
 
-type AllRatings = Record<string, Record<string, { avg: number; count: number }>>;
-
-export function useAllRatings() {
-  const [data, setData] = useState<AllRatings>({});
+function useRatingsStore(courseId?: string) {
+  const [data, setData] = useState(() => getSnapshot());
 
   useEffect(() => {
-    fetch("/api/ratings/all")
-      .then((r) => r.json())
-      .then((d: AllRatings) => setData(d))
-      .catch(() => {});
+    const unsub = subscribe(() => setData(getSnapshot()));
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!courseId) return;
+    if (fetchedCourses.has(courseId)) return;
+    fetchedCourses.add(courseId);
+    fetchAndSet(courseId);
+  }, [courseId]);
+
+  return data;
+}
+
+export function useAllRatings() {
+  const { real, optimistic } = useRatingsStore();
+
+  useEffect(() => {
+    if (allFetched) return;
+    allFetched = true;
+    fetchAllAndSet();
   }, []);
 
   const getCourseAvg = useCallback(
     (courseId: string): number | null => {
-      const teachers = data[courseId];
-      if (!teachers || Object.keys(teachers).length === 0) return null;
-      const avgs = Object.values(teachers).map((t) => t.avg);
-      return avgs.reduce((a, b) => a + b, 0) / avgs.length;
+      const teachers = real.get(courseId);
+      const opt = optimistic.get(courseId);
+      if (!teachers && !opt) return null;
+      let total = 0;
+      let count = 0;
+      const seen = new Set<string>();
+      if (teachers) {
+        for (const [tid, r] of teachers) {
+          total += opt?.has(tid) ? opt.get(tid)! : r.avg_rating;
+          count++;
+          seen.add(tid);
+        }
+      }
+      if (opt) {
+        for (const [tid, val] of opt) {
+          if (!seen.has(tid)) { total += val; count++; }
+        }
+      }
+      return count > 0 ? total / count : null;
     },
-    [data]
+    [real, optimistic]
   );
 
   const getTeacherAvg = useCallback(
-    (courseId: string, teacherId: string) => data[courseId]?.[teacherId] ?? null,
-    [data]
+    (courseId: string, teacherId: string) => {
+      const r = real.get(courseId)?.get(teacherId);
+      const pending = optimistic.get(courseId)?.get(teacherId);
+      if (pending !== undefined) {
+        return { avg: pending, count: (r?.count ?? 0) + (r ? 0 : 1) };
+      }
+      return r ? { avg: r.avg_rating, count: r.count } : null;
+    },
+    [real, optimistic]
   );
 
   return { getCourseAvg, getTeacherAvg };
 }
 
 export function useRatings(courseId: string | undefined) {
-  const [ratings, setRatings] = useState<Map<string, TeacherRating>>(new Map());
-  const [optimistic, setOptimistic] = useState<Map<string, number>>(new Map());
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!courseId) return;
-    setLoading(true);
-    setOptimistic(new Map());
-    fetch(`/api/ratings?courseId=${courseId}`)
-      .then((r) => r.json())
-      .then((data: TeacherRating[]) => {
-        const map = new Map<string, TeacherRating>();
-        for (const r of data) map.set(r.teacher_id, r);
-        setRatings(map);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [courseId]);
+  const { real, optimistic } = useRatingsStore(courseId);
 
   const getAvg = useCallback(
     (teacherId: string) => {
-      const base = ratings.get(teacherId);
-      const pending = optimistic.get(teacherId);
+      if (!courseId) return null;
+      const base = real.get(courseId)?.get(teacherId);
+      const pending = optimistic.get(courseId)?.get(teacherId);
       if (pending !== undefined) {
         return {
           teacher_id: teacherId,
@@ -69,46 +95,44 @@ export function useRatings(courseId: string | undefined) {
       }
       return base ?? null;
     },
-    [ratings, optimistic]
+    [courseId, real, optimistic]
   );
 
   const getCourseAvg = useCallback(() => {
-    if (ratings.size === 0 && optimistic.size === 0) return null;
+    if (!courseId) return null;
+    const teachers = real.get(courseId);
+    const opt = optimistic.get(courseId);
+    if (!teachers && !opt) return null;
     let total = 0;
     let count = 0;
     const seen = new Set<string>();
-    for (const [tid, r] of ratings) {
-      total += optimistic.has(tid) ? optimistic.get(tid)! : r.avg_rating;
-      count++;
-      seen.add(tid);
+    if (teachers) {
+      for (const [tid, r] of teachers) {
+        total += opt?.has(tid) ? opt.get(tid)! : r.avg_rating;
+        count++;
+        seen.add(tid);
+      }
     }
-    for (const [tid, val] of optimistic) {
-      if (!seen.has(tid)) { total += val; count++; }
+    if (opt) {
+      for (const [tid, val] of opt) {
+        if (!seen.has(tid)) { total += val; count++; }
+      }
     }
     return count > 0 ? total / count : null;
-  }, [ratings, optimistic]);
+  }, [courseId, real, optimistic]);
 
-  const applyOptimistic = useCallback((teacherId: string, rating: number) => {
-    setOptimistic((prev) => new Map(prev).set(teacherId, rating));
+  const applyOptimistic = useCallback(
+    (teacherId: string, rating: number) => {
+      if (courseId) storeApplyOptimistic(courseId, teacherId, rating);
+    },
+    [courseId]
+  );
+
+  const refresh = useCallback(async (cid: string) => {
+    await fetchAndSet(cid);
   }, []);
 
-  const refresh = useCallback(async (courseId: string) => {
-    const res = await fetch(`/api/ratings?courseId=${courseId}`);
-    const data: TeacherRating[] = await res.json();
-    const map = new Map<string, TeacherRating>();
-    for (const r of data) map.set(r.teacher_id, r);
-    setRatings(map);
-    // Only clear optimistic values confirmed by server
-    setOptimistic((prev) => {
-      if (prev.size === 0) return prev;
-      const next = new Map(prev);
-      for (const [tid, val] of prev) {
-        const server = map.get(tid);
-        if (server && Math.abs(server.avg_rating - val) < 0.01) next.delete(tid);
-      }
-      return next;
-    });
-  }, []);
+  const loading = courseId ? !fetchedCourses.has(courseId) : false;
 
-  return { ratings, loading, getAvg, getCourseAvg, applyOptimistic, refresh };
+  return { loading, getAvg, getCourseAvg, applyOptimistic, refresh };
 }

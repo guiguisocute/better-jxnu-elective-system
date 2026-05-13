@@ -20,12 +20,11 @@ function GithubIcon() {
 
 export function HomePage() {
   const { courses, loading, error, allDepts, allCredits, courseTypes, subTags } = useCourseData();
-  const filter = useCourseFilter(courses);
   const { getCourseAvg } = useAllRatings();
+  const filter = useCourseFilter(courses, getCourseAvg);
   const [selected, setSelected] = useState<Course | null>(null);
   const [mobileCourse, setMobileCourse] = useState<Course | null>(null);
   const closingRef = useRef(false);
-  const [ratingSortAsc, setRatingSortAsc] = useState<boolean | null>(null);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const [headerH, setHeaderH] = useState(0);
@@ -206,7 +205,7 @@ export function HomePage() {
               href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 mt-6 py-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors text-xs"
+              className="flex items-center justify-center gap-1.5 mt-6 py-3 text-gray-300 hover:text-gray-500 transition-colors text-xs"
             >
               <GithubIcon />
               <span>GitHub</span>
@@ -257,7 +256,7 @@ export function HomePage() {
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-6 py-3 border-t border-gray-100 text-gray-300 hover:text-gray-500 transition-colors text-xs shrink-0"
+            className="flex items-center justify-center gap-1.5 px-6 py-3 text-gray-300 hover:text-gray-500 transition-colors text-xs shrink-0"
           >
             <GithubIcon />
             <span>GitHub</span>
@@ -272,8 +271,8 @@ export function HomePage() {
             onSelect={handleSelect}
             sortAsc={filter.sortAsc}
             setSortAsc={filter.setSortAsc}
-            ratingSortAsc={ratingSortAsc}
-            setRatingSortAsc={setRatingSortAsc}
+            ratingSortAsc={filter.ratingSortAsc}
+            setRatingSortAsc={filter.setRatingSortAsc}
             stickyTop={stickyTop}
             getCourseAvg={getCourseAvg}
           />
