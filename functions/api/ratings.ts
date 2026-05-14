@@ -4,6 +4,7 @@ interface Env {
 
 // GET /api/ratings?courseId=xxx — get average ratings for all teachers of a course
 // POST /api/ratings — submit a rating { courseId, teacherId, rating, voterId }
+// DELETE /api/ratings — delete a rating { courseId, teacherId, voterId }
 
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
@@ -20,7 +21,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     ).bind(courseId).all();
 
     return Response.json(results, {
-      headers: { "Cache-Control": "public, max-age=60" },
+      headers: { "Cache-Control": "no-cache" },
     });
   }
 
@@ -52,6 +53,39 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       ).bind(teacherId, courseId).first<{ avg_rating: number; count: number }>();
 
       return Response.json({ ok: true, avgRating: avg?.avg_rating ?? rating, count: avg?.count ?? 1 });
+    } catch {
+      return Response.json({ error: "database error" }, { status: 500 });
+    }
+  }
+
+  if (request.method === "DELETE") {
+    const body = await request.json<{
+      courseId: string;
+      teacherId: string;
+      voterId: string;
+    }>();
+
+    const { courseId, teacherId, voterId } = body;
+
+    if (!courseId || !teacherId || !voterId) {
+      return Response.json({ error: "missing fields" }, { status: 400 });
+    }
+
+    try {
+      await env.DB.prepare(
+        "DELETE FROM ratings WHERE course_id = ? AND teacher_id = ? AND voter_id = ?"
+      ).bind(courseId, teacherId, voterId).run();
+
+      // Return updated average for this teacher (may be null if no ratings left)
+      const avg = await env.DB.prepare(
+        "SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM ratings WHERE teacher_id = ? AND course_id = ?"
+      ).bind(teacherId, courseId).first<{ avg_rating: number | null; count: number }>();
+
+      return Response.json({
+        ok: true,
+        avgRating: avg?.avg_rating ?? null,
+        count: avg?.count ?? 0,
+      });
     } catch {
       return Response.json({ error: "database error" }, { status: 500 });
     }

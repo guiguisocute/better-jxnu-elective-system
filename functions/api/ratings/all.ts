@@ -17,6 +17,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   return Response.json(grouped, {
-    headers: { "Cache-Control": "public, max-age=30" },
+    headers: { "Cache-Control": "no-cache" },
   });
 };

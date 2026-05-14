@@ -49,13 +49,13 @@ export function setReal(courseId: string, data: TeacherRating[]) {
 }
 
 export async function fetchAndSet(courseId: string) {
-  const res = await fetch(`/api/ratings?courseId=${courseId}`);
+  const res = await fetch(`/api/ratings?courseId=${courseId}`, { cache: "no-cache" });
   const data: TeacherRating[] = await res.json();
   setReal(courseId, data);
 }
 
 export async function fetchAllAndSet() {
-  const res = await fetch("/api/ratings/all");
+  const res = await fetch("/api/ratings/all", { cache: "no-cache" });
   const all: CourseRatings = await res.json();
   for (const [cid, teachers] of Object.entries(all)) {
     const data: TeacherRating[] = Object.entries(teachers).map(([tid, v]) => ({
@@ -65,4 +65,41 @@ export async function fetchAllAndSet() {
     }));
     setReal(cid, data);
   }
+}
+
+/** Check if the current voter has already rated a specific teacher for a specific course */
+export async function checkMyRating(
+  courseId: string,
+  teacherId: string,
+  voterId: string
+): Promise<{ rated: boolean; rating: number | null }> {
+  const res = await fetch(
+    `/api/ratings/check?courseId=${encodeURIComponent(courseId)}&teacherId=${encodeURIComponent(teacherId)}&voterId=${encodeURIComponent(voterId)}`,
+    { cache: "no-cache" }
+  );
+  return res.json();
+}
+
+/** Remove optimistic state for a specific teacher */
+export function removeOptimistic(courseId: string, teacherId: string) {
+  const opt = optimistic.get(courseId);
+  if (opt) {
+    opt.delete(teacherId);
+    if (opt.size === 0) optimistic.delete(courseId);
+  }
+  notify();
+}
+
+/** Delete the current voter's rating for a specific teacher/course */
+export async function deleteMyRating(
+  courseId: string,
+  teacherId: string,
+  voterId: string
+): Promise<{ ok: boolean }> {
+  const res = await fetch("/api/ratings", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ courseId, teacherId, voterId }),
+  });
+  return res.json();
 }

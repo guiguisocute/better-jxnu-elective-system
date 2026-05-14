@@ -7,9 +7,9 @@ import {
   fetchAllAndSet,
 } from "../lib/ratingsStore";
 
-// Shared cache to deduplicate initial fetch
-const fetchedCourses = new Set<string>();
-let allFetched = false;
+// Track in-flight fetches to avoid duplicate concurrent requests (but allow re-fetches)
+const fetchingCourses = new Set<string>();
+let fetchingAll = false;
 
 function useRatingsStore(courseId?: string) {
   const [data, setData] = useState(() => getSnapshot());
@@ -21,9 +21,11 @@ function useRatingsStore(courseId?: string) {
 
   useEffect(() => {
     if (!courseId) return;
-    if (fetchedCourses.has(courseId)) return;
-    fetchedCourses.add(courseId);
-    fetchAndSet(courseId);
+    if (fetchingCourses.has(courseId)) return;
+    fetchingCourses.add(courseId);
+    fetchAndSet(courseId).finally(() => {
+      fetchingCourses.delete(courseId);
+    });
   }, [courseId]);
 
   return data;
@@ -33,9 +35,11 @@ export function useAllRatings() {
   const { real, optimistic } = useRatingsStore();
 
   useEffect(() => {
-    if (allFetched) return;
-    allFetched = true;
-    fetchAllAndSet();
+    if (fetchingAll) return;
+    fetchingAll = true;
+    fetchAllAndSet().finally(() => {
+      fetchingAll = false;
+    });
   }, []);
 
   const getCourseAvg = useCallback(
@@ -132,7 +136,5 @@ export function useRatings(courseId: string | undefined) {
     await fetchAndSet(cid);
   }, []);
 
-  const loading = courseId ? !fetchedCourses.has(courseId) : false;
-
-  return { loading, getAvg, getCourseAvg, applyOptimistic, refresh };
+  return { loading: false, getAvg, getCourseAvg, applyOptimistic, refresh };
 }

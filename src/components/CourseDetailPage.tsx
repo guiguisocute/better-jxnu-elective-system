@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
 import { useRatings } from "../hooks/useRatings";
 import { getVoterId } from "../lib/voter";
+import { checkMyRating, deleteMyRating, removeOptimistic } from "../lib/ratingsStore";
 import { TagBadge } from "./TagBadge";
 import { StarRating } from "./StarRating";
 import { StarRatingInput } from "./StarRatingInput";
@@ -15,12 +16,29 @@ export function CourseDetailPage() {
   const { getAvg, applyOptimistic, refresh } = useRatings(id);
   const [ratingTarget, setRatingTarget] = useState<{ teacherId: string; name: string; rating: number } | null>(null);
   const [showModal, setShowModal] = useState(false);
+  // Track which teachers the current user has already rated
+  const [myRatings, setMyRatings] = useState<Record<string, number>>({});
 
   const course = courses.find((c) => c.id === id);
+
+  // On mount/course change, check which teachers the current user has already rated
+  useEffect(() => {
+    if (!course || !id) return;
+    const voterId = getVoterId();
+    for (const t of course.teachers) {
+      checkMyRating(id, t.id, voterId).then((result) => {
+        if (result.rated && result.rating !== null) {
+          setMyRatings((prev) => ({ ...prev, [t.id]: result.rating! }));
+        }
+      });
+    }
+  }, [id, course]);
 
   const handleSubmit = () => {
     if (!ratingTarget || !id) return;
     applyOptimistic(ratingTarget.teacherId, ratingTarget.rating);
+    // Mark as my rating locally
+    setMyRatings((prev) => ({ ...prev, [ratingTarget.teacherId]: ratingTarget.rating }));
     setRatingTarget(null);
     setShowModal(false);
     fetch("/api/ratings", {
@@ -33,6 +51,23 @@ export function CourseDetailPage() {
         voterId: getVoterId(),
       }),
     }).then(() => refresh(id)).catch(() => {});
+  };
+
+  const handleDelete = (teacherId: string) => {
+    if (!id) return;
+    const voterId = getVoterId();
+    // Remove from local state immediately
+    removeOptimistic(id, teacherId);
+    setMyRatings((prev) => {
+      const next = { ...prev };
+      delete next[teacherId];
+      return next;
+    });
+    setRatingTarget(null);
+    // Send delete request to server
+    deleteMyRating(id, teacherId, voterId)
+      .then(() => refresh(id))
+      .catch(() => {});
   };
 
   if (loading) {
@@ -133,6 +168,7 @@ export function CourseDetailPage() {
               {course.teachers.map((t, i) => {
                 const avg = getAvg(t.id);
                 const isRating = ratingTarget?.teacherId === t.id;
+                const hasMyRating = t.id in myRatings;
                 return (
                   <div key={i} className="bg-gray-50 rounded-xl px-4 py-3">
                     <div className="flex items-center gap-3.5">
@@ -149,14 +185,14 @@ export function CourseDetailPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => setRatingTarget(isRating ? null : { teacherId: t.id, name: t.name, rating: 0 })}
+                        onClick={() => setRatingTarget(isRating ? null : { teacherId: t.id, name: t.name, rating: hasMyRating ? myRatings[t.id] : 0 })}
                         className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors self-center"
                         style={{
-                          backgroundColor: isRating ? "#FEE2E2" : avg ? "#FEF3C7" : "#FEE2E2",
-                          color: isRating ? "#DC2626" : avg ? "#D97706" : "#DC2626",
+                          backgroundColor: isRating ? "#FEE2E2" : hasMyRating ? "#FEF3C7" : "#FEE2E2",
+                          color: isRating ? "#DC2626" : hasMyRating ? "#D97706" : "#DC2626",
                         }}
                       >
-                        {isRating ? "收起" : avg ? "修改评分" : "评分"}
+                        {isRating ? "收起" : hasMyRating ? "修改评分" : "评分"}
                       </button>
                     </div>
                     <div className="flex items-center mt-2 pl-[52px]">
@@ -175,6 +211,14 @@ export function CourseDetailPage() {
                           >
                             取消
                           </button>
+                          {hasMyRating && (
+                            <button
+                              onClick={() => handleDelete(t.id)}
+                              className="flex-1 py-2 rounded-lg border border-red-200 text-xs text-red-500 font-medium hover:bg-red-50 transition-colors"
+                            >
+                              撤销评分
+                            </button>
+                          )}
                           <button
                             onClick={() => ratingTarget.rating > 0 && setShowModal(true)}
                             disabled={ratingTarget.rating === 0}
@@ -217,7 +261,7 @@ export function CourseDetailPage() {
         open={showModal}
         teacherName={ratingTarget?.name ?? ""}
         rating={ratingTarget?.rating ?? 0}
-        existingRating={ratingTarget ? (getAvg(ratingTarget.teacherId)?.avg_rating ?? null) : null}
+        existingRating={ratingTarget ? (myRatings[ratingTarget.teacherId] ?? null) : null}
         onConfirm={handleSubmit}
         onCancel={() => setShowModal(false)}
       />
