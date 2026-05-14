@@ -27,11 +27,28 @@ const NATURE_TAGS = new Set<string>([
   "教师教育选修",
 ]);
 
+/** 该课程是否出现在所选培养方案里。 */
+export function isInPlan(course: Course, selectedPlan: string): boolean {
+  if (!selectedPlan) return false;
+  return matchedPlans(course, selectedPlan).length > 0;
+}
+
 /**
- * 选中培养方案后，对一行课程要显示的 tag 做裁剪。
- * - 通用类型 tag (公选课/公共必修课/专业课/教师教育课程/公选课-XXX) 保留
+ * 是否符合「任意选修」语义：不在本方案 + 非公选课。
+ * 仅在 plan 选中时有意义。
+ */
+export function isAnyElective(course: Course, selectedPlan: string): boolean {
+  if (!selectedPlan) return false;
+  if (isInPlan(course, selectedPlan)) return false;
+  return !course.tags.some((t) => t === "公选课" || t.startsWith("公选课-"));
+}
+
+/**
+ * 选中培养方案后，对一行课程要显示的 tag 做裁剪 + 增补。
+ * - 通用类型 tag (公选课/公共必修课/教师教育课程/公选课-XXX) 保留
  * - nature tag 仅当该课程在所选方案下实际是这个性质时保留
  * - "学位课" 徽章仅当所选方案下命中且 isDegree=true 时保留
+ * - 若课程符合「任意选修」语义，注入一个虚拟 "任意选修" tag（紧跟通用 tag 之后）
  *
  * 不会修改入参，返回新数组。
  */
@@ -40,15 +57,13 @@ export function displayTags(course: Course, selectedPlan: string): string[] {
   const matched = matchedPlans(course, selectedPlan);
   const matchedNatures = new Set(matched.map((p) => p.nature).filter(Boolean));
   const anyDegree = matched.some((p) => p.isDegree);
-  return course.tags.filter((t) => {
+  const kept = course.tags.filter((t) => {
     if (NATURE_TAGS.has(t)) return matchedNatures.has(t);
     if (t === "学位课") return anyDegree;
     return true;
   });
-}
-
-/** 该课程是否出现在所选培养方案里。 */
-export function isInPlan(course: Course, selectedPlan: string): boolean {
-  if (!selectedPlan) return false;
-  return matchedPlans(course, selectedPlan).length > 0;
+  if (isAnyElective(course, selectedPlan)) {
+    kept.push("任意选修");
+  }
+  return kept;
 }

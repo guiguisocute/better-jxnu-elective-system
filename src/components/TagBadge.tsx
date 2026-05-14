@@ -18,6 +18,7 @@ const TAG_COLORS: Record<string, string> = {
   "通识选修": "text-teal-600 border-teal-200 bg-teal-50/50",
   "集中实践": "text-orange-600 border-orange-200 bg-orange-50/50",
   "学位课": "text-red-600 border-red-300 bg-red-50/60 font-bold",
+  "任意选修": "text-indigo-600 border-indigo-300 bg-indigo-50/60 border-dashed",
 };
 
 export function TagBadge({ tag }: { tag: string }) {

@@ -43,6 +43,9 @@ export function useCourseData() {
     "专业任选",
     "专业类基础",
     "大学英语特色课",
+    // 「任意选修」是虚拟类型：依赖选中培养方案，含义=不在本方案 + 非公选课，
+    // 即"别人专业的课，可作为我的任选"。FilterBar 中无 plan 时按钮变灰禁用。
+    "任意选修",
   ];
   const subTags = allTags.filter((t) => !courseTypes.includes(t));
 

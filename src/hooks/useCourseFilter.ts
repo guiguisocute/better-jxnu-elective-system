@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import type { Course, Filters } from "../types";
-import { displayTags, isInPlan } from "../lib/planMatch";
+import { displayTags, isInPlan, isAnyElective } from "../lib/planMatch";
 
 const STORAGE_KEY = "jxnu_filters";
 
@@ -155,17 +155,17 @@ export function useCourseFilter(courses: Course[], getCourseAvg?: (courseId: str
       ? (c: Course) => displayTags(c, filters.plan)
       : (c: Course) => c.tags;
 
+    // 「任意选修」是虚拟类型：复用 planMatch.isAnyElective —— 与表格 tag 注入逻辑保持一致。
+    const matchesType = (c: Course, t: string): boolean => {
+      if (t === "任意选修") return isAnyElective(c, filters.plan);
+      return tagsOf(c).includes(t);
+    };
+
     if (filters.type.length > 0) {
-      result = result.filter((c) => {
-        const tags = tagsOf(c);
-        return filters.type.some((t) => tags.includes(t));
-      });
+      result = result.filter((c) => filters.type.some((t) => matchesType(c, t)));
     }
     if (filters.typeExclude.length > 0) {
-      result = result.filter((c) => {
-        const tags = tagsOf(c);
-        return !filters.typeExclude.some((t) => tags.includes(t));
-      });
+      result = result.filter((c) => !filters.typeExclude.some((t) => matchesType(c, t)));
     }
     if (filters.tag.length > 0) {
       result = result.filter((c) => {

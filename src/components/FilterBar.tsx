@@ -1,5 +1,10 @@
+import { useState } from "react";
 import type { Filters } from "../types";
 import { PlanSelector } from "./PlanSelector";
+
+const ANY_ELECTIVE = "任意选修";
+const ANY_ELECTIVE_HINT_ENABLED = "除本方案外可作为任选的课程（不含公选课）";
+const ANY_ELECTIVE_HINT_DISABLED = "需先选择培养方案才能启用";
 
 interface Props {
   filters: Filters;
@@ -23,6 +28,19 @@ export function FilterBar({
   clearAll, hasActiveFilters,
   allDepts, allCredits, allPlans, courseTypes, subTags,
 }: Props) {
+  // 「任意选修」在 plan 为空时禁用，点击时短暂显示内联提示
+  const [anyHint, setAnyHint] = useState(false);
+  const planActive = !!filters.plan;
+
+  const handleAnyElectiveClick = () => {
+    if (!planActive) {
+      setAnyHint(true);
+      window.setTimeout(() => setAnyHint(false), 2500);
+      return;
+    }
+    cycleType(ANY_ELECTIVE);
+  };
+
   return (
     <div className="space-y-6">
       <FilterSection label="培养方案">
@@ -30,8 +48,16 @@ export function FilterBar({
           value={filters.plan}
           onChange={(v) => {
             updateFilter("plan", v);
-            // 清空 plan 时同步复位 planFilter
-            if (!v) updateFilter("planFilter", "none");
+            // 清空 plan 时复位相关派生筛选项
+            if (!v) {
+              updateFilter("planFilter", "none");
+              if (filters.type.includes(ANY_ELECTIVE)) {
+                updateFilter("type", filters.type.filter((x) => x !== ANY_ELECTIVE));
+              }
+              if (filters.typeExclude.includes(ANY_ELECTIVE)) {
+                updateFilter("typeExclude", filters.typeExclude.filter((x) => x !== ANY_ELECTIVE));
+              }
+            }
           }}
           options={allPlans}
         />
@@ -42,14 +68,34 @@ export function FilterBar({
 
       <FilterSection label="课程类型">
         <div className="flex flex-wrap gap-1.5">
-          {courseTypes.map((t) => (
-            <FilterBtn
-              key={t}
-              state={filters.type.includes(t) ? "include" : filters.typeExclude.includes(t) ? "exclude" : "none"}
-              onClick={() => cycleType(t)}
-            >{t}</FilterBtn>
-          ))}
+          {courseTypes.map((t) => {
+            if (t === ANY_ELECTIVE) {
+              return (
+                <FilterBtn
+                  key={t}
+                  state={filters.type.includes(t) ? "include" : filters.typeExclude.includes(t) ? "exclude" : "none"}
+                  onClick={handleAnyElectiveClick}
+                  disabled={!planActive}
+                  title={planActive ? ANY_ELECTIVE_HINT_ENABLED : ANY_ELECTIVE_HINT_DISABLED}
+                >
+                  {t}
+                </FilterBtn>
+              );
+            }
+            return (
+              <FilterBtn
+                key={t}
+                state={filters.type.includes(t) ? "include" : filters.typeExclude.includes(t) ? "exclude" : "none"}
+                onClick={() => cycleType(t)}
+              >{t}</FilterBtn>
+            );
+          })}
         </div>
+        {anyHint && (
+          <p className="mt-2 text-[11px] text-indigo-500 leading-relaxed">
+            「任意选修」需先在上方选择培养方案
+          </p>
+        )}
       </FilterSection>
 
       <FilterSection label="学分">
@@ -149,13 +195,19 @@ function PlanFilterTriState({ state, onClick }: { state: "none" | "include" | "e
   );
 }
 
-function FilterBtn({ state, onClick, children }: {
+function FilterBtn({ state, onClick, children, disabled = false, title }: {
   state: "none" | "include" | "exclude";
   onClick: () => void;
   children: React.ReactNode;
+  disabled?: boolean;
+  title?: string;
 }) {
   let cls: string;
-  if (state === "include") {
+  if (disabled) {
+    // 灰色禁用态：与 exclude 区分（exclude 是深灰加删除线表"主动排除"，
+    // disabled 是浅灰半透明表"不可用"）
+    cls = "bg-gray-50 text-gray-300 border border-gray-200 opacity-70 cursor-not-allowed";
+  } else if (state === "include") {
     cls = "bg-red-500 text-white shadow-sm shadow-red-200";
   } else if (state === "exclude") {
     cls = "bg-gray-200 text-gray-400 border border-gray-300 line-through decoration-gray-400";
@@ -166,7 +218,9 @@ function FilterBtn({ state, onClick, children }: {
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[32px] select-none cursor-pointer ${cls}`}
+      title={title}
+      aria-disabled={disabled || undefined}
+      className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[32px] select-none ${cls}`}
     >
       {children}
     </button>
