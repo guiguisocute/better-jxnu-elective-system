@@ -124,8 +124,8 @@ export function HomePage() {
         </div>
 
         {/* Layer 2: White search bar */}
-        <div className="bg-white border-b border-gray-100 shadow-sm">
-          <div className="max-w-[2000px] mx-auto px-6 py-3 flex items-center gap-4">
+        <div className="bg-[#F8F9FA] md:bg-white md:border-b md:border-gray-100 md:shadow-sm">
+          <div className="max-w-[2000px] mx-auto px-4 md:px-6 py-2 md:py-3 flex items-center gap-4">
             {/* Desktop search - centered */}
             <div className="hidden md:flex flex-1 justify-center">
               <div className="relative w-full max-w-3xl">
@@ -229,7 +229,7 @@ export function HomePage() {
       </div>
 
       {/* Main layout */}
-      <div className="max-w-[2000px] mx-auto flex px-3 md:px-6 pt-5 gap-5">
+      <div className="max-w-[2000px] mx-auto flex px-3 md:px-6 pt-2 md:pt-5 gap-5">
         {/* Desktop left sidebar */}
         <aside
           className="hidden md:block w-[340px] shrink-0 overflow-y-auto rounded-t-2xl bg-white border border-gray-100 shadow-sm"
@@ -278,7 +278,14 @@ export function HomePage() {
           <Pagination
             page={filter.page}
             totalPages={filter.totalPages}
-            onPageChange={filter.setPage}
+            onPageChange={(p) => {
+              filter.setPage(p);
+              if (window.innerWidth < 768) {
+                setTimeout(() => {
+                  window.scrollTo({ top: 0, behavior: "auto" });
+                }, 0);
+              }
+            }}
           />
         </main>
 

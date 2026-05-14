@@ -8,6 +8,36 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- 移动端调试：LAN/IP 访问时显示错误叠层 + 加载 eruda 控制台。localhost 不启用，不影响 prod。 -->
+    <script>
+      (function () {
+        var host = window.location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return;
+        // DOM 错误兜底显示（即使 eruda 加载失败也能看到错误）
+        function showErr(msg) {
+          var el = document.getElementById('__mobile_err') || (function () {
+            var d = document.createElement('pre');
+            d.id = '__mobile_err';
+            d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fee;color:#900;font:11px/1.4 monospace;padding:8px;z-index:99999;max-height:50vh;overflow:auto;white-space:pre-wrap;border-bottom:2px solid #900';
+            document.body.appendChild(d);
+            return d;
+          })();
+          el.textContent += msg + '\n\n';
+        }
+        window.addEventListener('error', function (e) {
+          showErr('[error] ' + (e.message || 'unknown') + '\nat ' + (e.filename || '?') + ':' + (e.lineno || '?'));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          showErr('[promise] ' + (e.reason && (e.reason.stack || e.reason.message || e.reason)));
+        });
+        // 注入 eruda 移动控制台
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+        s.onload = function () { try { window.eruda && window.eruda.init(); } catch (e) {} };
+        s.onerror = function () { showErr('[eruda 加载失败] 检查网络'); };
+        document.head.appendChild(s);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -10,6 +10,7 @@ body {
 
 header.sticky::after {
   content: "";
+  display: none;
   position: absolute;
   left: 0;
   right: 0;
@@ -25,4 +26,10 @@ header.sticky::after {
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   z-index: 39;
   pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  header.sticky::after {
+    display: block;
+  }
 }
