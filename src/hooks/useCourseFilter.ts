@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import type { Course, Filters } from "../types";
+import { displayTags, isInPlan } from "../lib/planMatch";
 
 const STORAGE_KEY = "jxnu_filters";
 
@@ -13,7 +14,8 @@ const EMPTY_FILTERS: Filters = {
   typeExclude: [],
   tag: [],
   tagExclude: [],
-  teacher: "",
+  plan: "",
+  planFilter: "none",
 };
 
 function loadSaved(): { filters: Filters; page: number; sortAsc: boolean } {
@@ -98,6 +100,15 @@ export function useCourseFilter(courses: Course[], getCourseAvg?: (courseId: str
     setPage(1);
   }, []);
 
+  const cyclePlanFilter = useCallback(() => {
+    setFilters((prev) => {
+      const next: Filters["planFilter"] =
+        prev.planFilter === "none" ? "include" : prev.planFilter === "include" ? "exclude" : "none";
+      return { ...prev, planFilter: next };
+    });
+    setPage(1);
+  }, []);
+
   const cycleTag = useCallback((tag: string) => {
     setFilters((prev) => {
       const included = prev.tag.includes(tag);
@@ -138,23 +149,46 @@ export function useCourseFilter(courses: Course[], getCourseAvg?: (courseId: str
     if (filters.deptExclude.length > 0) {
       result = result.filter((c) => !filters.deptExclude.includes(c.dept));
     }
+    // 选中培养方案时，tag/type 过滤必须基于「该课程在本方案下的有效 tag」，
+    // 否则筛"专业限选"会撞到别的专业的限选课。
+    const tagsOf = filters.plan
+      ? (c: Course) => displayTags(c, filters.plan)
+      : (c: Course) => c.tags;
+
     if (filters.type.length > 0) {
-      result = result.filter((c) => filters.type.some((t) => c.tags.includes(t)));
+      result = result.filter((c) => {
+        const tags = tagsOf(c);
+        return filters.type.some((t) => tags.includes(t));
+      });
     }
     if (filters.typeExclude.length > 0) {
-      result = result.filter((c) => !filters.typeExclude.some((t) => c.tags.includes(t)));
+      result = result.filter((c) => {
+        const tags = tagsOf(c);
+        return !filters.typeExclude.some((t) => tags.includes(t));
+      });
     }
     if (filters.tag.length > 0) {
-      result = result.filter((c) => filters.tag.some((t) => c.tags.includes(t)));
+      result = result.filter((c) => {
+        const tags = tagsOf(c);
+        return filters.tag.some((t) => tags.includes(t));
+      });
     }
     if (filters.tagExclude.length > 0) {
-      result = result.filter((c) => !filters.tagExclude.some((t) => c.tags.includes(t)));
+      result = result.filter((c) => {
+        const tags = tagsOf(c);
+        return !filters.tagExclude.some((t) => tags.includes(t));
+      });
     }
-    if (filters.teacher) {
-      const t = filters.teacher.toLowerCase();
-      result = result.filter((c) =>
-        c.teachers.some((tc) => tc.name.toLowerCase().includes(t))
-      );
+    // 培养方案默认仅软过滤（通过 tagsOf 影响 tag/type 过滤 + CourseTable 高亮）。
+    // planFilter 升级为三态硬过滤：
+    //   include → 只看本方案的课程
+    //   exclude → 只看**不**在本方案里的课程
+    if (filters.plan) {
+      if (filters.planFilter === "include") {
+        result = result.filter((c) => isInPlan(c, filters.plan));
+      } else if (filters.planFilter === "exclude") {
+        result = result.filter((c) => !isInPlan(c, filters.plan));
+      }
     }
 
     result = [...result].sort((a, b) => {
@@ -184,7 +218,7 @@ export function useCourseFilter(courses: Course[], getCourseAvg?: (courseId: str
     filters.typeExclude.length > 0 ||
     filters.tag.length > 0 ||
     filters.tagExclude.length > 0 ||
-    filters.teacher !== "";
+    filters.plan !== "";
 
   return {
     filters,
@@ -193,6 +227,7 @@ export function useCourseFilter(courses: Course[], getCourseAvg?: (courseId: str
     cycleDept,
     cycleType,
     cycleTag,
+    cyclePlanFilter,
     clearAll,
     filtered,
     paginated,

@@ -25,10 +25,18 @@ export function useCourseData() {
   const allDepts = [...new Set(courses.map((c) => c.dept).filter(Boolean))].sort();
   const allCredits = [...new Set(courses.map((c) => c.credits))].filter((c) => c > 0).sort((a, b) => a - b);
   const allTags = [...new Set(courses.flatMap((c) => c.tags))].sort();
+  const allPlans = [...new Set(
+    courses.flatMap((c) => c.plans.map((p) => `${p.year}级-${p.major}`))
+  )].sort((a, b) => {
+    // 年级倒序（2025 在前），同年级按专业名升序。年级是前 4 位数字。
+    const ya = a.slice(0, 4);
+    const yb = b.slice(0, 4);
+    if (ya !== yb) return yb.localeCompare(ya);
+    return a.localeCompare(b);
+  });
   const courseTypes = [
     "公选课",
     "公共必修课",
-    "专业课",
     "教师教育课程",
     "专业主干",
     "专业限选",
@@ -38,5 +46,5 @@ export function useCourseData() {
   ];
   const subTags = allTags.filter((t) => !courseTypes.includes(t));
 
-  return { courses, loading, error, allDepts, allCredits, allTags, courseTypes, subTags };
+  return { courses, loading, error, allDepts, allCredits, allTags, allPlans, courseTypes, subTags };
 }

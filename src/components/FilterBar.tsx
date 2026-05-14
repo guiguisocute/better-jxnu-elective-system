@@ -1,4 +1,5 @@
 import type { Filters } from "../types";
+import { PlanSelector } from "./PlanSelector";
 
 interface Props {
   filters: Filters;
@@ -7,21 +8,38 @@ interface Props {
   cycleDept: (dept: string) => void;
   cycleType: (type: string) => void;
   cycleTag: (tag: string) => void;
+  cyclePlanFilter: () => void;
   clearAll: () => void;
   hasActiveFilters: boolean;
   allDepts: string[];
   allCredits: number[];
+  allPlans: string[];
   courseTypes: string[];
   subTags: string[];
 }
 
 export function FilterBar({
-  filters, updateFilter, cycleCredit, cycleDept, cycleType, cycleTag,
+  filters, updateFilter, cycleCredit, cycleDept, cycleType, cycleTag, cyclePlanFilter,
   clearAll, hasActiveFilters,
-  allDepts, allCredits, courseTypes, subTags,
+  allDepts, allCredits, allPlans, courseTypes, subTags,
 }: Props) {
   return (
     <div className="space-y-6">
+      <FilterSection label="培养方案">
+        <PlanSelector
+          value={filters.plan}
+          onChange={(v) => {
+            updateFilter("plan", v);
+            // 清空 plan 时同步复位 planFilter
+            if (!v) updateFilter("planFilter", "none");
+          }}
+          options={allPlans}
+        />
+        {filters.plan && (
+          <PlanFilterTriState state={filters.planFilter} onClick={cyclePlanFilter} />
+        )}
+      </FilterSection>
+
       <FilterSection label="课程类型">
         <div className="flex flex-wrap gap-1.5">
           {courseTypes.map((t) => (
@@ -72,16 +90,6 @@ export function FilterBar({
         </FilterSection>
       )}
 
-      <FilterSection label="教师姓名">
-        <input
-          type="text"
-          value={filters.teacher}
-          onChange={(e) => updateFilter("teacher", e.target.value)}
-          placeholder="输入姓名搜索"
-          className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:bg-white focus:border-red-300 focus:ring-2 focus:ring-red-50 transition-all"
-        />
-      </FilterSection>
-
       {hasActiveFilters && (
         <button
           onClick={clearAll}
@@ -100,6 +108,44 @@ function FilterSection({ label, children }: { label: string; children: React.Rea
       <div className="text-[11px] text-gray-500 font-medium mb-2.5 uppercase tracking-wider">{label}</div>
       {children}
     </div>
+  );
+}
+
+function PlanFilterTriState({ state, onClick }: { state: "none" | "include" | "exclude"; onClick: () => void }) {
+  // 三态按钮：默认 → 仅本方案 → 排除本方案 → 默认
+  const conf = {
+    none: {
+      cls: "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300",
+      label: "仅查看本方案课程",
+      hint: "未启用",
+    },
+    include: {
+      cls: "bg-indigo-500 text-white border-indigo-500 shadow-sm shadow-indigo-200",
+      label: "仅查看本方案课程",
+      hint: "已启用",
+    },
+    exclude: {
+      cls: "bg-gray-200 text-gray-500 border-gray-300 line-through decoration-gray-400",
+      label: "仅查看本方案课程",
+      hint: "排除本方案",
+    },
+  }[state];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={state === "include"}
+      title={`点击循环：未启用 → 仅本方案 → 排除本方案`}
+      className={`mt-2 w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all select-none cursor-pointer min-h-[36px] ${conf.cls}`}
+    >
+      <span>{conf.label}</span>
+      <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider ${
+        state === "include" ? "text-white/80" : state === "exclude" ? "text-gray-500 no-underline" : "text-indigo-400"
+      }`} style={state === "exclude" ? { textDecoration: "none" } : undefined}>
+        {conf.hint}
+      </span>
+    </button>
   );
 }
 

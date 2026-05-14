@@ -4,13 +4,9 @@ import os
 from collections import defaultdict, Counter
 
 COURSE_FILE = "JXNU课程数据_2026-05-13.json"
-SCHEDULE_FILE = "JXNU开课安排_2026-05-13.json"
 TRAIN_PLAN_FILE = "jxnu_jxjh_v5_35847.json"
 OUTPUT_DIR = "public"
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "courses.json")
-
-# 匹配 "2x级xxx班" 模式，如 "23级电子商务（跨境电商方向）班"
-MAJOR_CLASS_RE = re.compile(r"^2\d级.+班$")
 
 # 培养方案课程性质归一化（统一为原 JSON 已有的命名）
 NATURE_NORMALIZE = {
@@ -38,12 +34,10 @@ def build_search(course: dict) -> str:
 def main():
     with open(COURSE_FILE, encoding="utf-8") as f:
         raw_courses = json.load(f)
-    with open(SCHEDULE_FILE, encoding="utf-8") as f:
-        raw_schedules = json.load(f)
     with open(TRAIN_PLAN_FILE, encoding="utf-8") as f:
         raw_plans = json.load(f)
 
-    print(f"Loaded {len(raw_courses)} courses, {len(raw_schedules)} schedule entries, {len(raw_plans)} plan entries")
+    print(f"Loaded {len(raw_courses)} courses, {len(raw_plans)} plan entries")
 
     # 按课程号聚合培养方案
     plans_by_id = defaultdict(list)
@@ -69,37 +63,19 @@ def main():
         if is_degree:
             degree_ids.add(cid)
 
-    # 用开课安排判定专业课：课程号必须在两个JSON都出现，且班级名称匹配 "2x级xxx班"
-    schedule_ids = set(s["课程号"] for s in raw_schedules)
-    major_course_ids = set()
-    for s in raw_schedules:
-        if MAJOR_CLASS_RE.match(s.get("班级名称", "")):
-            major_course_ids.add(s["课程号"])
-
-    course_ids = set(c["课程号"] for c in raw_courses)
-    # 专业课 = 两个JSON都有 且 开课安排中有"2x级xxx班"的班级
-    major_course_ids = major_course_ids & course_ids
-
-    print(f"  Schedule unique course IDs: {len(schedule_ids)}")
-    print(f"  Overlap with course data: {len(schedule_ids & course_ids)}")
-    print(f"  Major courses (by class name pattern): {len(major_course_ids)}")
-
     courses = []
     for c in raw_courses:
         cid = c["课程号"]
 
         tags = [t for t in c.get("标签", []) if t != "关键字搜索"]
 
-        # 标签判定
+        # 通用标签判定（基于课程号前缀；以前的「专业课」推断已废弃，由培养方案 nature 标签取代）
         if cid.startswith("00"):
             if "公选课" not in tags:
                 tags.insert(0, "公选课")
         elif re.match(r"^0[2-7]", cid):
             if "公共必修课" not in tags:
                 tags.insert(0, "公共必修课")
-        elif cid in major_course_ids:
-            if "专业课" not in tags:
-                tags.insert(0, "专业课")
 
         # 培养方案课程性质 tags（去重 append）
         for n in sorted(natures_by_id.get(cid, set())):

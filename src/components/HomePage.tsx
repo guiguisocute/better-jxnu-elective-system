@@ -19,7 +19,7 @@ function GithubIcon() {
 }
 
 export function HomePage() {
-  const { courses, loading, error, allDepts, allCredits, courseTypes, subTags } = useCourseData();
+  const { courses, loading, error, allDepts, allCredits, allPlans, courseTypes, subTags } = useCourseData();
   const { getCourseAvg } = useAllRatings();
   const filter = useCourseFilter(courses, getCourseAvg);
   const [selected, setSelected] = useState<Course | null>(null);
@@ -193,10 +193,12 @@ export function HomePage() {
               cycleDept={filter.cycleDept}
               cycleType={filter.cycleType}
               cycleTag={filter.cycleTag}
+              cyclePlanFilter={filter.cyclePlanFilter}
               clearAll={filter.clearAll}
               hasActiveFilters={filter.hasActiveFilters}
               allDepts={allDepts}
               allCredits={allCredits}
+              allPlans={allPlans}
               courseTypes={courseTypes}
               subTags={subTags}
             />
@@ -243,10 +245,12 @@ export function HomePage() {
               cycleDept={filter.cycleDept}
               cycleType={filter.cycleType}
               cycleTag={filter.cycleTag}
+              cyclePlanFilter={filter.cyclePlanFilter}
               clearAll={filter.clearAll}
               hasActiveFilters={filter.hasActiveFilters}
               allDepts={allDepts}
               allCredits={allCredits}
+              allPlans={allPlans}
               courseTypes={courseTypes}
               subTags={subTags}
             />
@@ -274,6 +278,7 @@ export function HomePage() {
             setRatingSortAsc={filter.setRatingSortAsc}
             stickyTop={stickyTop}
             getCourseAvg={getCourseAvg}
+            selectedPlan={filter.filters.plan}
           />
           <Pagination
             page={filter.page}

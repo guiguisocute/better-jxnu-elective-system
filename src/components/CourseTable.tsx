@@ -1,6 +1,7 @@
 import type { Course } from "../types";
 import { TagBadge } from "./TagBadge";
 import { StarRating } from "./StarRating";
+import { displayTags, isInPlan } from "../lib/planMatch";
 
 interface Props {
   courses: Course[];
@@ -12,6 +13,8 @@ interface Props {
   setRatingSortAsc: (v: boolean | null) => void;
   stickyTop?: number;
   getCourseAvg?: (courseId: string) => number | null;
+  /** 选中的培养方案 key。空串表示未选 —— 此时不做高亮也不裁剪 tag。 */
+  selectedPlan?: string;
 }
 
 function getCreditColor(credits: number): string {
@@ -26,7 +29,7 @@ function getCreditColor(credits: number): string {
   return "bg-red-500 text-white";
 }
 
-export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc, stickyTop = 0, getCourseAvg }: Props) {
+export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc, stickyTop = 0, getCourseAvg, selectedPlan = "" }: Props) {
   const handleSort = () => {
     setRatingSortAsc(null);
     setSortAsc(!sortAsc);
@@ -87,6 +90,8 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
           <tbody>
             {courses.map((c) => {
               const isSelected = c.id === selectedId;
+              const inPlan = isInPlan(c, selectedPlan);
+              const tags = displayTags(c, selectedPlan);
               return (
                 <tr
                   key={c.id}
@@ -94,13 +99,16 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
                   className={`cursor-pointer transition-colors group ${
                     isSelected
                       ? "bg-red-50/50"
+                      : inPlan
+                      ? "bg-indigo-50/40 hover:bg-indigo-50/60"
                       : "hover:bg-gray-50"
                   }`}
                 >
-                  <td className={`px-5 py-4 text-xs font-mono tracking-wide border-b border-gray-50 ${isSelected ? "text-gray-600" : "text-gray-400"}`}>{c.id}</td>
+                  <td className={`px-5 py-4 text-xs font-mono tracking-wide border-b border-gray-50 ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected ? "border-l-2 border-l-indigo-400" : ""}`}>{c.id}</td>
                   <td className={`px-5 py-4 text-[13px] font-medium border-b border-gray-50 transition-colors ${isSelected ? "text-red-600" : "text-gray-800 group-hover:text-red-600"}`}>
                     <div className="flex items-center gap-2">
                       {isSelected && <span className="w-[3px] h-4 rounded-full bg-red-500 shrink-0" />}
+                      {!isSelected && inPlan && <span className="w-[3px] h-4 rounded-full bg-indigo-400 shrink-0" />}
                       {c.name}
                     </div>
                   </td>
@@ -112,11 +120,11 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
                   <td className="px-5 py-4 text-xs text-gray-500 max-w-[160px] truncate border-b border-gray-50">{c.dept}</td>
                   <td className="px-5 py-4 border-b border-gray-50">
                     <div className="flex flex-wrap gap-1">
-                      {c.tags.slice(0, 2).map((t) => (
+                      {tags.slice(0, 2).map((t) => (
                         <TagBadge key={t} tag={t} />
                       ))}
-                      {c.tags.length > 2 && (
-                        <span className="text-[11px] text-gray-400">+{c.tags.length - 2}</span>
+                      {tags.length > 2 && (
+                        <span className="text-[11px] text-gray-400">+{tags.length - 2}</span>
                       )}
                     </div>
                   </td>
@@ -165,36 +173,44 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
         </div>
         {/* Cards */}
         <div className="space-y-2">
-          {courses.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => onSelect(c)}
-              className="bg-white rounded-xl border border-gray-100 p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-[13px] font-semibold text-gray-800 truncate">{c.name}</h3>
-                  <p className="text-xs text-gray-500 mt-1">{c.id} · {c.dept}</p>
+          {courses.map((c) => {
+            const inPlan = isInPlan(c, selectedPlan);
+            const tags = displayTags(c, selectedPlan);
+            return (
+              <div
+                key={c.id}
+                onClick={() => onSelect(c)}
+                className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm ${
+                  inPlan
+                    ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400"
+                    : "bg-white border-gray-100"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-[13px] font-semibold text-gray-800 truncate">{c.name}</h3>
+                    <p className="text-xs text-gray-500 mt-1">{c.id} · {c.dept}</p>
+                  </div>
+                  <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(c.credits)}`}>
+                    {c.credits}<span className="font-normal opacity-70">学分</span>
+                  </span>
                 </div>
-                <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(c.credits)}`}>
-                  {c.credits}<span className="font-normal opacity-70">学分</span>
-                </span>
+                <div className="flex flex-wrap gap-1 mt-2.5">
+                  {tags.map((t) => (
+                    <TagBadge key={t} tag={t} />
+                  ))}
+                </div>
+                {c.teachers.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-2.5 truncate">
+                    {c.teachers.map((t) => t.name).join(", ")}
+                  </p>
+                )}
+                <div className="mt-2">
+                  <StarRating rating={getCourseAvg?.(c.id) ?? null} />
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1 mt-2.5">
-                {c.tags.map((t) => (
-                  <TagBadge key={t} tag={t} />
-                ))}
-              </div>
-              {c.teachers.length > 0 && (
-                <p className="text-xs text-gray-500 mt-2.5 truncate">
-                  {c.teachers.map((t) => t.name).join(", ")}
-                </p>
-              )}
-              <div className="mt-2">
-                <StarRating rating={getCourseAvg?.(c.id) ?? null} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </>
