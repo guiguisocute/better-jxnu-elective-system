@@ -19,19 +19,19 @@ NATURE_NORMALIZE = {
 
 
 def build_search(course: dict) -> str:
+    # 搜索范围：课程号、课程名、开课学院、教师姓名+教号、tag
+    # 不含培养方案归属的年级/专业/方向/课程性质 —— 避免「计算机」之类关键词
+    # 命中"计算机系开设的所有课"这种无关结果（培养方案数据极广，专业名很容易撞车）
     parts = [
+        course.get("id", ""),
         course.get("name", ""),
         course.get("dept", ""),
     ]
     for t in course.get("teachers", []):
         parts.append(t.get("name", ""))
+        parts.append(t.get("id", ""))
     for tag in course.get("tags", []):
         parts.append(tag)
-    for p in course.get("plans", []):
-        parts.append(p.get("year", ""))
-        parts.append(p.get("major", ""))
-        parts.append(p.get("direction", ""))
-        parts.append(p.get("nature", ""))
     return " ".join(parts).lower()
 
 
