@@ -80,7 +80,13 @@ export function StarRating({ rating, count, size = "sm" }: Props) {
         return <Star key={i} size={s} fillPercent={fillPercent} />;
       })}
       {count !== undefined && (
-        <span className="text-[11px] text-gray-400 ml-0.5">{count}</span>
+        <span className="text-[11px] text-gray-500 ml-1.5 tabular-nums">
+          {rating.toFixed(2)}
+          <span className="text-gray-400">分</span>
+          <span className="mx-1 text-gray-300">·</span>
+          {count}
+          <span className="text-gray-400">人评分</span>
+        </span>
       )}
     </div>
   );

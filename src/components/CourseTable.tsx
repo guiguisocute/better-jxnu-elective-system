@@ -56,16 +56,18 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
   }
 
   return (
-    <>
-      {/* Desktop table */}
-      <div className="hidden md:block bg-white rounded-t-2xl rounded-b-xl border border-gray-100 shadow-sm">
+    // @container：让表格/卡片切换根据自身容器宽度（而非视口），
+    // 这样 PC 竖屏 / 笔记本侧栏全开等"中央列表挤瘦"场景也会自动切到卡片视图。
+    <div className="@container">
+      {/* Desktop table —— 中央容器 ≥ 56rem (896px) 时显示 */}
+      <div className="hidden @4xl:block bg-white rounded-b-xl border border-gray-100 shadow-sm">
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky" style={{ top: stickyTop, zIndex: 10 }}>
             <tr>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 rounded-tl-2xl">课程号</th>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">课程名称</th>
+              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">课程号</th>
+              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">课程名称</th>
               <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleSort}>
-                <span className={`inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
                   ratingSortAsc === null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
                 }`}>
                   学分
@@ -73,11 +75,11 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
                 </span>
                 <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc === null ? "bg-red-400" : "bg-transparent"}`} />
               </th>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">开课学院</th>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">标签</th>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">教师</th>
-              <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 rounded-tr-2xl cursor-pointer select-none group/sort" onClick={handleRatingSort}>
-                <span className={`inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider transition-colors ${
+              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">开课学院</th>
+              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">标签</th>
+              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">教师</th>
+              <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleRatingSort}>
+                <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
                   ratingSortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
                 }`}>
                   评分
@@ -141,8 +143,8 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
         </table>
       </div>
 
-      {/* Mobile sort controls + cards */}
-      <div className="md:hidden">
+      {/* 卡片视图 —— 中央容器 < 56rem 时显示（手机 + PC 竖屏 + 侧栏挤瘦时都自动切过来） */}
+      <div className="@4xl:hidden">
         {/* Sort bar */}
         <div className="flex items-center gap-2 pb-2.5 pt-1 px-1 bg-[#F8F9FA]">
           <span className="text-[11px] text-gray-400 shrink-0">排序</span>
@@ -213,6 +215,6 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
           })}
         </div>
       </div>
-    </>
+    </div>
   );
 }

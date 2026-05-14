@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+// 注：旧的桌面左侧栏折叠功能已回退到 commit 83a86e3 之前的状态
 import { useCourseData } from "../hooks/useCourseData";
 import { useCourseFilter } from "../hooks/useCourseFilter";
 import { useAllRatings } from "../hooks/useRatings";
@@ -10,11 +11,30 @@ import type { Course } from "../types";
 
 const GITHUB_URL = "https://github.com/guiguisocute/better-jxnu-elective-system";
 
-function GithubIcon() {
+function GithubIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
       <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
     </svg>
+  );
+}
+
+/** 侧栏底部的浅灰说明文字（含内联 GitHub 链接），跟随筛选项滚动到底才会出现。 */
+function SidebarDisclaimer() {
+  return (
+    <p className="mt-10 mb-2 px-2 text-center text-[12px] leading-relaxed text-gray-400">
+      本站课程数据均同步自学校教务系统。若发现数据纰漏或希望提出改进建议，欢迎提交{" "}
+      <a
+        href={GITHUB_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 align-baseline text-gray-500 hover:text-gray-700 transition-colors underline-offset-2 hover:underline"
+      >
+        <GithubIcon className="w-3 h-3 -mt-px" />
+        <span>Issue 或 Pull Request</span>
+      </a>
+      。
+    </p>
   );
 }
 
@@ -56,7 +76,9 @@ export function HomePage() {
   }, [mobileCourse]);
 
   const handleSelect = (course: Course) => {
-    if (window.innerWidth >= 768) {
+    // 与下面 aside `hidden xl:block` 的视口断点保持一致：>= 1280 才在右侧栏渲染详情，
+    // 否则用全屏 overlay，避免在 1080~1280 这种"宽度不上不下"区间被双侧栏挤瘪
+    if (window.innerWidth >= 1280) {
       setSelected(course);
     } else {
       if (closingRef.current) return;
@@ -113,7 +135,7 @@ export function HomePage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowMobileFilter(true)}
-                className="md:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
+                className="xl:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
               >
                 <svg className="w-4 h-4" style={{ color: "#FFFFFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -167,9 +189,15 @@ export function HomePage() {
         </div>
       </header>
 
+      <div
+        aria-hidden
+        className="hidden xl:block fixed left-0 right-0 h-7 pointer-events-none z-30 bg-[#F8F9FA]"
+        style={{ top: stickyTop - 24 }}
+      />
+
       {/* Mobile filter drawer — always mounted, animated with translate */}
       <div
-        className={`md:hidden fixed inset-0 z-50 transition-opacity duration-300 ${showMobileFilter ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        className={`xl:hidden fixed inset-0 z-50 transition-opacity duration-300 ${showMobileFilter ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setShowMobileFilter(false)}
       >
         <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
@@ -202,23 +230,14 @@ export function HomePage() {
               courseTypes={courseTypes}
               subTags={subTags}
             />
-            {/* GitHub link at bottom of mobile drawer */}
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 mt-6 py-3 text-gray-300 hover:text-gray-500 transition-colors text-xs"
-            >
-              <GithubIcon />
-              <span>GitHub</span>
-            </a>
+            <SidebarDisclaimer />
           </div>
         </div>
       </div>
 
       {/* Mobile course detail overlay — slides up from bottom */}
       <div
-        className={`md:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${mobileCourse ? "translate-y-0" : "translate-y-full"}`}
+        className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${mobileCourse ? "translate-y-0" : "translate-y-full"}`}
       >
         <div className="h-full bg-[#F8F9FA] overflow-y-auto">
           {mobileCourse && (
@@ -231,10 +250,10 @@ export function HomePage() {
       </div>
 
       {/* Main layout */}
-      <div className="max-w-[2000px] mx-auto flex px-3 md:px-6 pt-2 md:pt-5 gap-5">
-        {/* Desktop left sidebar */}
+      <div className="max-w-[2000px] mx-auto flex px-3 xl:px-6 pt-2 xl:pt-5 gap-5">
+        {/* Desktop left sidebar — 视口 ≥ 1280 才显示，避免双侧栏挤瘪中央 */}
         <aside
-          className="hidden md:block w-[340px] shrink-0 overflow-y-auto rounded-t-2xl bg-white border border-gray-100 shadow-sm"
+          className="hidden xl:block w-[360px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-sm"
           style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
         >
           <div className="px-6 py-5">
@@ -254,16 +273,8 @@ export function HomePage() {
               courseTypes={courseTypes}
               subTags={subTags}
             />
+            <SidebarDisclaimer />
           </div>
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 px-6 py-3 text-gray-300 hover:text-gray-500 transition-colors text-xs"
-          >
-            <GithubIcon />
-            <span>GitHub</span>
-          </a>
         </aside>
 
         {/* Center - course list */}
@@ -285,18 +296,17 @@ export function HomePage() {
             totalPages={filter.totalPages}
             onPageChange={(p) => {
               filter.setPage(p);
-              if (window.innerWidth < 768) {
-                setTimeout(() => {
-                  window.scrollTo({ top: 0, behavior: "auto" });
-                }, 0);
-              }
+              // PC + 移动端：翻页后瞬间回到页面顶部（'auto' 行为，无动画"闪回"）
+              setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: "auto" });
+              }, 0);
             }}
           />
         </main>
 
         {/* Desktop right sidebar - always visible */}
         <aside
-          className="hidden md:block w-[420px] shrink-0 overflow-y-auto rounded-t-2xl bg-white border border-gray-100 shadow-[-8px_0_24px_rgba(0,0,0,0.04)]"
+          className="hidden xl:block w-[500px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-[-8px_0_24px_rgba(0,0,0,0.04)]"
           style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
         >
           {selected ? (
