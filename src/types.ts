@@ -5,6 +5,15 @@ export interface Teacher {
   gender: string;
 }
 
+export interface CoursePlan {
+  year: string;
+  major: string;
+  direction: string;
+  nature: string;
+  isDegree: boolean;
+  semester: string;
+}
+
 export interface Course {
   id: string;
   name: string;
@@ -16,6 +25,8 @@ export interface Course {
   desc: string;
   tags: string[];
   teachers: Teacher[];
+  isDegreeCourse: boolean;
+  plans: CoursePlan[];
   _search: string;
 }
 

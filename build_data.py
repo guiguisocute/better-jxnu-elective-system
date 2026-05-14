@@ -5,11 +5,17 @@ from collections import defaultdict, Counter
 
 COURSE_FILE = "JXNU课程数据_2026-05-13.json"
 SCHEDULE_FILE = "JXNU开课安排_2026-05-13.json"
+TRAIN_PLAN_FILE = "jxnu_jxjh_v5_35847.json"
 OUTPUT_DIR = "public"
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "courses.json")
 
 # 匹配 "2x级xxx班" 模式，如 "23级电子商务（跨境电商方向）班"
 MAJOR_CLASS_RE = re.compile(r"^2\d级.+班$")
+
+# 培养方案课程性质归一化（统一为原 JSON 已有的命名）
+NATURE_NORMALIZE = {
+    "公共必修": "公共必修课",
+}
 
 
 def build_search(course: dict) -> str:
@@ -21,6 +27,11 @@ def build_search(course: dict) -> str:
         parts.append(t.get("name", ""))
     for tag in course.get("tags", []):
         parts.append(tag)
+    for p in course.get("plans", []):
+        parts.append(p.get("year", ""))
+        parts.append(p.get("major", ""))
+        parts.append(p.get("direction", ""))
+        parts.append(p.get("nature", ""))
     return " ".join(parts).lower()
 
 
@@ -29,8 +40,34 @@ def main():
         raw_courses = json.load(f)
     with open(SCHEDULE_FILE, encoding="utf-8") as f:
         raw_schedules = json.load(f)
+    with open(TRAIN_PLAN_FILE, encoding="utf-8") as f:
+        raw_plans = json.load(f)
 
-    print(f"Loaded {len(raw_courses)} courses, {len(raw_schedules)} schedule entries")
+    print(f"Loaded {len(raw_courses)} courses, {len(raw_schedules)} schedule entries, {len(raw_plans)} plan entries")
+
+    # 按课程号聚合培养方案
+    plans_by_id = defaultdict(list)
+    natures_by_id = defaultdict(set)
+    degree_ids = set()
+    for p in raw_plans:
+        cid = (p.get("课程号") or "").strip()
+        if not cid:
+            continue
+        nature = (p.get("课程性质") or "").strip()
+        nature = NATURE_NORMALIZE.get(nature, nature)
+        is_degree = bool((p.get("学位课程") or "").strip())
+        plans_by_id[cid].append({
+            "year": (p.get("年级") or "").strip(),
+            "major": (p.get("专业") or "").strip(),
+            "direction": (p.get("方向") or "").strip(),
+            "nature": nature,
+            "isDegree": is_degree,
+            "semester": (p.get("开课时间") or "").strip(),
+        })
+        if nature:
+            natures_by_id[cid].add(nature)
+        if is_degree:
+            degree_ids.add(cid)
 
     # 用开课安排判定专业课：课程号必须在两个JSON都出现，且班级名称匹配 "2x级xxx班"
     schedule_ids = set(s["课程号"] for s in raw_schedules)
@@ -64,6 +101,14 @@ def main():
             if "专业课" not in tags:
                 tags.insert(0, "专业课")
 
+        # 培养方案课程性质 tags（去重 append）
+        for n in sorted(natures_by_id.get(cid, set())):
+            if n not in tags:
+                tags.append(n)
+        is_degree = cid in degree_ids
+        if is_degree and "学位课" not in tags:
+            tags.append("学位课")
+
         try:
             credits = int(c.get("学分", "0"))
         except ValueError:
@@ -88,6 +133,8 @@ def main():
                 }
                 for t in c.get("教师", [])
             ],
+            "isDegreeCourse": is_degree,
+            "plans": plans_by_id.get(cid, []),
         }
         course["_search"] = build_search(course)
         courses.append(course)
@@ -105,8 +152,12 @@ def main():
     tagged = sum(1 for c in courses if c["tags"])
     untagged = sum(1 for c in courses if not c["tags"])
 
+    plan_courses = sum(1 for c in courses if c["plans"])
+    degree_courses = sum(1 for c in courses if c["isDegreeCourse"])
+
     print(f"\nOutput: {len(courses)} courses -> {OUTPUT_FILE}")
     print(f"  Tagged: {tagged}, Untagged: {untagged}")
+    print(f"  Has plan info: {plan_courses}, Degree courses: {degree_courses}")
     print(f"\nTag distribution:")
     for tag, count in type_counts.most_common():
         print(f"  {tag}: {count}")

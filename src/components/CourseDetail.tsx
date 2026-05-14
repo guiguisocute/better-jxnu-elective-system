@@ -17,8 +17,21 @@ export function CourseDetail({ course, onClose }: Props) {
   const { getAvg, applyOptimistic, refresh } = useRatings(course.id);
   const [ratingTarget, setRatingTarget] = useState<{ teacherId: string; name: string; rating: number } | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [plansExpanded, setPlansExpanded] = useState(false);
   // Track which teachers the current user has already rated
   const [myRatings, setMyRatings] = useState<Record<string, number>>({});
+
+  // 培养方案归属：按年级分组，2025→2022 倒序
+  const plans = course.plans ?? [];
+  const plansByYear: Record<string, typeof plans> = {};
+  for (const p of plans) {
+    (plansByYear[p.year] = plansByYear[p.year] || []).push(p);
+  }
+  const sortedYears = Object.keys(plansByYear).sort((a, b) => b.localeCompare(a));
+  const uniqueMajorCount = new Set(plans.map((p) => `${p.year}|${p.major}|${p.direction}`)).size;
+  const degreeMajorCount = new Set(
+    plans.filter((p) => p.isDegree).map((p) => `${p.year}|${p.major}|${p.direction}`)
+  ).size;
 
   // On mount, check which teachers the current user has already rated
   useEffect(() => {
@@ -79,7 +92,14 @@ export function CourseDetail({ course, onClose }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <h2 className="text-base font-semibold text-gray-900 pr-8 leading-snug">{course.name}</h2>
+        <h2 className="text-base font-semibold text-gray-900 pr-8 leading-snug">
+          <span className="align-middle">{course.name}</span>
+          {course.isDegreeCourse && (
+            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-md bg-red-500 text-white text-[10px] font-bold align-middle shadow-sm ring-1 ring-red-300">
+              学位课
+            </span>
+          )}
+        </h2>
         <div className="flex items-center gap-2.5 mt-2.5">
           <span className="text-xs text-gray-500 font-mono">{course.id}</span>
           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-red-50 text-red-500 text-xs font-semibold">
@@ -116,6 +136,110 @@ export function CourseDetail({ course, onClose }: Props) {
               <p className="text-[13px] text-gray-700 whitespace-pre-line bg-gray-50 rounded-xl px-5 py-4" style={{ lineHeight: 1.8 }}>
                 {course.desc}
               </p>
+            </div>
+          )}
+
+          {/* Plans (培养方案归属) */}
+          {plans.length > 0 && (
+            <div className="rounded-xl bg-gradient-to-br from-indigo-50/50 via-white to-white border border-indigo-100/70 overflow-hidden">
+              {/* 标题栏 */}
+              <button
+                onClick={() => setPlansExpanded((v) => !v)}
+                className="w-full flex items-center justify-between text-left px-4 py-3 hover:bg-indigo-50/40 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-1 h-5 bg-indigo-400 rounded-sm" aria-hidden />
+                  <h3 className="text-[13px] font-semibold text-gray-800">培养方案归属</h3>
+                  <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-100/70 px-1.5 py-0.5 rounded tabular-nums">
+                    {plans.length}
+                  </span>
+                </div>
+                <svg
+                  className={`w-4 h-4 text-indigo-400 transition-transform ${plansExpanded ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* 统计 banner */}
+              <div className="mx-4 mb-3 flex items-baseline gap-4 px-3.5 py-2.5 bg-white/70 rounded-lg ring-1 ring-indigo-100/50">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[17px] font-bold text-indigo-600 tabular-nums leading-none">
+                    {uniqueMajorCount}
+                  </span>
+                  <span className="text-[11px] text-gray-500">个专业开设</span>
+                </div>
+                {degreeMajorCount > 0 && (
+                  <>
+                    <div className="w-px h-4 bg-gray-200" aria-hidden />
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[17px] font-bold text-red-500 tabular-nums leading-none">
+                        {degreeMajorCount}
+                      </span>
+                      <span className="text-[11px] text-gray-500">列为学位课</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 展开内容 */}
+              {plansExpanded && (
+                <div className="px-4 pb-4 space-y-3">
+                  {sortedYears.map((year) => (
+                    <div key={year}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100/70 text-indigo-700 text-[11px] font-semibold tabular-nums">
+                          {year}级
+                        </span>
+                        <div className="flex-1 h-px bg-indigo-100/50" aria-hidden />
+                        <span className="text-[10px] text-gray-400 tabular-nums">
+                          {plansByYear[year].length}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {plansByYear[year].map((p, i) => (
+                          <div
+                            key={`${year}-${p.major}-${p.direction}-${i}`}
+                            className={`rounded-lg px-3 py-2 transition-colors ${
+                              p.isDegree
+                                ? "bg-red-50/50 ring-1 ring-red-200/60"
+                                : "bg-white ring-1 ring-gray-100"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[13px] text-gray-800 font-medium truncate leading-tight">
+                                  {p.major}
+                                </div>
+                                {p.direction && (
+                                  <div className="text-[11px] text-indigo-500 truncate mt-0.5 flex items-center gap-1">
+                                    <span className="text-[10px] opacity-70" aria-hidden>↳</span>
+                                    <span className="truncate">{p.direction}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {p.semester && (
+                                <span className="text-[10px] text-gray-400 tabular-nums shrink-0 mt-0.5 font-mono">
+                                  {p.semester}
+                                </span>
+                              )}
+                            </div>
+                            {(p.nature || p.isDegree) && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {p.nature && <TagBadge tag={p.nature} />}
+                                {p.isDegree && <TagBadge tag="学位课" />}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

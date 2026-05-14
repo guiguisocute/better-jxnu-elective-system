@@ -61,18 +61,26 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
             <tr>
               <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 rounded-tl-2xl">课程号</th>
               <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">课程名称</th>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 cursor-pointer select-none hover:text-gray-700" onClick={handleSort}>
-                学分
-                <span className="ml-1 text-gray-400">{sortAsc ? "↑" : "↓"}</span>
+              <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleSort}>
+                <span className={`inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                  ratingSortAsc === null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
+                }`}>
+                  学分
+                  <span className={ratingSortAsc === null ? "text-red-500" : "text-gray-400"}>{sortAsc ? "↑" : "↓"}</span>
+                </span>
+                <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc === null ? "bg-red-400" : "bg-transparent"}`} />
               </th>
               <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">开课学院</th>
               <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">标签</th>
               <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">教师</th>
-              <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 rounded-tr-2xl cursor-pointer select-none hover:text-gray-700" onClick={handleRatingSort}>
-                评分
-                {ratingSortAsc !== null && (
-                  <span className="ml-1 text-gray-400">{ratingSortAsc ? "↑" : "↓"}</span>
-                )}
+              <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 rounded-tr-2xl cursor-pointer select-none group/sort" onClick={handleRatingSort}>
+                <span className={`inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                  ratingSortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
+                }`}>
+                  评分
+                  <span className={ratingSortAsc !== null ? "text-red-500" : "text-gray-400"}>{ratingSortAsc === null ? "↕" : ratingSortAsc ? "↑" : "↓"}</span>
+                </span>
+                <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
               </th>
             </tr>
           </thead>
@@ -125,38 +133,69 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
         </table>
       </div>
 
-      {/* Mobile cards */}
-      <div className="md:hidden space-y-2">
-        {courses.map((c) => (
-          <div
-            key={c.id}
-            onClick={() => onSelect(c)}
-            className="bg-white rounded-xl border border-gray-100 p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+      {/* Mobile sort controls + cards */}
+      <div className="md:hidden">
+        {/* Sort bar */}
+        <div className="flex items-center gap-2 pb-2.5 pt-1 px-1 bg-[#F8F9FA]">
+          <span className="text-[11px] text-gray-400 shrink-0">排序</span>
+          <button
+            onClick={handleSort}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+              ratingSortAsc === null
+                ? "bg-red-50 text-red-500"
+                : "bg-gray-100 text-gray-500"
+            }`}
           >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <h3 className="text-[13px] font-semibold text-gray-800 truncate">{c.name}</h3>
-                <p className="text-xs text-gray-500 mt-1">{c.id} · {c.dept}</p>
-              </div>
-              <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(c.credits)}`}>
-                {c.credits}<span className="font-normal opacity-70">学分</span>
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1 mt-2.5">
-              {c.tags.map((t) => (
-                <TagBadge key={t} tag={t} />
-              ))}
-            </div>
-            {c.teachers.length > 0 && (
-              <p className="text-xs text-gray-500 mt-2.5 truncate">
-                {c.teachers.map((t) => t.name).join(", ")}
-              </p>
+            学分
+            <span className="text-[10px]">{sortAsc ? "↑" : "↓"}</span>
+          </button>
+          <button
+            onClick={handleRatingSort}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+              ratingSortAsc !== null
+                ? "bg-red-50 text-red-500"
+                : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            评分
+            {ratingSortAsc !== null && (
+              <span className="text-[10px]">{ratingSortAsc ? "↑" : "↓"}</span>
             )}
-            <div className="mt-2">
-              <StarRating rating={getCourseAvg?.(c.id) ?? null} />
+          </button>
+        </div>
+        {/* Cards */}
+        <div className="space-y-2">
+          {courses.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => onSelect(c)}
+              className="bg-white rounded-xl border border-gray-100 p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-[13px] font-semibold text-gray-800 truncate">{c.name}</h3>
+                  <p className="text-xs text-gray-500 mt-1">{c.id} · {c.dept}</p>
+                </div>
+                <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(c.credits)}`}>
+                  {c.credits}<span className="font-normal opacity-70">学分</span>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-2.5">
+                {c.tags.map((t) => (
+                  <TagBadge key={t} tag={t} />
+                ))}
+              </div>
+              {c.teachers.length > 0 && (
+                <p className="text-xs text-gray-500 mt-2.5 truncate">
+                  {c.teachers.map((t) => t.name).join(", ")}
+                </p>
+              )}
+              <div className="mt-2">
+                <StarRating rating={getCourseAvg?.(c.id) ?? null} />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </>
   );
