@@ -78,3 +78,16 @@ React 19 · TypeScript 6 · Vite 8 · Tailwind 4 (via `@tailwindcss/vite`, **no 
 ## Branch Conventions
 
 `test` is the staging branch (preferred for hotfixes before promoting to `main`). `main` is the deployed branch — Cloudflare Pages auto-deploys from it. D1 schema/API changes need to land in `wrangler.toml` / `functions/api/` / `d1_schema.sql`; verify there before merging if a change might touch ratings data.
+
+## Deployment Gotchas
+
+**Do not add `wrangler` (or other tools that pull large native/wasm optional-dep trees) to `package.json` for one-off local tasks.** Wrangler pulls `@rolldown/*`, `@napi-rs/wasm-runtime`, etc. — these declare `@emnapi/core` / `@emnapi/runtime` as transitive deps but on Windows the corresponding top-level `node_modules/@emnapi/*` entries don't get written into `package-lock.json`. Cloudflare Pages then runs `npm ci` on Linux and bails with `Missing: @emnapi/runtime@... from lock file`. If you need wrangler for a one-time D1 inspection, run `npx wrangler ...` (without `-D` install) or install globally — never commit it as a project devDep.
+
+Before pushing anything that touches `package.json` / `package-lock.json`, **always verify locally**:
+
+```bash
+rm -rf node_modules && npm ci   # same command CF Pages uses
+npm run build
+```
+
+If `npm ci` fails on lock-sync, regenerate cleanly with `rm -rf node_modules package-lock.json && npm install` before committing.
