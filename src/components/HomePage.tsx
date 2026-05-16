@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-// 注：旧的桌面左侧栏折叠功能已回退到 commit 83a86e3 之前的状态
 import { useCourseData } from "../hooks/useCourseData";
 import { useCourseFilter } from "../hooks/useCourseFilter";
 import { useAllRatings } from "../hooks/useRatings";
@@ -46,8 +45,18 @@ export function HomePage() {
   const [mobileCourse, setMobileCourse] = useState<Course | null>(null);
   const closingRef = useRef(false);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
+  // 桌面左侧栏开合：>1280 默认展开；<=1280 自动收起。用户可在任意宽度手动折叠/展开。
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(
+    typeof window !== "undefined" ? window.innerWidth > 1280 : true,
+  );
+  const [viewportW, setViewportW] = useState<number>(
+    typeof window !== "undefined" ? window.innerWidth : 1920,
+  );
   const headerRef = useRef<HTMLElement>(null);
   const [headerH, setHeaderH] = useState(0);
+
+  // 视口 < 1700 时让左栏转抽屉，避免与右详情栏（始终预留 500px）共同把中央表格挤瘦
+  const leftAsDrawer = sidebarOpen && viewportW < 1700;
 
   useEffect(() => {
     const measure = () => {
@@ -58,14 +67,24 @@ export function HomePage() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // Body scroll lock when mobile filter or mobile course overlay is open
+  // 窗口缩到 1280 及以下时自动收起左栏；放大不自动展开（尊重用户的手动选择）
   useEffect(() => {
-    if (showMobileFilter || mobileCourse) {
+    const onResize = () => {
+      setViewportW(window.innerWidth);
+      if (window.innerWidth <= 1280) setSidebarOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Body scroll lock when mobile filter / mobile course overlay / PC left drawer is open
+  useEffect(() => {
+    if (showMobileFilter || mobileCourse || leftAsDrawer) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => { document.body.style.overflow = prev; };
     }
-  }, [showMobileFilter, mobileCourse]);
+  }, [showMobileFilter, mobileCourse, leftAsDrawer]);
 
   // Back button closes mobile course overlay
   useEffect(() => {
@@ -133,9 +152,11 @@ export function HomePage() {
               <span className="text-xs hidden sm:inline" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
             <div className="flex items-center gap-3">
+              {/* 漏斗按钮：仅手机端 (<md) 显示，打开右抽屉。PC 上由左侧专门的展开按钮控制。 */}
               <button
                 onClick={() => setShowMobileFilter(true)}
-                className="xl:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
+                title="筛选"
+                className="md:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
               >
                 <svg className="w-4 h-4" style={{ color: "#FFFFFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -235,28 +256,29 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Mobile course detail overlay — slides up from bottom */}
+      {/* PC 窄屏左侧抽屉：右详情打开 + 视口 < 1600 时启用，避免双内联栏挤瘦中央表格 */}
       <div
-        className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${mobileCourse ? "translate-y-0" : "translate-y-full"}`}
+        className={`hidden md:block fixed inset-0 z-50 transition-opacity duration-300 ${leftAsDrawer ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setSidebarOpen(false)}
       >
-        <div className="h-full bg-[#F8F9FA] overflow-y-auto">
-          {mobileCourse && (
-            <CourseDetail
-              course={mobileCourse}
-              onClose={closeMobileCourse}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Main layout */}
-      <div className="max-w-[2000px] mx-auto flex px-3 xl:px-6 pt-2 xl:pt-5 gap-5">
-        {/* Desktop left sidebar — 视口 ≥ 1280 才显示，避免双侧栏挤瘪中央 */}
-        <aside
-          className="hidden xl:block w-[360px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-sm"
-          style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+        <div
+          className={`absolute left-0 top-0 bottom-0 w-[360px] bg-white overflow-y-auto shadow-2xl transition-transform duration-300 ease-out ${leftAsDrawer ? "translate-x-0" : "-translate-x-full"}`}
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="px-6 py-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium tracking-wider text-gray-400 uppercase">筛选</span>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                title="收起侧栏"
+                className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
             <FilterBar
               filters={filter.filters}
               updateFilter={filter.updateFilter}
@@ -275,7 +297,80 @@ export function HomePage() {
             />
             <SidebarDisclaimer />
           </div>
-        </aside>
+        </div>
+      </div>
+
+      {/* Mobile course detail overlay — slides up from bottom */}
+      <div
+        className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${mobileCourse ? "translate-y-0" : "translate-y-full"}`}
+      >
+        <div className="h-full bg-[#F8F9FA] overflow-y-auto">
+          {mobileCourse && (
+            <CourseDetail
+              course={mobileCourse}
+              onClose={closeMobileCourse}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Main layout */}
+      <div className="max-w-[2000px] mx-auto flex px-3 xl:px-6 pt-2 xl:pt-5 gap-5">
+        {/* PC 左侧"展开筛选"按钮：仅 ≥md 视口且左栏收起时显示 */}
+        {!sidebarOpen && (
+          <div className="hidden md:flex w-9 shrink-0 justify-center">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              title="展开筛选"
+              style={{ position: "sticky", top: stickyTop }}
+              className="w-9 h-9 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex items-center justify-center shadow-sm self-start"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+        {/* Desktop left sidebar — 由 sidebarOpen 控制；窗口 ≤1280 时自动收起；
+            打开右详情且视口 < 1600 时改走抽屉模式（见下方 leftAsDrawer 渲染块） */}
+        {sidebarOpen && !leftAsDrawer && (
+          <aside
+            className="w-[360px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-sm"
+            style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
+          >
+            <div className="px-6 py-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium tracking-wider text-gray-400 uppercase">筛选</span>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  title="收起侧栏"
+                  className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
+              <FilterBar
+                filters={filter.filters}
+                updateFilter={filter.updateFilter}
+                cycleCredit={filter.cycleCredit}
+                cycleDept={filter.cycleDept}
+                cycleType={filter.cycleType}
+                cycleTag={filter.cycleTag}
+                cyclePlanFilter={filter.cyclePlanFilter}
+                clearAll={filter.clearAll}
+                hasActiveFilters={filter.hasActiveFilters}
+                allDepts={allDepts}
+                allCredits={allCredits}
+                allPlans={allPlans}
+                courseTypes={courseTypes}
+                subTags={subTags}
+              />
+              <SidebarDisclaimer />
+            </div>
+          </aside>
+        )}
 
         {/* Center - course list */}
         <main className="flex-1 min-w-0">

@@ -56,11 +56,10 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
   }
 
   return (
-    // @container：让表格/卡片切换根据自身容器宽度（而非视口），
-    // 这样 PC 竖屏 / 笔记本侧栏全开等"中央列表挤瘦"场景也会自动切到卡片视图。
-    <div className="@container">
-      {/* Desktop table —— 中央容器 ≥ 56rem (896px) 时显示 */}
-      <div className="hidden @4xl:block bg-white rounded-b-xl border border-gray-100 shadow-sm">
+    // 桌面端（≥ md = 768px 视口）一律走表格视图；只有手机竖屏这类极窄场景才用卡片。
+    <div>
+      {/* Desktop table —— 视口 ≥ md (768px) 时显示 */}
+      <div className="hidden md:block bg-white rounded-b-xl border border-gray-100 shadow-sm">
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky" style={{ top: stickyTop, zIndex: 10 }}>
             <tr>
@@ -143,8 +142,8 @@ export function CourseTable({ courses, selectedId, onSelect, sortAsc, setSortAsc
         </table>
       </div>
 
-      {/* 卡片视图 —— 中央容器 < 56rem 时显示（手机 + PC 竖屏 + 侧栏挤瘦时都自动切过来） */}
-      <div className="@4xl:hidden">
+      {/* 卡片视图 —— 视口 < md (768px) 时显示，仅手机竖屏等极窄场景 */}
+      <div className="md:hidden">
         {/* Sort bar */}
         <div className="flex items-center gap-2 pb-2.5 pt-1 px-1 bg-[#F8F9FA]">
           <span className="text-[11px] text-gray-400 shrink-0">排序</span>

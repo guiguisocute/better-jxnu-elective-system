@@ -57,7 +57,10 @@
       "Bash(pkill -f \"wrangler\")",
       "Bash(cp .wrangler/state/v3/d1/miniflare-D1DatabaseObject/4790caf945f4c2dcb3eae868a32998b398f5c418f5ef67a1b25142c0d441e678.sqlite .wrangler/state/v3/d1/miniflare-D1DatabaseObject/33c2dc52efcdaec53c8c2e76960e784a8340bf714cb38ddcfb8c5f00b8c23283.sqlite)",
       "Bash(pkill -f \"vite\")",
-      "Bash(npm -v)"
+      "Bash(npm -v)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(npm i *)",
+      "Bash(./node_modules/.bin/wrangler d1 *)"
     ]
   }
 }
