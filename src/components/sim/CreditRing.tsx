@@ -4,6 +4,7 @@ import { PieChart } from "echarts/charts";
 import { TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { CreditPlanView } from "../../lib/creditPlan";
+import { useTheme } from "../../hooks/useTheme";
 
 echarts.use([PieChart, TooltipComponent, CanvasRenderer]);
 
@@ -19,6 +20,8 @@ interface Props {
 export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
+  const { resolved } = useTheme();
+  const isDark = resolved === "dark";
 
   useEffect(() => {
     if (!elRef.current) return;
@@ -39,6 +42,10 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
     const denom = view.minTotal ?? Math.max(1, view.earned + proj + 1);
     const inner = Math.max(0, size / 2 - stroke);
     const outer = size / 2;
+
+    // 暗色下：剩余区从 #f3f4f6 调到深灰；段间边框从白色调到 card 背景色，避免亮缝
+    const restColor = isDark ? "#2A2A2A" : "#f3f4f6";
+    const segBorder = isDark ? "#1E1E1E" : "#fff";
 
     // 稳定的数据项集合：各块已修子段(实色) + 各块下学期理论(块色 + decal 斜纹) + 剩余(灰)。
     // 「未来必修」(极浅蓝)现在已是必修块 segments 的一部分（buildCreditPlan 注入），
@@ -84,7 +91,7 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
       {
         name: "剩余",
         value: Math.max(0, denom - view.earned - proj),
-        itemStyle: { color: "#f3f4f6" },
+        itemStyle: { color: restColor },
       },
     ];
 
@@ -111,12 +118,12 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
           avoidLabelOverlap: false,
           label: { show: false },
           labelLine: { show: false },
-          itemStyle: { borderColor: "#fff", borderWidth: 1 },
+          itemStyle: { borderColor: segBorder, borderWidth: 1 },
           data,
         },
       ],
     });
-  }, [view, size, stroke]);
+  }, [view, size, stroke, isDark]);
 
   return (
     <div className="relative inline-flex" style={{ width: size, height: size }}>

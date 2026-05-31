@@ -23,6 +23,7 @@ import { SimToggle } from "./sim/SimToggle";
 import { SimPanel } from "./sim/SimPanel";
 import { OnboardingModal } from "./sim/OnboardingModal";
 import { ConfirmDialog } from "./sim/ConfirmDialog";
+import { ThemeToggle } from "./ThemeToggle";
 import type { Course, DataSource, FormalSection } from "../types";
 
 const DATA_SOURCE_KEY = "jxnu_data_source";
@@ -519,7 +520,7 @@ export function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA]">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-page">
         <div className="w-10 h-10 border-3 border-red-200 border-t-red-500 rounded-full animate-spin" />
         <p className="mt-4 text-gray-400 text-sm tracking-wide">正在加载课程数据...</p>
       </div>
@@ -528,7 +529,7 @@ export function HomePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA] px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md text-center">
           <h2 className="text-base font-semibold text-gray-800 mb-2">加载失败</h2>
           <p className="text-sm text-gray-400 mb-4">{error}</p>
@@ -549,18 +550,20 @@ export function HomePage() {
   const tableStickyTop = Math.max(0, headerStickyTop - stickySeamOverlap);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
+    <div className="min-h-screen bg-page">
       {/* Header - two layers */}
       <header ref={headerRef} className="sticky top-0 z-40">
-        {/* Layer 1: Red status bar */}
-        <div style={{ backgroundColor: "#CC3C3C" }}>
+        {/* Layer 1: Red status bar —— relative z-10 让其底部投影盖在下方搜索行之上（见 index.css .bg-header） */}
+        <div className="bg-header relative z-10">
           <div className="max-w-[2000px] mx-auto px-6 flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2.5">
               <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain" />
-              <h1 className="text-sm font-bold tracking-tight" style={{ color: "#FFFFFF" }}>JXNU选课PLUS</h1>
+              <h1 className="text-sm font-bold tracking-tight text-brand-fg">JXNU选课PLUS</h1>
               <span className="text-xs hidden sm:inline" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
             <div className="flex items-center gap-2.5">
+              {/* 主题切换：桌面 / 手机统一放顶部红条右侧 */}
+              <ThemeToggle />
               {/* 模拟选课开关：仅手机端 (<md) 显示（桌面端在搜索行）。 */}
               <button
                 onClick={sim.toggle}
@@ -593,8 +596,8 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Layer 2: White search bar */}
-        <div className="bg-[#F8F9FA] md:bg-white">
+        {/* Layer 2: search bar */}
+        <div className="bg-page md:bg-card">
           <div className="max-w-[2000px] mx-auto px-4 md:px-6 py-2 md:py-3 flex items-center gap-4">
             {/* Desktop search - centered */}
             <div className="hidden md:flex flex-1 justify-center">
@@ -775,7 +778,7 @@ export function HomePage() {
       <div
         className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${(mobileCourse || mobileSection) ? "translate-y-0" : "translate-y-full"}`}
       >
-        <div className="h-full bg-[#F8F9FA] overflow-y-auto">
+        <div className="h-full bg-page overflow-y-auto">
           {mobileCourse ? (
             <CourseDetail
               course={mobileCourse}

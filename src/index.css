@@ -1,17 +1,279 @@
 @import "tailwindcss";
 
+/* `.dark` 类驱动暗色变量切换（注册成 Tailwind 自定义变体，便于组件局部用 `dark:`） */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 语义色：注册到 @theme，自动生成 bg-page / bg-brand 等工具类。
+   组件层只读这些语义名，主题切换只需在 `.dark` 改这一份变量值。 */
+@theme {
+  --color-page: #F8F9FA;
+  --color-card: #FFFFFF;
+  --color-ink: #1F2937;
+  --color-brand: #CC3C3C;
+  --color-brand-hover: #B83333;
+  --color-brand-fg: #FFFFFF;
+  --color-header: #CC3C3C;
+}
+
+/* 暗色主题：参考 GitHub Dark 色板（久经验证），红色用 #DC4545 温和红。
+   只覆盖语义变量，组件层无需感知。 */
+.dark {
+  --color-page: #0D1117;
+  --color-card: #161B22;
+  --color-ink: #C9D1D9;
+  --color-brand: #DC4545;
+  --color-brand-hover: #E55B5B;
+  --color-brand-fg: #FFFFFF;
+  /* 顶部 banner：暗红，与下方搜索行(card #161B22)及搜索框拉开区分，并保留品牌红身份（亮色为 #CC3C3C）。 */
+  --color-header: #4A1C20;
+}
+
+/* 顶部 banner 与下方搜索行/内容的分界：不要硬碰硬的色界，也不要把红渐隐进搜索区（发浑发丑）。
+   改用一道柔和、中性(不偏色)的投影把 banner 抬起一层(elevation)，过渡自然。
+   亮色不加投影，保持原样。投影需盖在同级搜索行之上才可见 —— 见 HomePage 顶部 banner 加的 relative z-10。 */
+:where(.dark) .bg-header { box-shadow: 0 5px 12px -5px rgba(0, 0, 0, 0.55) }
+
+/* 恒定预留滚动条槽位：消除「弹层锁滚动 → 文档滚动条消失 → 视口变宽 → fixed 居中层(引导弹窗等)横跳」。
+   作用在视口层(html)。组件锁滚动用 body{overflow:hidden} 时槽位仍在，布局宽度不变 → 不再位移；
+   因此组件侧不可再手动补 paddingRight，否则与本槽位双重补偿反而推偏。Chrome/Edge/FF 均支持。 */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
-  background: #F8F9FA;
-  color: #1F2937;
+  background: var(--color-page);
+  color: var(--color-ink);
 }
+
+/* ───────── 暗色模式：全局补丁层 ─────────
+   原项目大量使用 Tailwind 灰阶硬编码（gray-50/100/200/.../900、bg-white、text-gray-*）。
+   组件级逐一加 dark: variant 改动量太大，这里用属性选择器在 .dark 下统一映射到深色等价值，
+   保证全站零遗漏。色值梯度参照亮色 gray-50→gray-900 的明度反转。
+
+   关键：选择器用 `:where(.dark) .X` 而非 `.dark .X` —— :where() 把整段特异性归 0，
+   编译出的等价规则 `.X { ... }`（特异性 0,1,0）和 Tailwind 工具类规则同级，仅靠 CSS 源
+   顺序压过去；这样组件局部写 `dark:text-white`（Tailwind 编译为 `.dark .text-white`，
+   特异性 0,2,0）能干净覆盖，无须 !important 也无须 arbitrary value 绕路。 */
+
+/* 卡片 / 弹窗 / 抽屉等"白底"在暗色下统一变 card 色 */
+:where(.dark) .bg-white { background-color: var(--color-card) }
+
+/* 灰阶背景 —— 由浅到深，对应深色由略亮到略暗 */
+:where(.dark) .bg-gray-50  { background-color: #1A1A1A }
+:where(.dark) .bg-gray-100 { background-color: #2A2A2A }
+:where(.dark) .bg-gray-200 { background-color: #333333 }
+:where(.dark) .bg-gray-300 { background-color: #3D3D3D }
+:where(.dark) .bg-gray-800 { background-color: #E5E7EB }
+:where(.dark) .bg-gray-900 { background-color: #F3F4F6 }
+
+/* hover:bg-gray-* —— 暗色下 hover 也得有反馈 */
+:where(.dark) .hover\:bg-gray-50:hover  { background-color: #252525 }
+:where(.dark) .hover\:bg-gray-100:hover { background-color: #303030 }
+:where(.dark) .hover\:bg-gray-200:hover { background-color: #3A3A3A }
+
+/* 文本灰阶 —— 提高对比度，避免暗底上文字糊成一片 */
+:where(.dark) .text-gray-300 { color: #9CA3AF }
+:where(.dark) .text-gray-400 { color: #B5BCC4 }
+:where(.dark) .text-gray-500 { color: #D1D5DB }
+:where(.dark) .text-gray-600 { color: #E2E5EA }
+:where(.dark) .text-gray-700 { color: #ECEEF1 }
+:where(.dark) .text-gray-800 { color: #F3F4F6 }
+:where(.dark) .text-gray-900 { color: #F9FAFB }
+:where(.dark) .hover\:text-gray-600:hover { color: #F3F4F6 }
+:where(.dark) .hover\:text-gray-700:hover { color: #F9FAFB }
+:where(.dark) .hover\:text-gray-800:hover { color: #FFFFFF }
+
+/* 边框灰阶 —— 表格行分隔 / 卡片描边 / sticky 工具栏底线，暗色下要看得见 */
+:where(.dark) .border-gray-50  { border-color: #2D2D2D }
+:where(.dark) .border-gray-100 { border-color: #333333 }
+:where(.dark) .border-gray-200 { border-color: #3A3A3A }
+:where(.dark) .border-gray-300 { border-color: #4A4A4A }
+:where(.dark) .hover\:border-gray-300:hover { border-color: #5A5A5A }
+
+/* 红色家族 —— 在深色背景上把高饱和红压暗一档，与品牌强调色 #A33 一致 */
+:where(.dark) .text-red-500 { color: #E26B6B }
+:where(.dark) .text-red-600 { color: #ED7878 }
+:where(.dark) .text-red-700 { color: #F08585 }
+:where(.dark) .bg-red-50  { background-color: rgba(170, 51, 51, 0.15) }
+:where(.dark) .bg-red-100 { background-color: rgba(170, 51, 51, 0.25) }
+:where(.dark) .bg-red-200 { background-color: rgba(170, 51, 51, 0.35) }
+:where(.dark) .bg-red-500 { background-color: #A33 }
+:where(.dark) .bg-red-600 { background-color: #952F2F }
+:where(.dark) .border-red-200 { border-color: rgba(170, 51, 51, 0.4) }
+:where(.dark) .border-red-300 { border-color: rgba(170, 51, 51, 0.55) }
+:where(.dark) .hover\:bg-red-50:hover { background-color: rgba(170, 51, 51, 0.22) }
+:where(.dark) .hover\:bg-red-100:hover { background-color: rgba(170, 51, 51, 0.32) }
+
+/* rose 家族 —— 时段冲突 / 删除 / 警示 accent。原补丁层只覆盖了 red 家族，遗漏 rose；
+   这里同口径压暗一档（与 red 对齐），修掉周课表冲突格文字、弹窗警示色在暗色下过艳/浅边框发亮的问题。 */
+:where(.dark) .text-rose-400 { color: #E26B6B }
+:where(.dark) .text-rose-500 { color: #E26B6B }
+:where(.dark) .text-rose-600 { color: #ED7878 }
+:where(.dark) .text-rose-700 { color: #F08585 }
+:where(.dark) .bg-rose-500 { background-color: #A33 }
+:where(.dark) .border-rose-100 { border-color: rgba(170, 51, 51, 0.3) }
+:where(.dark) .border-rose-200 { border-color: rgba(170, 51, 51, 0.4) }
+:where(.dark) .border-rose-300 { border-color: rgba(170, 51, 51, 0.55) }
+:where(.dark) .hover\:text-rose-500:hover { color: #ED7878 }
+:where(.dark) .hover\:text-rose-600:hover { color: #F08585 }
+:where(.dark) .hover\:border-rose-200:hover { border-color: rgba(170, 51, 51, 0.45) }
+:where(.dark) .hover\:border-rose-300:hover { border-color: rgba(170, 51, 51, 0.6) }
+
+/* 其他色彩 chip 的 -50/-100 浅底（公选/限选/任选 等 tag 配色），暗色下用半透明保留色相 */
+:where(.dark) .bg-sky-50    { background-color: rgba(14, 165, 233, 0.15) }
+:where(.dark) .bg-sky-100   { background-color: rgba(14, 165, 233, 0.25) }
+:where(.dark) .bg-blue-50   { background-color: rgba(59, 130, 246, 0.15) }
+:where(.dark) .bg-blue-100  { background-color: rgba(59, 130, 246, 0.25) }
+:where(.dark) .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.15) }
+:where(.dark) .bg-indigo-100{ background-color: rgba(99, 102, 241, 0.25) }
+:where(.dark) .bg-purple-50 { background-color: rgba(168, 85, 247, 0.15) }
+:where(.dark) .bg-violet-50 { background-color: rgba(139, 92, 246, 0.15) }
+:where(.dark) .bg-emerald-50{ background-color: rgba(16, 185, 129, 0.15) }
+:where(.dark) .bg-emerald-100{ background-color: rgba(16, 185, 129, 0.25) }
+:where(.dark) .bg-amber-50  { background-color: rgba(245, 158, 11, 0.15) }
+:where(.dark) .bg-amber-100 { background-color: rgba(245, 158, 11, 0.25) }
+:where(.dark) .bg-orange-50 { background-color: rgba(249, 115, 22, 0.15) }
+:where(.dark) .bg-rose-50   { background-color: rgba(244, 63, 94, 0.15) }
+
+/* 这些 chip 的彩色文字 (-600/-700) 在暗色下要提亮 */
+:where(.dark) .text-sky-600    { color: #7DD3FC }
+:where(.dark) .text-sky-700    { color: #BAE6FD }
+:where(.dark) .text-blue-600   { color: #93C5FD }
+:where(.dark) .text-blue-700   { color: #BFDBFE }
+:where(.dark) .text-indigo-600 { color: #A5B4FC }
+:where(.dark) .text-indigo-700 { color: #C7D2FE }
+:where(.dark) .text-purple-600 { color: #D8B4FE }
+:where(.dark) .text-purple-700 { color: #E9D5FF }
+:where(.dark) .text-violet-600 { color: #C4B5FD }
+:where(.dark) .text-emerald-600{ color: #6EE7B7 }
+:where(.dark) .text-emerald-700{ color: #A7F3D0 }
+:where(.dark) .text-amber-600  { color: #FCD34D }
+:where(.dark) .text-amber-700  { color: #FDE68A }
+:where(.dark) .text-orange-600 { color: #FDBA74 }
+
+/* 彩色 chip 的边框 -200 用同色半透明 */
+:where(.dark) .border-sky-200    { border-color: rgba(14, 165, 233, 0.4) }
+:where(.dark) .border-blue-200   { border-color: rgba(59, 130, 246, 0.4) }
+:where(.dark) .border-blue-300   { border-color: rgba(59, 130, 246, 0.55) }
+:where(.dark) .border-indigo-200 { border-color: rgba(99, 102, 241, 0.4) }
+:where(.dark) .border-indigo-300 { border-color: rgba(99, 102, 241, 0.55) }
+:where(.dark) .border-purple-200 { border-color: rgba(168, 85, 247, 0.4) }
+:where(.dark) .border-purple-300 { border-color: rgba(168, 85, 247, 0.55) }
+:where(.dark) .border-emerald-200{ border-color: rgba(16, 185, 129, 0.4) }
+:where(.dark) .border-amber-200  { border-color: rgba(245, 158, 11, 0.4) }
+:where(.dark) .border-cyan-200   { border-color: rgba(6, 182, 212, 0.4) }
+:where(.dark) .border-teal-200   { border-color: rgba(20, 184, 166, 0.4) }
+:where(.dark) .border-orange-200 { border-color: rgba(249, 115, 22, 0.4) }
+
+/* ring / shadow 颜色 —— 补丁层此前只覆盖 border-color，漏了 ring(--tw-ring-color) 与彩色阴影
+   (--tw-shadow-color)；于是暗色下这些「浅色描边 / 光晕」依旧发亮扎眼：引导步骤 active 的
+   ring-red-100、本班级信息卡 ring-red-200、CTA(加入待选清单) 的 shadow-rose-200…
+   口径与同色 border 对齐：ring 用半透明同色描边。 */
+:where(.dark) .ring-red-100        { --tw-ring-color: rgba(170, 51, 51, 0.30) }
+:where(.dark) .ring-red-200        { --tw-ring-color: rgba(170, 51, 51, 0.40) }
+:where(.dark) .ring-red-200\/60    { --tw-ring-color: rgba(170, 51, 51, 0.30) }
+:where(.dark) .ring-red-300        { --tw-ring-color: rgba(170, 51, 51, 0.55) }
+:where(.dark) .ring-amber-100      { --tw-ring-color: rgba(245, 158, 11, 0.30) }
+:where(.dark) .ring-amber-200      { --tw-ring-color: rgba(245, 158, 11, 0.40) }
+:where(.dark) .ring-blue-200       { --tw-ring-color: rgba(59, 130, 246, 0.40) }
+:where(.dark) .ring-indigo-100\/50 { --tw-ring-color: rgba(99, 102, 241, 0.28) }
+:where(.dark) .focus\:ring-red-50:focus  { --tw-ring-color: rgba(170, 51, 51, 0.25) }
+:where(.dark) .focus\:ring-red-100:focus { --tw-ring-color: rgba(170, 51, 51, 0.30) }
+/* 彩色阴影只对「可着色」的 shadow-md/lg 生效：本项目自定义的 shadow-sm/DEFAULT 把颜色硬编码成
+   黑色 rgba(0,0,0,.4)，配色类对它无效（暗色下本就不发亮），故只需压暗 CTA 的玫红光晕。 */
+:where(.dark) .shadow-rose-200\/70          { --tw-shadow-color: rgba(220, 69, 69, 0.25) }
+:where(.dark) .hover\:shadow-rose-300:hover { --tw-shadow-color: rgba(220, 69, 69, 0.40) }
+
+/* TagBadge / chip 用的带 alpha 修饰 (bg-xxx-50/40·/50·/60) —— Tailwind 编译为 bg-xxx-50\/N，
+   与不带 alpha 的 .bg-xxx-50 是不同选择器，必须单独覆盖，否则暗色下仍是亮浅底。 */
+:where(.dark) .bg-emerald-50\/50 { background-color: rgba(16, 185, 129, 0.18) }
+:where(.dark) .bg-amber-50\/50   { background-color: rgba(245, 158, 11, 0.18) }
+:where(.dark) .bg-amber-50\/70   { background-color: rgba(245, 158, 11, 0.22) }
+:where(.dark) .bg-purple-50\/40  { background-color: rgba(168, 85, 247, 0.15) }
+:where(.dark) .bg-purple-50\/50  { background-color: rgba(168, 85, 247, 0.18) }
+:where(.dark) .bg-purple-50\/60  { background-color: rgba(168, 85, 247, 0.22) }
+:where(.dark) .bg-gray-50\/40    { background-color: rgba(120, 120, 120, 0.12) }
+:where(.dark) .bg-gray-50\/50    { background-color: rgba(120, 120, 120, 0.18) }
+:where(.dark) .bg-gray-50\/60    { background-color: rgba(120, 120, 120, 0.22) }
+:where(.dark) .bg-gray-50\/70    { background-color: rgba(120, 120, 120, 0.25) }
+:where(.dark) .bg-gray-200\/70   { background-color: rgba(80, 80, 80, 0.45) }
+:where(.dark) .bg-gray-200\/80   { background-color: rgba(80, 80, 80, 0.55) }
+:where(.dark) .bg-blue-50\/40    { background-color: rgba(59, 130, 246, 0.15) }
+:where(.dark) .bg-blue-50\/60    { background-color: rgba(59, 130, 246, 0.22) }
+:where(.dark) .bg-blue-50\/70    { background-color: rgba(59, 130, 246, 0.28) }
+:where(.dark) .bg-indigo-50\/30  { background-color: rgba(99, 102, 241, 0.12) }
+:where(.dark) .bg-indigo-50\/40  { background-color: rgba(99, 102, 241, 0.15) }
+:where(.dark) .bg-indigo-50\/50  { background-color: rgba(99, 102, 241, 0.18) }
+:where(.dark) .bg-indigo-50\/60  { background-color: rgba(99, 102, 241, 0.22) }
+:where(.dark) .bg-indigo-100\/50 { background-color: rgba(99, 102, 241, 0.2) }
+:where(.dark) .bg-indigo-100\/70 { background-color: rgba(99, 102, 241, 0.28) }
+:where(.dark) .bg-sky-50\/40     { background-color: rgba(14, 165, 233, 0.15) }
+:where(.dark) .bg-sky-50\/50     { background-color: rgba(14, 165, 233, 0.18) }
+:where(.dark) .bg-sky-50\/60     { background-color: rgba(14, 165, 233, 0.22) }
+:where(.dark) .bg-cyan-50\/50    { background-color: rgba(6, 182, 212, 0.18) }
+:where(.dark) .bg-teal-50\/50    { background-color: rgba(20, 184, 166, 0.18) }
+:where(.dark) .bg-orange-50\/50  { background-color: rgba(249, 115, 22, 0.18) }
+:where(.dark) .bg-red-50\/40     { background-color: rgba(170, 51, 51, 0.22) }
+:where(.dark) .bg-red-50\/50     { background-color: rgba(170, 51, 51, 0.25) }
+:where(.dark) .bg-red-50\/60     { background-color: rgba(170, 51, 51, 0.28) }
+:where(.dark) .bg-rose-50\/60    { background-color: rgba(244, 63, 94, 0.22) }
+:where(.dark) .bg-white\/70      { background-color: rgba(255, 255, 255, 0.05) }
+
+/* hover 态的 alpha bg —— 鼠标悬停反馈，暗色下也要亮一档 */
+:where(.dark) .hover\:bg-indigo-50\/40:hover { background-color: rgba(99, 102, 241, 0.18) }
+:where(.dark) .hover\:bg-indigo-50\/60:hover { background-color: rgba(99, 102, 241, 0.28) }
+:where(.dark) .hover\:bg-blue-50\/70:hover   { background-color: rgba(59, 130, 246, 0.32) }
+:where(.dark) .hover\:bg-red-50\/40:hover    { background-color: rgba(170, 51, 51, 0.26) }
+
+/* gradient stops —— 卡片"白底渐变"在暗色下要走 card bg，不然亮瞎眼。
+   只覆盖单个 --tw-gradient-{from|via|to} 即可，stops 通过 CSS var 在用时解析会自动跟着变。 */
+:where(.dark) .via-white          { --tw-gradient-via: var(--color-card) }
+:where(.dark) .to-white           { --tw-gradient-to:  var(--color-card) }
+:where(.dark) .from-indigo-50\/50 { --tw-gradient-from: rgba(99, 102, 241, 0.18) }
+
+/* ring 颜色 —— Plans 卡内 banner 的 indigo 描边 */
+:where(.dark) .ring-indigo-100\/50 { --tw-ring-color: rgba(99, 102, 241, 0.25) }
+:where(.dark) .ring-indigo-100\/70 { --tw-ring-color: rgba(99, 102, 241, 0.35) }
+:where(.dark) .border-indigo-100\/70 { border-color: rgba(99, 102, 241, 0.3) }
+
+/* TagBadge 还用到的彩色文本 -500 档（公选课-XXX fallback、专业任选、教师教育选修等） */
+:where(.dark) .text-emerald-500 { color: #6EE7B7 }
+:where(.dark) .text-sky-500     { color: #7DD3FC }
+:where(.dark) .text-purple-500  { color: #D8B4FE }
+:where(.dark) .text-cyan-600    { color: #67E8F9 }
+:where(.dark) .text-teal-600    { color: #5EEAD4 }
+
+/* placeholder */
+:where(.dark) .placeholder-gray-300::placeholder { color: #5A5A5A }
+:where(.dark) .placeholder-gray-400::placeholder { color: #6A6A6A }
+
+/* divide-* —— 表格行间分隔（divide-y 用） */
+:where(.dark) .divide-gray-50 > :not([hidden]) ~ :not([hidden])  { border-color: #2D2D2D }
+:where(.dark) .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #333333 }
+:where(.dark) .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #3A3A3A }
+
+/* ring / focus —— focus 态彩色光晕 */
+:where(.dark) .focus\:ring-red-50:focus { --tw-ring-color: rgba(170, 51, 51, 0.25) }
+:where(.dark) .focus\:bg-white:focus { background-color: var(--color-card) }
+:where(.dark) .focus\:border-red-300:focus { border-color: rgba(170, 51, 51, 0.55) }
+
+/* shadow —— 阴影在暗色下要更深，否则看不见层级 */
+:where(.dark) .shadow-sm { --tw-shadow: 0 1px 2px 0 rgba(0,0,0,0.4) }
+:where(.dark) .shadow    { --tw-shadow: 0 2px 6px 0 rgba(0,0,0,0.5) }
+:where(.dark) .shadow-lg { --tw-shadow: 0 8px 24px 0 rgba(0,0,0,0.6) }
+:where(.dark) .shadow-xl { --tw-shadow: 0 12px 32px 0 rgba(0,0,0,0.7) }
+:where(.dark) .shadow-2xl{ --tw-shadow: 0 16px 48px 0 rgba(0,0,0,0.75) }
 
 /* 全局轻量滚动条 —— 比浏览器默认浅且更细 */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.08) transparent;
+}
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 *::-webkit-scrollbar {
   width: 6px;
@@ -25,8 +287,14 @@ body {
   border-radius: 3px;
   transition: background-color 0.2s ease;
 }
+.dark *::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.12);
+}
 *::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 0, 0, 0.16);
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.22);
 }
 *::-webkit-scrollbar-corner {
   background: transparent;
@@ -61,3 +329,49 @@ body {
     #fecaca 10px
   );
 }
+:where(.dark) .sim-cell-conflict {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(170, 51, 51, 0.18) 0,
+    rgba(170, 51, 51, 0.18) 5px,
+    rgba(170, 51, 51, 0.36) 5px,
+    rgba(170, 51, 51, 0.36) 10px
+  );
+}
+
+/* ───────── SectionScheduleGrid 暗色专属配色 ─────────
+   为什么必须写在这里、而不是组件里的 dark:[#hex]：本项目 @custom-variant dark 用 :where() 把
+   dark: 变体特异性降到 (0,1,0) 且处于 utilities 层，会被上面无层级的通用补丁(:where(.dark).bg-red-50
+   /.bg-red-100/.bg-gray-200…)整体压过 —— 组件内 dark:[#hex] 形同失效。这里用同级(0,1,0)、源序更靠后
+   的无层级规则精确改写本网格，方能生效。
+   方案B · 精修红主题：保留淡暖红身份(呼应本班级信息红卡)，但去掉浑浊感，占用格加亮加饱和并描边，
+   让红 chrome 与红数据拉开层次。 */
+:where(.dark) .secgrid        { background-color: #120D0E; border-color: #3E2A2C }
+:where(.dark) .secgrid-head   { background-color: #1E1517; border-color: #3E2A2C }
+:where(.dark) .secgrid-day    { color: #E2A3A3 }
+:where(.dark) .secgrid-body   { background-color: #2A1F21 }
+:where(.dark) .secgrid-slot   { background-color: #191113; color: #9A8587 }
+:where(.dark) .secgrid-lunch  { background-color: #1E1517; color: #C98D8D }
+:where(.dark) .secgrid-cell   { background-color: #120D0E }
+:where(.dark) .secgrid-occ    { background-color: #D24D47; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(233,128,124,0.55) }
+:where(.dark) .secgrid-legend { background-color: #D24D47 }
+
+/* ───────── ScheduleFilter（筛选面板课表）暗色专属配色 ─────────
+   与上方 SectionScheduleGrid 同一套「精修暖红」身份（两个课表观感统一），替换旧版 #1F1414 / #FCA5A5 的浑浊暗红。
+   同样必须写成无层级规则：组件内 dark:[#hex] 处于 @layer utilities，会被无层级补丁整体压过（详见 secgrid 处注释）。
+   与 secgrid 的差异：筛选格可点击，需补 hover / 仅看(数据红) / 排除(划除) 三种交互态。 */
+:where(.dark) .fltgrid        { background-color: #120D0E; border-color: #3E2A2C }
+:where(.dark) .fltgrid-head   { background-color: #1E1517; border-color: #3E2A2C }
+:where(.dark) .fltgrid-day    { color: #E2A3A3 }
+:where(.dark) .fltgrid-body   { background-color: #2A1F21 }
+:where(.dark) .fltgrid-slot   { background-color: #191113; color: #9A8587 }
+:where(.dark) .fltgrid-lunch  { background-color: #1E1517; color: #C98D8D }
+/* 空格（可点）：暖黑底、隐藏描边（靠 body 间隙作网格线，与 secgrid 一致）；hover 提亮一档作反馈 */
+:where(.dark) .fltgrid-cell        { background-color: #120D0E; border-color: transparent }
+:where(.dark) .fltgrid-cell:hover  { background-color: #241A1C }
+/* 排除态：压暗去饱和的暖灰 + 暖色描边 + 暖色划线，明显区别于空格 */
+:where(.dark) .fltgrid-cell-ex     { background-color: #1C1517; border-color: #4A3537; color: #8A7375; text-decoration-color: #6E5658 }
+/* 仅看态（数据红）：与 secgrid 占用格同色，加亮加饱和并内描边，和暗红 chrome 拉开层次 */
+:where(.dark) .fltgrid-occ         { background-color: #D24D47; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(233, 128, 124, 0.55) }
+/* 空格内「该时段有课」提示点：暖灰，别在暖红网格里留冷色斑点 */
+:where(.dark) .fltgrid-dot         { background-color: #4E3A3C }

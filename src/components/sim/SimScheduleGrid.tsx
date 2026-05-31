@@ -108,16 +108,14 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
   }, [pop, placed, expandedChips]);
 
   // 浮窗打开时锁主页面滚动（含引导模式）：避免误触主滚动条把页面滚走、连带关掉浮窗。
-  // 用 paddingRight 补偿滚动条宽度，防止页面内容横跳 / 锚点错位。
+  // 不再手动补 paddingRight —— 全局 html{scrollbar-gutter:stable} 已恒定预留滚动条槽位，
+  // 锁滚动后滚动条消失但槽位仍在、布局宽度不变；这里再补 padding 会双重补偿，把 fixed 居中的引导弹窗推偏。
   useEffect(() => {
     if (!pop) return;
     const body = document.body;
     const prevOverflow = body.style.overflow;
-    const prevPad = body.style.paddingRight;
-    const sbw = window.innerWidth - document.documentElement.clientWidth;
     body.style.overflow = "hidden";
-    if (sbw > 0) body.style.paddingRight = `${sbw}px`;
-    return () => { body.style.overflow = prevOverflow; body.style.paddingRight = prevPad; };
+    return () => { body.style.overflow = prevOverflow; };
   }, [pop]);
 
   // 改窗 / Esc → 关浮窗；滚动 → 仅当滚的是「浮窗之外」(锚点所在容器滚动)才关，浮窗自身内部滚动不关。
@@ -155,7 +153,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
     <div>
       <div className="select-none rounded-lg overflow-hidden border border-gray-200 bg-white">
         {/* 表头 */}
-        <div className="flex bg-gray-50" style={{ borderBottom: "1px solid #E5E7EB" }}>
+        <div className="flex bg-gray-50 border-b border-gray-200">
           <div className="shrink-0 w-7" />
           <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)`, gap: 2, padding: 2 }}>
             {DAY_LABELS.slice(0, DAYS).map((d, i) => (
@@ -166,8 +164,9 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
           </div>
         </div>
 
-        {/* 表身：底色 = 标签所在背景同色（rgb(240,241,239)），让半透明占用格合成出来的颜色与课程标签一致 */}
-        <div className="flex flex-col" style={{ gap: 2, padding: 2, background: "rgb(240, 241, 239)" }}>
+        {/* 表身：底色 = 标签所在背景同色（亮 #F0F1EF / 暗 #22272E），让半透明占用格合成出来的颜色与课程标签一致。
+            必须走 class 而非 inline style —— inline 优先级最高，.dark 补丁层盖不掉，否则暗色下整片仍是亮米底。 */}
+        <div className="flex flex-col bg-[#F0F1EF] dark:bg-[#22272E]" style={{ gap: 2, padding: 2 }}>
           {rows.map((row) =>
             row.kind === "lunch" ? (
               <div
@@ -328,7 +327,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                                 onClick={() => onChooseSection?.(c.cid, o.key)}
                                 title={`${o.className ?? ""} · ${o.teacher ?? ""} · ${o.slots.map((m) => slotLabel(m)).join(" / ")}`}
                                 className={`px-2 py-1 rounded-md border text-left max-w-[150px] transition-colors ${
-                                  active ? "bg-gray-800 border-gray-800 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
+                                  active ? "bg-[#1F2937] border-gray-800 text-white dark:bg-[#30363D] dark:border-[#484F58]" : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
                                 }`}
                               >
                                 <span className="block text-[10px] font-semibold truncate">{o.teacher || o.className || "班级"}</span>
@@ -403,7 +402,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                 <div
                   key={c.cid}
                   className={`rounded-lg border px-2.5 py-2 transition-colors ${
-                    isHL ? "border-gray-800 bg-gray-50" : "border-gray-100 bg-white"
+                    isHL ? "border-gray-800 bg-gray-50 dark:border-[#484F58]" : "border-gray-100 bg-white"
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
@@ -457,7 +456,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                                   onClick={() => onChooseSection?.(c.cid, o.key)}
                                   title={`${o.className ?? ""} · ${o.teacher ?? ""} · ${o.slots.map((m) => slotLabel(m)).join(" / ")}`}
                                   className={`px-2 py-1 rounded-md border text-left max-w-[150px] transition-colors ${
-                                    active ? "bg-gray-800 border-gray-800 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
+                                    active ? "bg-[#1F2937] border-gray-800 text-white dark:bg-[#30363D] dark:border-[#484F58]" : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
                                   }`}
                                 >
                                   <span className="block text-[10px] font-semibold truncate">{o.teacher || o.className || "班级"}</span>
