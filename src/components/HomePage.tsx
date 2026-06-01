@@ -1043,7 +1043,7 @@ export function HomePage() {
 
       {/* 加/移待选清单 toast */}
       {cartToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[70] px-3 py-2 rounded-lg bg-gray-900 text-white text-[12px] shadow-xl inline-flex items-center gap-1.5">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[70] px-3 py-2 rounded-lg tip-dark text-white text-[12px] shadow-xl inline-flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>

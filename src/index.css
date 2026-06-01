@@ -92,6 +92,13 @@ body {
 :where(.dark) .border-gray-200 { border-color: #3A3A3A }
 :where(.dark) .border-gray-300 { border-color: #4A4A4A }
 :where(.dark) .hover\:border-gray-300:hover { border-color: #5A5A5A }
+/* disabled: 变体——Tailwind 编译成 .disabled\:bg-gray-200:disabled 等独立选择器，与通用
+   .bg-gray-200 / .text-gray-* 补丁不是同一个类，必须单独覆盖；否则禁用态按钮在暗色下仍是
+   亮灰 (#e5e7eb) 一块，看着像"发亮的边/块"（查询按钮禁用态即此问题）。 */
+:where(.dark) .disabled\:bg-gray-200:disabled     { background-color: #333333 }
+:where(.dark) .disabled\:border-gray-200:disabled { border-color: #30363D }
+:where(.dark) .disabled\:text-gray-300:disabled   { color: #586069 }
+:where(.dark) .disabled\:text-gray-400:disabled   { color: #6E7681 }
 
 /* 红色家族 —— 在深色背景上把高饱和红压暗一档，与品牌强调色 #A33 一致 */
 :where(.dark) .text-red-500 { color: #E26B6B }
@@ -104,6 +111,9 @@ body {
 :where(.dark) .bg-red-600 { background-color: #952F2F }
 :where(.dark) .border-red-200 { border-color: rgba(170, 51, 51, 0.4) }
 :where(.dark) .border-red-300 { border-color: rgba(170, 51, 51, 0.55) }
+/* border-red-500：补齐 500 档——使 bg-red-500(已压成 #A33) 的实心按钮(模拟选课开关 / 激活的筛选 chip)
+   描边与填充同色，不再亮一圈 #ef4444 发光边（暗色下那圈亮边正是"诡异"的来源）。 */
+:where(.dark) .border-red-500 { border-color: #A33 }
 :where(.dark) .hover\:bg-red-50:hover { background-color: rgba(170, 51, 51, 0.22) }
 :where(.dark) .hover\:bg-red-100:hover { background-color: rgba(170, 51, 51, 0.32) }
 
@@ -167,12 +177,21 @@ body {
 :where(.dark) .border-cyan-200   { border-color: rgba(6, 182, 212, 0.4) }
 :where(.dark) .border-teal-200   { border-color: rgba(20, 184, 166, 0.4) }
 :where(.dark) .border-orange-200 { border-color: rgba(249, 115, 22, 0.4) }
+/* -100 档彩色描边（比 -200 更浅一档）：原补丁只覆盖 -200/-300，遗漏 -100 —— 暗色下引导卡片
+   (border-indigo-100) / 核对课程行(border-sky-100 / border-blue-100) 的浅边按 Tailwind 原色
+   (#e0e7ff / #e0f2fe / #dbeafe) 发亮刺眼。同色半透明、比 -200(0.4) 再淡到 0.3。 */
+:where(.dark) .border-sky-100    { border-color: rgba(14, 165, 233, 0.30) }
+:where(.dark) .border-blue-100   { border-color: rgba(59, 130, 246, 0.30) }
+:where(.dark) .border-indigo-100 { border-color: rgba(99, 102, 241, 0.30) }
 
 /* ring / shadow 颜色 —— 补丁层此前只覆盖 border-color，漏了 ring(--tw-ring-color) 与彩色阴影
    (--tw-shadow-color)；于是暗色下这些「浅色描边 / 光晕」依旧发亮扎眼：引导步骤 active 的
    ring-red-100、本班级信息卡 ring-red-200、CTA(加入待选清单) 的 shadow-rose-200…
    口径与同色 border 对齐：ring 用半透明同色描边。 */
 :where(.dark) .ring-red-100        { --tw-ring-color: rgba(170, 51, 51, 0.30) }
+/* 中性灰 ring（卡片描边）——此前 ring 补丁只覆盖彩色档，漏了 ring-gray-100，于是「培养方案归属」
+   里各专业行的 ring-gray-100 在暗色下亮成 #f3f4f6 一圈。对齐 border-gray-100(#333)。 */
+:where(.dark) .ring-gray-100       { --tw-ring-color: #333333 }
 :where(.dark) .ring-red-200        { --tw-ring-color: rgba(170, 51, 51, 0.40) }
 :where(.dark) .ring-red-200\/60    { --tw-ring-color: rgba(170, 51, 51, 0.30) }
 :where(.dark) .ring-red-300        { --tw-ring-color: rgba(170, 51, 51, 0.55) }
@@ -223,7 +242,8 @@ body {
 :where(.dark) .bg-white\/70      { background-color: rgba(255, 255, 255, 0.05) }
 
 /* hover 态的 alpha bg —— 鼠标悬停反馈，暗色下也要亮一档 */
-:where(.dark) .hover\:bg-indigo-50\/40:hover { background-color: rgba(99, 102, 241, 0.18) }
+/* 培养方案归属卡头部是整条横幅命中（w-full button），0.18 在暗色下会糊出一条很突兀的亮蓝带；压到 0.10 只做轻微抬升 */
+:where(.dark) .hover\:bg-indigo-50\/40:hover { background-color: rgba(99, 102, 241, 0.10) }
 :where(.dark) .hover\:bg-indigo-50\/60:hover { background-color: rgba(99, 102, 241, 0.28) }
 :where(.dark) .hover\:bg-blue-50\/70:hover   { background-color: rgba(59, 130, 246, 0.32) }
 :where(.dark) .hover\:bg-red-50\/40:hover    { background-color: rgba(170, 51, 51, 0.26) }
@@ -232,7 +252,7 @@ body {
    只覆盖单个 --tw-gradient-{from|via|to} 即可，stops 通过 CSS var 在用时解析会自动跟着变。 */
 :where(.dark) .via-white          { --tw-gradient-via: var(--color-card) }
 :where(.dark) .to-white           { --tw-gradient-to:  var(--color-card) }
-:where(.dark) .from-indigo-50\/50 { --tw-gradient-from: rgba(99, 102, 241, 0.18) }
+:where(.dark) .from-indigo-50\/50 { --tw-gradient-from: rgba(99, 102, 241, 0.08) }
 
 /* ring 颜色 —— Plans 卡内 banner 的 indigo 描边 */
 :where(.dark) .ring-indigo-100\/50 { --tw-ring-color: rgba(99, 102, 241, 0.25) }
@@ -339,39 +359,50 @@ body {
   );
 }
 
+/* ───────── 深色浮层提示（toast / 引导气泡）暗色专属 ─────────
+   这些浮层本用 bg-gray-900 + text-white（近黑底白字）。但上面的全局补丁把 bg-gray-900
+   反相成浅色（通用意图：让"深色元素"在暗色下变亮）——浮层于是变成浅底＋白字＝看不见。
+   它们语义上是「始终深色的浮层 chrome」，故抽出专用类：亮色保持近黑(gray-900)，暗色用比
+   page/card 更亮一档的深灰浮起一层；白字沿用 text-white 始终可读。带尾巴的气泡另给
+   .tip-dark-fill，供 svg fill-current 取同色。无层级规则、特异性 (0,1,0) 压过 utilities 层。 */
+.tip-dark { background-color: #111827 }
+:where(.dark) .tip-dark { background-color: #2D333B }
+.tip-dark-fill { color: #111827 }
+:where(.dark) .tip-dark-fill { color: #2D333B }
+
 /* ───────── SectionScheduleGrid 暗色专属配色 ─────────
    为什么必须写在这里、而不是组件里的 dark:[#hex]：本项目 @custom-variant dark 用 :where() 把
    dark: 变体特异性降到 (0,1,0) 且处于 utilities 层，会被上面无层级的通用补丁(:where(.dark).bg-red-50
    /.bg-red-100/.bg-gray-200…)整体压过 —— 组件内 dark:[#hex] 形同失效。这里用同级(0,1,0)、源序更靠后
    的无层级规则精确改写本网格，方能生效。
-   方案B · 精修红主题：保留淡暖红身份(呼应本班级信息红卡)，但去掉浑浊感，占用格加亮加饱和并描边，
-   让红 chrome 与红数据拉开层次。 */
-:where(.dark) .secgrid        { background-color: #120D0E; border-color: #3E2A2C }
-:where(.dark) .secgrid-head   { background-color: #1E1517; border-color: #3E2A2C }
-:where(.dark) .secgrid-day    { color: #E2A3A3 }
-:where(.dark) .secgrid-body   { background-color: #2A1F21 }
-:where(.dark) .secgrid-slot   { background-color: #191113; color: #9A8587 }
-:where(.dark) .secgrid-lunch  { background-color: #1E1517; color: #C98D8D }
-:where(.dark) .secgrid-cell   { background-color: #120D0E }
-:where(.dark) .secgrid-occ    { background-color: #D24D47; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(233,128,124,0.55) }
-:where(.dark) .secgrid-legend { background-color: #D24D47 }
+   方案A · 中性骨架 + 红数据：骨架(容器/表头/午休/格子)走与全站一致的 GitHub 中性深灰，
+   仅"本课时间"占用格保留品牌红——红只承载数据语义、不再渲染整张表，暗色下更干净、与 app 调性统一。 */
+:where(.dark) .secgrid        { background-color: #161B22; border-color: #30363D }
+:where(.dark) .secgrid-head   { background-color: #1C2128; border-color: #30363D }
+:where(.dark) .secgrid-day    { color: #ADBAC7 }
+:where(.dark) .secgrid-body   { background-color: #262C34 }
+:where(.dark) .secgrid-slot   { background-color: #1C2128; color: #768390 }
+:where(.dark) .secgrid-lunch  { background-color: #1C2128; color: #768390 }
+:where(.dark) .secgrid-cell   { background-color: #0D1117 }
+:where(.dark) .secgrid-occ    { background-color: #E15554; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20) }
+:where(.dark) .secgrid-legend { background-color: #E15554 }
 
 /* ───────── ScheduleFilter（筛选面板课表）暗色专属配色 ─────────
-   与上方 SectionScheduleGrid 同一套「精修暖红」身份（两个课表观感统一），替换旧版 #1F1414 / #FCA5A5 的浑浊暗红。
+   与上方 SectionScheduleGrid 同一套「方案A · 中性骨架 + 红数据」（两表观感统一）。
    同样必须写成无层级规则：组件内 dark:[#hex] 处于 @layer utilities，会被无层级补丁整体压过（详见 secgrid 处注释）。
-   与 secgrid 的差异：筛选格可点击，需补 hover / 仅看(数据红) / 排除(划除) 三种交互态。 */
-:where(.dark) .fltgrid        { background-color: #120D0E; border-color: #3E2A2C }
-:where(.dark) .fltgrid-head   { background-color: #1E1517; border-color: #3E2A2C }
-:where(.dark) .fltgrid-day    { color: #E2A3A3 }
-:where(.dark) .fltgrid-body   { background-color: #2A1F21 }
-:where(.dark) .fltgrid-slot   { background-color: #191113; color: #9A8587 }
-:where(.dark) .fltgrid-lunch  { background-color: #1E1517; color: #C98D8D }
-/* 空格（可点）：暖黑底、隐藏描边（靠 body 间隙作网格线，与 secgrid 一致）；hover 提亮一档作反馈 */
-:where(.dark) .fltgrid-cell        { background-color: #120D0E; border-color: transparent }
-:where(.dark) .fltgrid-cell:hover  { background-color: #241A1C }
-/* 排除态：压暗去饱和的暖灰 + 暖色描边 + 暖色划线，明显区别于空格 */
-:where(.dark) .fltgrid-cell-ex     { background-color: #1C1517; border-color: #4A3537; color: #8A7375; text-decoration-color: #6E5658 }
-/* 仅看态（数据红）：与 secgrid 占用格同色，加亮加饱和并内描边，和暗红 chrome 拉开层次 */
-:where(.dark) .fltgrid-occ         { background-color: #D24D47; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(233, 128, 124, 0.55) }
-/* 空格内「该时段有课」提示点：暖灰，别在暖红网格里留冷色斑点 */
-:where(.dark) .fltgrid-dot         { background-color: #4E3A3C }
+   与 secgrid 的差异：筛选格可点击，需补 hover / 仅看(数据红) / 排除(中性划除) 三种交互态。 */
+:where(.dark) .fltgrid        { background-color: #161B22; border-color: #30363D }
+:where(.dark) .fltgrid-head   { background-color: #1C2128; border-color: #30363D }
+:where(.dark) .fltgrid-day    { color: #ADBAC7 }
+:where(.dark) .fltgrid-body   { background-color: #262C34 }
+:where(.dark) .fltgrid-slot   { background-color: #1C2128; color: #768390 }
+:where(.dark) .fltgrid-lunch  { background-color: #1C2128; color: #768390 }
+/* 空格（可点）：深底、隐藏描边（靠 body 间隙作网格线，与 secgrid 一致）；hover 提亮一档作反馈 */
+:where(.dark) .fltgrid-cell        { background-color: #0D1117; border-color: transparent }
+:where(.dark) .fltgrid-cell:hover  { background-color: #1C2128 }
+/* 排除态：中性去饱和深灰 + 描边 + 划线，明显区别于空格（不再用暖红） */
+:where(.dark) .fltgrid-cell-ex     { background-color: #161B22; border-color: #30363D; color: #6E7681; text-decoration-color: #6E7681 }
+/* 仅看态（数据红）：与 secgrid 占用格同色，红只承载数据 */
+:where(.dark) .fltgrid-occ         { background-color: #E15554; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20) }
+/* 空格内「该时段有课」提示点：中性灰，不在中性网格里留扎眼色点 */
+:where(.dark) .fltgrid-dot         { background-color: #586069 }
