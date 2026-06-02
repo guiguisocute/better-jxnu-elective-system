@@ -60,6 +60,7 @@ body {
 
 /* 卡片 / 弹窗 / 抽屉等"白底"在暗色下统一变 card 色 */
 :where(.dark) .bg-white { background-color: var(--color-card) }
+:where(.dark) .hover\:bg-white:hover { background-color: #1C2128 }
 
 /* 灰阶背景 —— 由浅到深，对应深色由略亮到略暗 */
 :where(.dark) .bg-gray-50  { background-color: #1A1A1A }
@@ -286,6 +287,14 @@ body {
 :where(.dark) .shadow-lg { --tw-shadow: 0 8px 24px 0 rgba(0,0,0,0.6) }
 :where(.dark) .shadow-xl { --tw-shadow: 0 12px 32px 0 rgba(0,0,0,0.7) }
 :where(.dark) .shadow-2xl{ --tw-shadow: 0 16px 48px 0 rgba(0,0,0,0.75) }
+
+/* 模拟选课面板：桌面主表格也是 bg-white→card，若面板沿用同色会贴在一起。
+   给浮层外壳更亮一档的中性灰 + 明确描边/阴影，保持它是独立工具面板。 */
+:where(.dark) .simpanel-shell {
+  background-color: #20262D;
+  border-color: #3D444D;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255,255,255,0.04);
+}
 
 /* 全局轻量滚动条 —— 比浏览器默认浅且更细 */
 * {

@@ -353,7 +353,7 @@ export function SimPanel({
         }`}
         style={{ ...panelStyle, transformOrigin }}
       >
-        <div className="relative bg-white rounded-2xl border border-gray-100 shadow-[0_16px_48px_rgba(0,0,0,0.16)] overflow-hidden flex flex-col" style={{ height: panelH }}>
+        <div className="relative bg-white rounded-2xl border border-gray-100 shadow-[0_16px_48px_rgba(0,0,0,0.16)] overflow-hidden flex flex-col simpanel-shell" style={{ height: panelH }}>
           {/* 顶栏 —— 左侧整块作拖动手柄（可拖动面板），右侧按钮区不拖 */}
           <div className="px-4 py-3 flex items-center gap-2 shrink-0 border-b border-gray-100">
             <div
