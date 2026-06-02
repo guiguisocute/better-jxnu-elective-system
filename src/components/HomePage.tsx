@@ -23,6 +23,7 @@ import { SimToggle } from "./sim/SimToggle";
 import { SimPanel } from "./sim/SimPanel";
 import { OnboardingModal } from "./sim/OnboardingModal";
 import { ConfirmDialog } from "./sim/ConfirmDialog";
+import { ThemeToggle } from "./ThemeToggle";
 import type { Course, DataSource, FormalSection } from "../types";
 
 const DATA_SOURCE_KEY = "jxnu_data_source";
@@ -312,7 +313,9 @@ export function HomePage() {
     return m;
   }, [courses]);
 
-  const visibleFormalSections = useMemo(() => {
+  // 「内容筛选」后的班级集合：搜索/学院/方案/学分/类型/教学区/隐藏已修，但【不含】课表时段筛选。
+  // 课表格子里的数字基于它统计 —— 数字随内容筛选变化，却不被你点选的时段格子反向影响（issue #2 · 方案①）。
+  const contentFilteredSections = useMemo(() => {
     if (!selectedSemester) return [];
     const f = filter.filters;
     const search = f.search.toLowerCase();
@@ -355,25 +358,27 @@ export function HomePage() {
       }
       // 隐藏已修课程（仅 sim 模式下生效，与 useCourseFilter 同口径）。
       if (f.hideTaken && sim.mode === "sim" && credit.takenCids.has(s.id)) return false;
-      // 课表时段筛选（点格子三态）。无激活格子时直接放行。
-      if (!sectionMatchesSchedule(s, schedule.filter)) return false;
       return true;
     });
-  }, [formal.sections, selectedSemester, filter.filters, schedule.filter, coursesById, sim.mode, credit.takenCids]);
+  }, [formal.sections, selectedSemester, filter.filters, coursesById, sim.mode, credit.takenCids]);
 
-  // 课表每格班级数（当前学期，未经时段筛选）：用于网格内提示。
+  // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）。
+  const visibleFormalSections = useMemo(
+    () => contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter)),
+    [contentFilteredSections, schedule.filter],
+  );
+
+  // 课表每格班级数：基于「内容筛选后」的班级统计（issue #2 · 方案① —— 随内容筛选变，不随已选时段格子变）。
   const scheduleCellCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    if (!selectedSemester) return counts;
-    for (const s of formal.sections) {
-      if (s.semester !== selectedSemester) continue;
+    for (const s of contentFilteredSections) {
       for (const m of parseSchedule(s.schedule)) {
         const key = `${m.day},${m.slot}`;
         counts[key] = (counts[key] ?? 0) + 1;
       }
     }
     return counts;
-  }, [formal.sections, selectedSemester]);
+  }, [contentFilteredSections]);
 
   // 正选/补退选的排序：复用预选的 sortAsc / ratingSortAsc 状态，行为一致。
   // 评分排序优先级高于学分；ratingSortAsc === null 时退回学分排序。
@@ -519,7 +524,7 @@ export function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA]">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-page">
         <div className="w-10 h-10 border-3 border-red-200 border-t-red-500 rounded-full animate-spin" />
         <p className="mt-4 text-gray-400 text-sm tracking-wide">正在加载课程数据...</p>
       </div>
@@ -528,7 +533,7 @@ export function HomePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA] px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md text-center">
           <h2 className="text-base font-semibold text-gray-800 mb-2">加载失败</h2>
           <p className="text-sm text-gray-400 mb-4">{error}</p>
@@ -549,18 +554,20 @@ export function HomePage() {
   const tableStickyTop = Math.max(0, headerStickyTop - stickySeamOverlap);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
+    <div className="min-h-screen bg-page">
       {/* Header - two layers */}
       <header ref={headerRef} className="sticky top-0 z-40">
-        {/* Layer 1: Red status bar */}
-        <div style={{ backgroundColor: "#CC3C3C" }}>
+        {/* Layer 1: Red status bar —— relative z-10 让其底部投影盖在下方搜索行之上（见 index.css .bg-header） */}
+        <div className="bg-header relative z-10">
           <div className="max-w-[2000px] mx-auto px-6 flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2.5">
               <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain" />
-              <h1 className="text-sm font-bold tracking-tight" style={{ color: "#FFFFFF" }}>JXNU选课PLUS</h1>
+              <h1 className="text-sm font-bold tracking-tight text-brand-fg">JXNU选课PLUS</h1>
               <span className="text-xs hidden sm:inline" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
             <div className="flex items-center gap-2.5">
+              {/* 主题切换：桌面 / 手机统一放顶部红条右侧 */}
+              <ThemeToggle />
               {/* 模拟选课开关：仅手机端 (<md) 显示（桌面端在搜索行）。 */}
               <button
                 onClick={sim.toggle}
@@ -593,8 +600,8 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Layer 2: White search bar */}
-        <div className="bg-[#F8F9FA] md:bg-white">
+        {/* Layer 2: search bar */}
+        <div className="bg-page md:bg-card">
           <div className="max-w-[2000px] mx-auto px-4 md:px-6 py-2 md:py-3 flex items-center gap-4">
             {/* Desktop search - centered */}
             <div className="hidden md:flex flex-1 justify-center">
@@ -775,7 +782,7 @@ export function HomePage() {
       <div
         className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${(mobileCourse || mobileSection) ? "translate-y-0" : "translate-y-full"}`}
       >
-        <div className="h-full bg-[#F8F9FA] overflow-y-auto">
+        <div className="h-full bg-page overflow-y-auto">
           {mobileCourse ? (
             <CourseDetail
               course={mobileCourse}
@@ -1040,7 +1047,7 @@ export function HomePage() {
 
       {/* 加/移待选清单 toast */}
       {cartToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[70] px-3 py-2 rounded-lg bg-gray-900 text-white text-[12px] shadow-xl inline-flex items-center gap-1.5">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[70] px-3 py-2 rounded-lg tip-dark text-white text-[12px] shadow-xl inline-flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>

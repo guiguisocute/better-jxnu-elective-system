@@ -5,6 +5,19 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23dc2626'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='white'>J</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JXNU 选课PLUS</title>
+    <script>
+      // 防 FOUC：在 React 挂载前同步设置 .dark class，确保首屏不闪烁。
+      // 与 src/hooks/useTheme.ts 的 STORAGE_KEY 同口径。
+      (function () {
+        try {
+          var pref = localStorage.getItem("jxnu_theme") || "auto";
+          var dark = pref === "dark" || (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document.documentElement.style.backgroundColor = dark ? "#0D1117" : "#F8F9FA";
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

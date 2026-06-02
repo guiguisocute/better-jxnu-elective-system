@@ -21,9 +21,10 @@ interface Props {
 type CellAppearance = CellState | "none";
 
 function cellCls(state: CellAppearance): string {
-  if (state === "include") return "bg-red-500 text-white ring-2 ring-red-600 border-transparent shadow-sm";
-  if (state === "exclude") return "bg-gray-200/80 text-gray-400 border-gray-300 line-through decoration-gray-400";
-  return "bg-gray-50/40 hover:bg-red-50/40 hover:border-red-200 border-gray-200 text-gray-700";
+  // 亮色用 Tailwind 类；暗色集中到 index.css 的 .fltgrid-* 无层级规则（须压过通用 .bg-*/.text-* 补丁，见该处注释）。
+  if (state === "include") return "bg-red-500 text-white ring-2 ring-red-600 border-transparent shadow-sm fltgrid-occ";
+  if (state === "exclude") return "bg-gray-200/80 text-gray-400 border-gray-300 line-through decoration-gray-400 fltgrid-cell-ex";
+  return "bg-gray-50/40 hover:bg-red-50/40 hover:border-red-200 border-gray-200 text-gray-700 fltgrid-cell";
 }
 
 export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, cellCounts = {} }: Props) {
@@ -48,31 +49,31 @@ export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, c
       </div>
 
       {/* 课表网格 */}
-      <div className="select-none rounded-lg overflow-hidden border border-gray-200 bg-white">
+      <div className="select-none rounded-lg overflow-hidden border border-gray-200 bg-white fltgrid">
         {/* 表头：星期 */}
-        <div className="flex" style={{ background: "#FEF2F2", borderBottom: "1px solid #FECACA" }}>
+        <div className="flex bg-red-50 border-b border-red-200 fltgrid-head">
           <div className="shrink-0 w-7" />
           <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)`, gap: 2, padding: 2 }}>
             {DAY_LABELS.slice(0, DAYS).map((d, i) => (
-              <div key={i} className="flex items-center justify-center text-[10px] text-gray-600 font-medium py-0.5">周{d}</div>
+              <div key={i} className="flex items-center justify-center text-[10px] text-gray-600 fltgrid-day font-medium py-0.5">周{d}</div>
             ))}
           </div>
         </div>
 
         {/* 表身 */}
-        <div className="flex flex-col" style={{ gap: 2, padding: 2 }}>
+        <div className="flex flex-col fltgrid-body" style={{ gap: 2, padding: 2 }}>
           {rows.map((row) =>
             row.kind === "lunch" ? (
               <div
                 key="lunch"
-                className="rounded flex items-center justify-center text-[10px]"
-                style={{ height: 14, background: "#FEF2F2", color: "#B91C1C", letterSpacing: "0.5em" }}
+                className="rounded flex items-center justify-center text-[10px] bg-red-50 text-red-700 fltgrid-lunch"
+                style={{ height: 14, letterSpacing: "0.5em" }}
               >
                 中午
               </div>
             ) : (
               <div key={row.slot} className="flex" style={{ gap: 2 }}>
-                <div className="shrink-0 w-7 flex items-center justify-center text-[9px] font-mono text-gray-400 bg-gray-50/70 rounded">
+                <div className="shrink-0 w-7 flex items-center justify-center text-[9px] font-mono text-gray-400 bg-gray-50/70 rounded fltgrid-slot">
                   {SLOT_LABEL[row.slot]}
                 </div>
                 <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)`, gap: 2 }}>
@@ -88,12 +89,13 @@ export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, c
                         className={`relative rounded border h-9 transition-all cursor-pointer flex items-center justify-center ${cellCls(state)}`}
                       >
                         {state === "none" && count > 0 && (
-                          <span className="absolute right-0.5 top-0.5 w-1 h-1 rounded-full bg-gray-300" />
+                          <span className="absolute right-0.5 top-0.5 w-1 h-1 rounded-full bg-gray-300 fltgrid-dot" />
                         )}
                         {state !== "none" && (
                           <span
-                            className="absolute -top-px -right-px text-[8px] leading-none px-0.5 py-px rounded-bl text-white font-bold"
-                            style={{ background: state === "include" ? "#dc2626" : "#9ca3af" }}
+                            className={`absolute -top-px -right-px text-[8px] leading-none px-0.5 py-px rounded-bl text-white font-bold ${
+                              state === "include" ? "bg-red-600 fltgrid-state-inc" : "bg-gray-400 fltgrid-state-ex"
+                            }`}
                           >
                             {state === "include" ? "仅" : "排"}
                           </span>
@@ -111,21 +113,24 @@ export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, c
         </div>
       </div>
 
-      {/* 图例 */}
-      <div className="mt-2 flex items-center gap-2 flex-wrap text-[10px] text-gray-500">
-        <span className="inline-flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-gray-50 border border-gray-200" />默认
-        </span>
-        <span className="text-gray-300">→</span>
-        <span className="inline-flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-red-500 ring-1 ring-red-600" />
-          <span className="text-red-700">仅看能填</span>
-        </span>
-        <span className="text-gray-300">→</span>
-        <span className="inline-flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-gray-200 border border-gray-300" />
-          <span className="line-through decoration-gray-400">排除冲突</span>
-        </span>
+      {/* 图例：色块对应格子状态；点击格子在三态间循环切换。
+          色块复用 .fltgrid-* 钩子，暗色下与真实格子完全同色（详见 index.css）。 */}
+      <div className="mt-2 space-y-1 text-[10px]">
+        <div className="flex items-center gap-3 flex-wrap text-gray-500">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-gray-50/40 border border-gray-200 fltgrid-cell" />
+            <span>默认</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-red-500 fltgrid-occ" />
+            <span className="text-red-700 font-medium">仅看能填</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-gray-200 border border-gray-300 fltgrid-cell-ex" />
+            <span className="line-through decoration-gray-400">排除冲突</span>
+          </span>
+        </div>
+        <p className="text-gray-400">点击格子循环切换（默认 / 仅看能填 / 排除冲突）</p>
       </div>
 
       {/* 活动格子 chip */}

@@ -15,9 +15,10 @@ type CellState = "none" | "occupied" | "conflict";
 
 function cellCls(state: CellState): string {
   // 本课占用格用浅红（与所在「本班级信息」红卡片一致）；冲突格用浅红斜条纹（与周课表一致，不刺眼）。
+  // 暗色配色集中在 index.css 的 .secgrid-* 无层级规则（必须压过通用 .bg-red-* 补丁，见该处注释）。
   if (state === "conflict") return "sim-cell-conflict text-rose-600";
-  if (state === "occupied") return "bg-red-100 text-red-700";
-  return "bg-white";
+  if (state === "occupied") return "bg-red-100 text-red-700 secgrid-occ";
+  return "bg-white secgrid-cell";
 }
 
 interface Props {
@@ -44,31 +45,31 @@ export function SectionScheduleGrid({ schedule, filter }: Props) {
 
   return (
     <div>
-      <div className="select-none rounded-lg overflow-hidden border border-red-200 bg-white">
+      <div className="select-none rounded-lg overflow-hidden border border-red-200 bg-white secgrid">
         {/* 表头：星期 */}
-        <div className="flex" style={{ background: "#FEF2F2", borderBottom: "1px solid #FECACA" }}>
+        <div className="flex bg-red-50 border-b border-red-200 secgrid-head">
           <div className="shrink-0 w-7" />
           <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)`, gap: 2, padding: 2 }}>
             {DAY_LABELS.slice(0, DAYS).map((d, i) => (
-              <div key={i} className="flex items-center justify-center text-[10px] text-gray-600 font-medium py-0.5">周{d}</div>
+              <div key={i} className="flex items-center justify-center text-[10px] text-gray-600 secgrid-day font-medium py-0.5">周{d}</div>
             ))}
           </div>
         </div>
 
-        {/* 表身：底色作分界线，格子间 2px 间隙显出淡灰网格线（gray-200） */}
-        <div className="flex flex-col" style={{ gap: 2, padding: 2, background: "#E5E7EB" }}>
+        {/* 表身：底色作分界线 */}
+        <div className="flex flex-col bg-gray-200 secgrid-body" style={{ gap: 2, padding: 2 }}>
           {rows.map((row) =>
             row.kind === "lunch" ? (
               <div
                 key="lunch"
-                className="rounded flex items-center justify-center text-[10px]"
-                style={{ height: 12, background: "#FEF2F2", color: "#B91C1C", letterSpacing: "0.5em" }}
+                className="rounded flex items-center justify-center text-[10px] bg-red-50 text-red-700 secgrid-lunch"
+                style={{ height: 12, letterSpacing: "0.5em" }}
               >
                 中午
               </div>
             ) : (
               <div key={row.slot} className="flex" style={{ gap: 2 }}>
-                <div className="shrink-0 w-7 flex items-center justify-center text-[9px] font-mono text-gray-400 bg-gray-50/70 rounded">
+                <div className="shrink-0 w-7 flex items-center justify-center text-[9px] font-mono text-gray-400 bg-gray-50/70 rounded secgrid-slot">
                   {SLOT_LABEL[row.slot]}
                 </div>
                 <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)`, gap: 2 }}>
@@ -98,7 +99,7 @@ export function SectionScheduleGrid({ schedule, filter }: Props) {
       {/* 图例 */}
       <div className="mt-2 flex items-center gap-3 flex-wrap text-[10px] text-gray-500">
         <span className="inline-flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-red-100" />本课时间
+          <span className="w-3 h-3 rounded-sm bg-red-100 secgrid-legend" />本课时间
         </span>
         {hasConflict && (
           <span className="inline-flex items-center gap-1">

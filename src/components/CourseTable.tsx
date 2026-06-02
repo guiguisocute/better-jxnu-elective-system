@@ -173,15 +173,19 @@ function compressClassName(raw: string, maxLen = 11): string {
 }
 
 function getCreditColor(credits: number): string {
-  if (credits <= 1) return "bg-red-50 text-red-300";
-  if (credits <= 2) return "bg-red-50 text-red-400";
-  if (credits <= 3) return "bg-red-100 text-red-500";
-  if (credits <= 4) return "bg-red-100 text-red-600";
-  if (credits <= 5) return "bg-red-200 text-red-600";
-  if (credits <= 6) return "bg-red-200 text-red-700";
-  if (credits <= 8) return "bg-red-300 text-red-700";
-  if (credits <= 10) return "bg-red-400 text-red-800";
-  return "bg-red-500 text-white";
+  // 亮色：浅红底 + 深红字，色阶随学分递增饱和度。
+  // 暗色：用 arbitrary value 走深红 brick(#7F1D1D)/暗砖(#991B1B)/red-700(#B91C1C)/brand(#A33) 半透明，配近白色文字。
+  // 注意：亮色的 bg-red-*/text-red-* 被 index.css 全局 .dark 补丁映射覆盖，会压过 dark: 变体 ——
+  //       故凡被映射的档位都改用 arbitrary hex 绕过，dark: 才能干净生效（未被映射的 text-red-300/400 保留类名）。
+  if (credits <= 1) return "bg-[#FEF2F2] text-red-300 dark:bg-[#7F1D1D]/30 dark:text-[#FCA5A5]";
+  if (credits <= 2) return "bg-[#FEF2F2] text-red-400 dark:bg-[#7F1D1D]/40 dark:text-[#FCA5A5]";
+  if (credits <= 3) return "bg-[#FEE2E2] text-[#EF4444] dark:bg-[#7F1D1D]/55 dark:text-[#FECACA]";
+  if (credits <= 4) return "bg-[#FEE2E2] text-[#DC2626] dark:bg-[#7F1D1D]/70 dark:text-[#FECACA]";
+  if (credits <= 5) return "bg-[#FECACA] text-[#DC2626] dark:bg-[#991B1B]/70 dark:text-[#FEE2E2]";
+  if (credits <= 6) return "bg-[#FECACA] text-[#B91C1C] dark:bg-[#991B1B]/85 dark:text-[#FEE2E2]";
+  if (credits <= 8) return "bg-[#FCA5A5] text-[#B91C1C] dark:bg-[#B91C1C]/90 dark:text-white";
+  if (credits <= 10) return "bg-[#F87171] text-[#991B1B] dark:bg-[#B91C1C] dark:text-white";
+  return "bg-[#EF4444] text-white dark:bg-[#A33] dark:text-white";
 }
 
 const FORMAL_HEADERS = [
@@ -223,7 +227,10 @@ export function CourseTable({
       {/* ===== 桌面端 ===== */}
       {/* 不要给 wrapper 加 border-top —— 那条 1px gray-100 是表里"工具栏与搜索框间 1px 缝隙"
           的真正元凶：sticky toolbar 不能贴住 wrapper border 的 1px 偏移，露出灰线即缝。 */}
-      <div className="hidden md:block bg-white rounded-b-xl border-x border-b border-gray-100 shadow-sm">
+      {/* 全圆角 wrapper —— 跟左右两侧卡片对齐。早先用 overflow-x-clip / clipPath 是为了
+          裁掉评分列星星溢出圆角边，但 table-fixed + colgroup 已经把列宽锁死，星星稳稳在
+          cell 内，不再需要裁剪；保留 clip-path 反而会把外层 shadow-sm 也一起裁掉。 */}
+      <div className="hidden md:block bg-white rounded-xl border border-gray-100 shadow-sm">
         {/* Toolbar —— 左：数据源切换；右：学期下拉。 */}
         <div
           className="sticky z-30 flex h-[50px] items-center justify-between bg-white px-5 border-b border-gray-100 relative"
@@ -255,12 +262,12 @@ export function CourseTable({
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              {/* 列宽（顺序）：课程号8 / 课程名称15 / 学分5 / 开课学院10 / 标签14 /
-                 任课教师8 / 上课时间10 / 班级名称12 / 教室代号7 / 容量5 / 评分6 (%)。
+              {/* 列宽（顺序）：课程号8 / 课程名称14 / 学分5 / 开课学院10 / 标签14 /
+                 任课教师8 / 上课时间10 / 班级名称12 / 教室代号7 / 容量5 / 评分7 (%)。
                  注意：<colgroup> 只能含 <col>，行内注释会产生空白文本节点告警，勿加。 */}
               <colgroup>
                 <col style={{ width: "8%" }} />
-                <col style={{ width: "15%" }} />
+                <col style={{ width: "14%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "10%" }} />
                 <col style={{ width: "14%" }} />
@@ -269,7 +276,7 @@ export function CourseTable({
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "7%" }} />
                 <col style={{ width: "5%" }} />
-                <col style={{ width: "6%" }} />
+                <col style={{ width: "7%" }} />
               </colgroup>
               <thead className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
                 <tr>
@@ -460,7 +467,19 @@ export function CourseTable({
             <p className="text-sm mt-1 text-gray-400">请调整筛选条件</p>
           </div>
         ) : (
-          <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+            {/* 列宽：课程号 / 课程名称 / 学分 / 开课学院 / 标签 / 教师 / 评分 (+ 模拟选课加车列)。
+               固定布局避免长课名（如"教育实践 (含专题见习、教育实习、实践研习)"）把右侧顶出。 */}
+            <colgroup>
+              <col style={{ width: simMode ? "9%"  : "10%" }} />
+              <col style={{ width: simMode ? "24%" : "26%" }} />
+              <col style={{ width: simMode ? "6%"  : "7%"  }} />
+              <col style={{ width: simMode ? "15%" : "16%" }} />
+              <col style={{ width: simMode ? "14%" : "15%" }} />
+              <col style={{ width: simMode ? "12%" : "12%" }} />
+              <col style={{ width: simMode ? "14%" : "14%" }} />
+              {simMode && <col style={{ width: "6%" }} />}
+            </colgroup>
             <thead className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
               <tr>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">课程号</th>
@@ -477,7 +496,7 @@ export function CourseTable({
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">开课学院</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">标签</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">教师</th>
-                <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleRatingSort}>
+                <th className="pl-3 pr-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleRatingSort}>
                   <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
                     ratingSortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
                   }`}>
@@ -513,10 +532,10 @@ export function CourseTable({
                       </span>
                     </td>
                     <td className={`px-5 py-4 text-[13px] font-medium border-b border-gray-50 transition-colors ${isSelected ? "text-red-600" : "text-gray-800 group-hover:text-red-600"}`}>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         {isSelected && <span className="w-[3px] h-4 rounded-full bg-red-500 shrink-0" />}
                         {!isSelected && inPlan && <span className="w-[3px] h-4 rounded-full bg-indigo-400 shrink-0" />}
-                        <span className="truncate">{c.name}</span>
+                        <span className="truncate flex-1 min-w-0" title={c.name}>{c.name}</span>
                         {simMode && cartHas?.(c.id) && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold shrink-0">
                             <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
@@ -544,7 +563,7 @@ export function CourseTable({
                     <td className="px-5 py-4 text-xs text-gray-500 max-w-[150px] truncate border-b border-gray-50">
                       {c.teachers.map((t) => t.name).join(", ") || "—"}
                     </td>
-                    <td className="px-5 py-4 border-b border-gray-50">
+                    <td className="pl-3 pr-5 py-4 border-b border-gray-50">
                       <StarRating rating={getCourseAvg?.(c.id) ?? null} />
                     </td>
                     {simMode && (
@@ -566,7 +585,7 @@ export function CourseTable({
       {/* ===== 移动端 ===== */}
       <div className="md:hidden">
         {/* Mobile toolbar: 数据源切换 */}
-        <div className="flex items-center justify-between px-1 pt-1 pb-2.5 bg-[#F8F9FA]">
+        <div className="flex items-center justify-between px-1 pt-1 pb-2.5 bg-page">
           <DataSourceSwitcher value={dataSource} onChange={onChangeDataSource} />
         </div>
 
@@ -670,7 +689,7 @@ export function CourseTable({
         ) : (
           <>
             {/* Sort bar */}
-            <div className="flex items-center gap-2 pb-2.5 px-1 bg-[#F8F9FA]">
+            <div className="flex items-center gap-2 pb-2.5 px-1 bg-page">
               <span className="text-[11px] text-gray-400 shrink-0">排序</span>
               <button
                 onClick={handleSort}

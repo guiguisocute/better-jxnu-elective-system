@@ -9,6 +9,8 @@ d1_seed.sql
 .antigravitycli/
 .spec-workflow/
 CLAUDE.md
+AGENT.md
+AGENTS.md
 plan/
 
 *.log

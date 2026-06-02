@@ -312,7 +312,7 @@ function FilterSection({
           {children}
         </div>
         {!expanded && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white via-white/85 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white via-white/85 dark:from-[#161B22] dark:via-[#161B22]/85 to-transparent" />
         )}
       </div>
       <button

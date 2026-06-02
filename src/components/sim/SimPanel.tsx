@@ -11,6 +11,7 @@ import { CreditBar } from "./CreditBar";
 import { CartList } from "./CartList";
 import { SimScheduleGrid } from "./SimScheduleGrid";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { useTheme } from "../../hooks/useTheme";
 
 interface Props {
   view: CreditPlanView;
@@ -86,6 +87,8 @@ export function SimPanel({
   selectedCourseId, inputs, onApplyBundle, showFutureRequired, setShowFutureRequired,
   moocOffset, setMoocOffset, competitionOffset, setCompetitionOffset,
 }: Props) {
+  const { resolved } = useTheme();
+  const isDark = resolved === "dark";
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("cart");
   const [hint, setHint] = useState(true); // 进入模拟选课时的位置提示
@@ -762,7 +765,7 @@ export function SimPanel({
 
           {/* 轻提示 toast（复制 / 桩功能） */}
           {notice && (
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-3 px-3 py-1.5 rounded-full bg-gray-900 text-white text-[11px] font-medium shadow-lg pointer-events-none whitespace-nowrap">
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-3 px-3 py-1.5 rounded-full tip-dark text-white text-[11px] font-medium shadow-lg pointer-events-none whitespace-nowrap">
               {notice}
             </div>
           )}
@@ -775,11 +778,11 @@ export function SimPanel({
           className="fixed z-40 pointer-events-none -translate-x-1/2 transition-opacity duration-300"
           style={{ left: clamp(ringCx, 70, vp.w - 70), top: pos.y - 44 }}
         >
-          <div className="px-3 py-1.5 rounded-full bg-gray-900 text-white text-[11px] font-semibold shadow-lg whitespace-nowrap animate-bounce">
+          <div className="px-3 py-1.5 rounded-full tip-dark text-white text-[11px] font-semibold shadow-lg whitespace-nowrap animate-bounce">
             点击查看模拟选课详细信息
           </div>
           <svg
-            className="w-3 h-1.5 text-gray-900 fill-current mx-auto block -mt-[1px]"
+            className="w-3 h-1.5 tip-dark-fill fill-current mx-auto block -mt-[1px]"
             viewBox="0 0 12 6"
           >
             <path d="M0,0 C3,0 4.5,4.5 6,4.5 C7.5,4.5 9,0 12,0 Z" />
@@ -801,7 +804,7 @@ export function SimPanel({
           <span className="absolute inset-0 rounded-full bg-red-400/30 animate-ping" />
         )}
         <svg width="60" height="60" viewBox="0 0 60 60" className="absolute inset-0 m-auto">
-          <circle cx="30" cy="30" r={R} fill="none" stroke="#f3f4f6" strokeWidth="5" />
+          <circle cx="30" cy="30" r={R} fill="none" stroke={isDark ? "#2A2A2A" : "#f3f4f6"} strokeWidth="5" />
           <circle
             cx="30" cy="30" r={R} fill="none" stroke={ringColor} strokeWidth="5" strokeLinecap="round"
             strokeDasharray={`${ringPct * C} ${C}`}
