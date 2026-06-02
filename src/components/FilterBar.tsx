@@ -27,12 +27,16 @@ interface Props {
   simMode: boolean;
   /** 当前数据源 —— 上课区域筛选仅在正选/补退选生效，预选时整段隐藏。 */
   dataSource: DataSource;
+  /** 同课程号折叠开关（仅正选/补退选显示）。默认开启；关闭回退扁平模式。 */
+  foldGroups?: boolean;
+  onToggleFoldGroups?: () => void;
 }
 
 export function FilterBar({
   filters, updateFilter, cycleCredit, cycleDept, cycleType, cycleTag, cycleArea, cyclePlanFilter,
   clearAll, hasActiveFilters,
   allDepts, allCredits, allPlans, courseTypes, subTags, simMode, dataSource,
+  foldGroups = true, onToggleFoldGroups,
 }: Props) {
   // 「任意选修」在 plan 为空时禁用，点击时短暂显示内联提示
   const [anyHint, setAnyHint] = useState(false);
@@ -79,7 +83,7 @@ export function FilterBar({
           options={allPlans}
         />
         {filters.plan && (
-          <PlanFilterTriState state={filters.planFilter} onClick={cyclePlanFilter} />
+          <PlanOnlyToggle active={filters.planFilter === "include"} onClick={cyclePlanFilter} />
         )}
         <HideTakenToggle
           enabled={simMode}
@@ -237,6 +241,11 @@ export function FilterBar({
         </div>
       </FilterSection>
 
+      {/* 同课程号折叠开关（仅正选/补退选）：默认开启，关闭回退「一行一个班级」。放在开课学院下方。 */}
+      {dataSource !== "pre" && onToggleFoldGroups && (
+        <FoldGroupsToggle active={foldGroups} onClick={onToggleFoldGroups} />
+      )}
+
       {hasActiveFilters && (
         <button
           onClick={clearAll}
@@ -372,39 +381,49 @@ function HideTakenToggle({ enabled, active, onClick }: { enabled: boolean; activ
   );
 }
 
-function PlanFilterTriState({ state, onClick }: { state: "none" | "include" | "exclude"; onClick: () => void }) {
-  // 三态按钮：默认 → 仅本方案 → 排除本方案 → 默认
-  const conf = {
-    none: {
-      cls: "bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300",
-      label: "仅查看本方案课程",
-      hint: "未启用",
-    },
-    include: {
-      cls: "bg-red-500 text-white border-red-500 shadow-sm shadow-red-200",
-      label: "仅查看本方案课程",
-      hint: "已启用",
-    },
-    exclude: {
-      cls: "bg-gray-200 text-gray-500 border-gray-300 line-through decoration-gray-400",
-      label: "仅查看本方案课程",
-      hint: "排除本方案",
-    },
-  }[state];
-
+function FoldGroupsToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
+  // 胶囊开关：折叠同名课程。默认开启（active）→ 品牌红；关闭 → 灰，回退扁平列表。
+  const trackCls = active ? "bg-red-500" : "bg-gray-300";
+  const labelCls = active ? "text-red-600 font-semibold" : "text-gray-600";
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-pressed={state === "include"}
-      title={`点击循环：未启用 → 仅本方案 → 排除本方案`}
-      className={`mt-2 w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all select-none cursor-pointer min-h-[36px] ${conf.cls}`}
+      aria-pressed={active}
+      title="同一课程号的多个班级折叠为一行；关闭后每个班级单独成行"
+      className="w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs transition-colors select-none min-h-[36px] hover:bg-gray-50"
     >
-      <span>{conf.label}</span>
-      <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider ${
-        state === "include" ? "text-white/80" : state === "exclude" ? "text-gray-500 no-underline" : "text-red-400"
-      }`} style={state === "exclude" ? { textDecoration: "none" } : undefined}>
-        {conf.hint}
+      <span className={labelCls}>折叠同名课程</span>
+      <span className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${trackCls}`}>
+        <span
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
+            active ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+function PlanOnlyToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
+  // 胶囊开关：仅看本方案课程。与 HideTakenToggle 同一视觉，激活色用品牌红。
+  const trackCls = active ? "bg-red-500" : "bg-gray-300";
+  const labelCls = active ? "text-red-600 font-semibold" : "text-gray-600";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title="只显示本培养方案内的课程"
+      className="mt-2 w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs transition-colors select-none min-h-[36px] hover:bg-gray-50"
+    >
+      <span className={labelCls}>仅看本方案课程</span>
+      <span className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${trackCls}`}>
+        <span
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
+            active ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
       </span>
     </button>
   );
