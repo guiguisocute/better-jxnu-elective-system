@@ -123,14 +123,14 @@ export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, c
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-red-500 fltgrid-occ" />
-            <span className="text-red-700 font-medium">仅看能填</span>
+            <span className="text-red-700 font-medium">仅看该时间段</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-gray-200 border border-gray-300 fltgrid-cell-ex" />
-            <span className="line-through decoration-gray-400">排除冲突</span>
+            <span className="line-through decoration-gray-400">排除该时间段</span>
           </span>
         </div>
-        <p className="text-gray-400">点击格子循环切换（默认 / 仅看能填 / 排除冲突）</p>
+        <p className="text-gray-400">点击课表循环切换</p>
       </div>
 
       {/* 活动格子 chip */}

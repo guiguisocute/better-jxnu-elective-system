@@ -107,7 +107,7 @@ export function slotLabel(m: MeetSlot): string {
 }
 
 /**
- * 「仅看能填」(include) 筛选下，schedule 命中后仍占用的、不在所选格子里的时段。
+ * 「仅看该时间段」(include) 筛选下，schedule 命中后仍占用的、不在所选格子里的时段。
  * 用于红色冲突提醒：这门课会占用你没标为可填的时间。
  * 无 include 格子、或该课没有任一时段落在 include 内时返回 []（不提醒）。
  */

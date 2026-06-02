@@ -24,7 +24,7 @@ import { SimPanel } from "./sim/SimPanel";
 import { OnboardingModal } from "./sim/OnboardingModal";
 import { ConfirmDialog } from "./sim/ConfirmDialog";
 import { ThemeToggle } from "./ThemeToggle";
-import type { Course, DataSource, FormalSection } from "../types";
+import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
 
 const DATA_SOURCE_KEY = "jxnu_data_source";
 
@@ -130,6 +130,74 @@ export function HomePage() {
     schedule.clear();
   };
   const hasAnyActiveFilters = filter.hasActiveFilters || schedule.active;
+
+  // 功能说明层：无任何筛选时中间区不堆课，先解释各区域功能（详见 FeatureHints）。
+  // 「直接展示全部课程」只是临时揭开本次清洁态的列表；一旦再施加筛选就重置，
+  // 下次清空筛选又会重新显示（按产品决策：每次清空筛选都显示）。不落 storage。
+  const [hintsDismissed, setHintsDismissed] = useState(false);
+  useEffect(() => {
+    if (hasAnyActiveFilters) setHintsDismissed(false);
+  }, [hasAnyActiveFilters]);
+  const showHints = !hasAnyActiveFilters && !hintsDismissed;
+
+  // 模拟选课入口：未选培养方案 → 先走引导（选方案+填学分）；已选方案 → 直接进 sim，不弹引导。
+  const enterSim = useCallback(() => {
+    if (filter.filters.plan) sim.goSim();
+    else sim.openOnboarding();
+  }, [filter.filters.plan, sim]);
+  // 顶部开关：sim 态 → 关闭；browse 态 → 按上面规则进入；onboarding 态点开关不动作（由弹窗按钮处理）。
+  const handleSimToggle = useCallback(() => {
+    if (sim.mode === "onboarding") return;
+    if (sim.mode === "sim") sim.close();
+    else enterSim();
+  }, [sim, enterSim]);
+
+  // 一次性「左侧有筛选」提醒（SimPanel 风格气泡）：首次点「浏览全部」或首次走完模拟选课引导后弹一次。
+  const FILTER_HINT_KEY = "jxnu.filterHintSeen";
+  const [showFilterHint, setShowFilterHint] = useState(false);
+  const filterHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const dismissFilterHint = useCallback(() => {
+    clearTimeout(filterHintTimer.current);
+    setShowFilterHint(false);
+  }, []);
+  const maybeShowFilterHint = useCallback(() => {
+    try {
+      if (localStorage.getItem(FILTER_HINT_KEY) === "1") return;
+      localStorage.setItem(FILTER_HINT_KEY, "1");
+    } catch {}
+    setShowFilterHint(true);
+    clearTimeout(filterHintTimer.current);
+    filterHintTimer.current = setTimeout(() => setShowFilterHint(false), 5000);
+  }, []);
+  // 走完模拟选课引导：照常落 sim 态，并尝试弹一次筛选提醒。
+  const handleOnboardingFinish = useCallback(() => {
+    sim.finishOnboarding();
+    maybeShowFilterHint();
+  }, [sim, maybeShowFilterHint]);
+
+  // 筛选提醒的锚点：移动锚 header 漏斗按钮；桌面锚左侧筛选区（展开按钮 or 内联侧栏，同一 callback ref）。
+  const mobileFunnelRef = useRef<HTMLButtonElement>(null);
+  const leftFilterElRef = useRef<HTMLElement | null>(null);
+  const setLeftFilterEl = useCallback((el: HTMLElement | null) => { if (el) leftFilterElRef.current = el; }, []);
+  const [filterHintPos, setFilterHintPos] = useState<{ top: number; left: number; dir: "left" | "up" } | null>(null);
+  useEffect(() => {
+    if (!showFilterHint) { setFilterHintPos(null); return; }
+    const place = () => {
+      if (window.innerWidth < 768) {
+        const r = mobileFunnelRef.current?.getBoundingClientRect();
+        if (r && r.width > 0) { setFilterHintPos({ top: r.bottom + 10, left: r.left + r.width / 2, dir: "up" }); return; }
+        setFilterHintPos(null);
+        return;
+      }
+      const r = leftFilterElRef.current?.getBoundingClientRect();
+      if (r && r.width > 0) { setFilterHintPos({ top: r.top + 16, left: r.right + 12, dir: "left" }); return; }
+      // 左栏抽屉态（1280–1700）下内联栏/展开按钮都未挂载 → 兜底放到内容区左上角，仍指向左。
+      setFilterHintPos({ top: 150, left: 90, dir: "left" });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [showFilterHint]);
 
   // 方案分享码恢复：覆盖 plan + StoredInputs + cart + chosenSections，并直接进入 sim 态。
   const handleApplyBundle = useCallback(
@@ -349,12 +417,10 @@ export function HomePage() {
         if (f.area.length > 0 && !f.area.some((a) => sectionInArea(areas, a))) return false;
         if (f.areaExclude.length > 0 && f.areaExclude.some((a) => sectionInArea(areas, a))) return false;
       }
-      // 培养方案硬过滤（仅 plan 非空时生效）：include 只看本方案、exclude 只看非本方案。
-      if (f.plan && f.planFilter !== "none") {
+      // 培养方案硬过滤（仅 plan 非空 + 胶囊开关开时生效）：只看本方案课程。
+      if (f.plan && f.planFilter === "include") {
         const c = coursesById.get(s.id);
-        const inPlan = c ? isInPlan(c, f.plan) : false;
-        if (f.planFilter === "include" && !inPlan) return false;
-        if (f.planFilter === "exclude" && inPlan) return false;
+        if (!(c && isInPlan(c, f.plan))) return false;
       }
       // 隐藏已修课程（仅 sim 模式下生效，与 useCourseFilter 同口径）。
       if (f.hideTaken && sim.mode === "sim" && credit.takenCids.has(s.id)) return false;
@@ -384,8 +450,23 @@ export function HomePage() {
   // 评分排序优先级高于学分；ratingSortAsc === null 时退回学分排序。
   // 评分用 section 教师的具体分（getTeacherAvg），与列表显示口径一致 —— 不能用课程平均（getCourseAvg），
   // 否则同课不同老师的几行排序会完全一样、且与单元格显示的星数对不上。
-  const sortedFormalSections = useMemo(() => {
-    return [...visibleFormalSections].sort((a, b) => {
+  // 同课程号折叠：按 s.id 分组 → 组内排序 → 组间排序。
+  //   组内：评分排序时按该 section 教师分，否则按学分（同课相同）→ className 稳定。
+  //   组间：评分排序用组内最高分作键，否则用该课学分；方向跟随 sortAsc / ratingSortAsc。
+  // 同课程号折叠开关：默认开启；关闭则回退到「一行一个班级」的扁平模式。
+  const FOLD_KEY = "jxnu_fold_groups";
+  const [foldGroups, setFoldGroups] = useState<boolean>(() => {
+    try { return sessionStorage.getItem(FOLD_KEY) !== "0"; } catch { return true; }
+  });
+  const toggleFoldGroups = useCallback(() => {
+    setFoldGroups((v) => {
+      try { sessionStorage.setItem(FOLD_KEY, v ? "0" : "1"); } catch {}
+      return !v;
+    });
+  }, []);
+
+  const formalGroupsAll = useMemo<FormalGroup[]>(() => {
+    const cmpSections = (a: FormalSection, b: FormalSection) => {
       if (filter.ratingSortAsc !== null) {
         const aAvg = getTeacherAvg(a.id, a.teacherId)?.avg ?? -1;
         const bAvg = getTeacherAvg(b.id, b.teacherId)?.avg ?? -1;
@@ -393,23 +474,59 @@ export function HomePage() {
       }
       const cmp = a.credits - b.credits;
       return filter.sortAsc ? cmp : -cmp;
+    };
+    // 折叠关闭：回退扁平模式 —— 每个班级各成一组（全部渲染为独立行），排序与原先一致。
+    if (!foldGroups) {
+      return [...visibleFormalSections]
+        .sort(cmpSections)
+        .map((s) => ({ id: s.id, course: coursesById.get(s.id), sections: [s] }));
+    }
+    const byId = new Map<string, FormalSection[]>();
+    for (const s of visibleFormalSections) {
+      const arr = byId.get(s.id);
+      if (arr) arr.push(s);
+      else byId.set(s.id, [s]);
+    }
+    const sortSections = (arr: FormalSection[]) =>
+      [...arr].sort((a, b) => {
+        if (filter.ratingSortAsc !== null) {
+          const aAvg = getTeacherAvg(a.id, a.teacherId)?.avg ?? -1;
+          const bAvg = getTeacherAvg(b.id, b.teacherId)?.avg ?? -1;
+          if (aAvg !== bAvg) return filter.ratingSortAsc ? aAvg - bAvg : bAvg - aAvg;
+        }
+        return a.className.localeCompare(b.className);
+      });
+    const groups: FormalGroup[] = [];
+    for (const [id, arr] of byId) {
+      groups.push({ id, course: coursesById.get(id), sections: sortSections(arr) });
+    }
+    const groupKey = (g: FormalGroup): number => {
+      if (filter.ratingSortAsc !== null) {
+        return Math.max(...g.sections.map((s) => getTeacherAvg(s.id, s.teacherId)?.avg ?? -1));
+      }
+      return g.sections[0]?.credits ?? 0;
+    };
+    return groups.sort((a, b) => {
+      const cmp = groupKey(a) - groupKey(b);
+      const asc = filter.ratingSortAsc !== null ? filter.ratingSortAsc : filter.sortAsc;
+      return asc ? cmp : -cmp;
     });
-  }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, getTeacherAvg]);
+  }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, getTeacherAvg, coursesById, foldGroups]);
 
   const isFormalMode = dataSource !== "pre";
 
-  // 正选/补退选独立分页 —— 5000+ 行一次渲染会把浏览器拖崩。
-  // 每页 50 行，与预选保持一致；切换 dataSource / 学期时回到首页。
+  // 正选/补退选独立分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
+  // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。
   const FORMAL_PAGE_SIZE = 50;
   const [formalPage, setFormalPage] = useState(1);
   useEffect(() => {
     setFormalPage(1);
   }, [dataSource, selectedSemester, filter.filters, schedule.filter]);
-  const formalTotalPages = Math.max(1, Math.ceil(sortedFormalSections.length / FORMAL_PAGE_SIZE));
+  const formalTotalPages = Math.max(1, Math.ceil(formalGroupsAll.length / FORMAL_PAGE_SIZE));
   const safeFormalPage = Math.min(formalPage, formalTotalPages);
-  const paginatedFormalSections = useMemo(
-    () => sortedFormalSections.slice((safeFormalPage - 1) * FORMAL_PAGE_SIZE, safeFormalPage * FORMAL_PAGE_SIZE),
-    [sortedFormalSections, safeFormalPage],
+  const paginatedFormalGroups = useMemo(
+    () => formalGroupsAll.slice((safeFormalPage - 1) * FORMAL_PAGE_SIZE, safeFormalPage * FORMAL_PAGE_SIZE),
+    [formalGroupsAll, safeFormalPage],
   );
 
   const [selected, setSelected] = useState<Course | null>(null);
@@ -433,6 +550,15 @@ export function HomePage() {
 
   // 视口 < 1700 时让左栏转抽屉，避免与右详情栏（始终预留 500px）共同把中央表格挤瘦
   const leftAsDrawer = sidebarOpen && viewportW < 1700;
+
+  // 用户一旦「展开左栏」（折叠→展开的跳变）/ 打开移动筛选，筛选提醒就完成使命 → 收起。
+  // 注意：宽屏左栏默认就是展开的，不能用 sidebarOpen 的稳态判断（否则提醒一出现就被秒关）——只认跳变。
+  const prevSidebarOpenRef = useRef(sidebarOpen);
+  useEffect(() => {
+    const justOpened = !prevSidebarOpenRef.current && sidebarOpen;
+    prevSidebarOpenRef.current = sidebarOpen;
+    if (showFilterHint && (justOpened || showMobileFilter)) dismissFilterHint();
+  }, [sidebarOpen, showMobileFilter, showFilterHint, dismissFilterHint]);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -570,7 +696,7 @@ export function HomePage() {
               <ThemeToggle />
               {/* 模拟选课开关：仅手机端 (<md) 显示（桌面端在搜索行）。 */}
               <button
-                onClick={sim.toggle}
+                onClick={handleSimToggle}
                 title={sim.mode === "sim" ? "关闭模拟选课" : "模拟选课"}
                 className={`md:hidden relative shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                   sim.mode === "sim" ? "bg-white text-red-600" : "bg-white/20 text-white hover:bg-white/30"
@@ -588,6 +714,7 @@ export function HomePage() {
               </button>
               {/* 漏斗按钮：仅手机端 (<md) 显示，打开右抽屉。PC 上由左侧专门的展开按钮控制。 */}
               <button
+                ref={mobileFunnelRef}
                 onClick={() => setShowMobileFilter(true)}
                 title="筛选"
                 className="md:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
@@ -642,7 +769,7 @@ export function HomePage() {
 
             {/* 模拟选课开关（桌面端） */}
             <div className="hidden md:flex shrink-0">
-              <SimToggle mode={sim.mode} cartCount={cart.count} onClick={sim.toggle} />
+              <SimToggle mode={sim.mode} cartCount={cart.count} onClick={handleSimToggle} />
             </div>
 
             {/* Mobile search */}
@@ -714,6 +841,8 @@ export function HomePage() {
               subTags={subTags}
               simMode={sim.mode === "sim"}
               dataSource={dataSource}
+              foldGroups={foldGroups}
+              onToggleFoldGroups={toggleFoldGroups}
             />
             <SidebarDisclaimer />
           </div>
@@ -772,6 +901,8 @@ export function HomePage() {
               subTags={subTags}
               simMode={sim.mode === "sim"}
               dataSource={dataSource}
+              foldGroups={foldGroups}
+              onToggleFoldGroups={toggleFoldGroups}
             />
             <SidebarDisclaimer />
           </div>
@@ -813,7 +944,7 @@ export function HomePage() {
       >
         {/* PC 左侧"展开筛选"按钮：仅 ≥md 视口且左栏收起时显示 */}
         {!sidebarOpen && (
-          <div className="hidden md:flex w-9 shrink-0 justify-center">
+          <div ref={setLeftFilterEl} className="hidden md:flex w-9 shrink-0 justify-center">
             <button
               onClick={() => setSidebarOpen(true)}
               title="展开筛选"
@@ -830,6 +961,7 @@ export function HomePage() {
             打开右详情且视口 < 1600 时改走抽屉模式（见下方 leftAsDrawer 渲染块） */}
         {sidebarOpen && !leftAsDrawer && (
           <aside
+            ref={setLeftFilterEl}
             className="w-[360px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-sm"
             style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
           >
@@ -875,6 +1007,8 @@ export function HomePage() {
                 subTags={subTags}
                 simMode={sim.mode === "sim"}
                 dataSource={dataSource}
+                foldGroups={foldGroups}
+                onToggleFoldGroups={toggleFoldGroups}
               />
               <SidebarDisclaimer />
             </div>
@@ -897,7 +1031,8 @@ export function HomePage() {
             selectedPlan={filter.filters.plan}
             dataSource={dataSource}
             onChangeDataSource={setDataSource}
-            formalSections={paginatedFormalSections}
+            formalGroups={paginatedFormalGroups}
+            defaultExpandFormal={hasAnyActiveFilters}
             formalAvailable={formal.available}
             formalLoading={formal.loading}
             allSemesters={allSemesters}
@@ -910,9 +1045,15 @@ export function HomePage() {
             onToggleCart={handleToggleCart}
             scheduleFilter={schedule.filter}
             coursesById={coursesById}
+            showHints={showHints}
+            onShowAll={() => { setHintsDismissed(true); maybeShowFilterHint(); }}
+            onEnterSim={enterSim}
+            sidebarOpen={sidebarOpen}
+            onExpandSidebar={() => setSidebarOpen(true)}
           />
-          {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染） */}
-          {isFormalMode ? (
+          {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染）。
+              功能说明层显示时（无筛选）隐藏分页。 */}
+          {showHints ? null : isFormalMode ? (
             formal.available && visibleFormalSections.length > 0 && (
               <Pagination
                 page={safeFormalPage}
@@ -1041,8 +1182,27 @@ export function HomePage() {
           setVisitedMajorElective={credit.setVisitedMajorElective}
           onApplyBundle={handleApplyBundle}
           onCancel={sim.cancelOnboarding}
-          onFinish={sim.finishOnboarding}
+          onFinish={handleOnboardingFinish}
         />
+      )}
+
+      {/* 一次性「左侧有筛选」提醒气泡（SimPanel 风格）：点「浏览全部」或走完模拟选课引导后弹一次。
+          点击气泡 / 展开左栏 / 打开移动筛选 / 5s 后消失。 */}
+      {showFilterHint && filterHintPos && (
+        <div
+          className={`fixed z-[60] transition-opacity duration-300 ${filterHintPos.dir === "up" ? "-translate-x-1/2" : ""}`}
+          style={{ top: filterHintPos.top, left: filterHintPos.left }}
+          onClick={dismissFilterHint}
+        >
+          {filterHintPos.dir === "up" && (
+            <svg className="w-3 h-1.5 tip-dark-fill fill-current mx-auto block rotate-180 -mb-[1px]" viewBox="0 0 12 6">
+              <path d="M0,0 C3,0 4.5,4.5 6,4.5 C7.5,4.5 9,0 12,0 Z" />
+            </svg>
+          )}
+          <div className="px-3 py-1.5 rounded-full tip-dark text-white text-[11px] font-semibold shadow-lg whitespace-nowrap animate-bounce cursor-pointer">
+            {filterHintPos.dir === "up" ? "课程筛选都在这里 ↑" : "← 课程筛选都在左侧"}
+          </div>
+        </div>
       )}
 
       {/* 加/移待选清单 toast */}

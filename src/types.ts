@@ -26,6 +26,14 @@ export interface FormalSection {
   _search: string;
 }
 
+// 正选/补退选列表的「同课程号折叠」分组：一门课 + 其全部班级（已按当前排序排好）。
+// course 为按课程号回查的 Course（可能缺失），用于组头的 tag 裁剪 / 培养方案归属高亮。
+export interface FormalGroup {
+  id: string;             // 课程号
+  course?: Course;
+  sections: FormalSection[];
+}
+
 export interface CoursePlan {
   year: string;
   major: string;
@@ -95,13 +103,12 @@ export interface Filters {
    *  驱动 planMatch 的行高亮 / tag 裁剪，并作为学分核算的方案来源。 */
   plan: string;
   /**
-   * 选中培养方案时对课程列表的硬过滤态：
+   * 选中培养方案时对课程列表的硬过滤态（胶囊开关，二态）：
    * - "none":    仅做软高亮 + tag 裁剪，列表不变（默认）
    * - "include": 只显示本方案的课程
-   * - "exclude": 只显示**不在**本方案里的课程
    * 仅在 plan 非空时生效。
    */
-  planFilter: "none" | "include" | "exclude";
+  planFilter: "none" | "include";
   /** 隐藏已修课程（仅模拟选课开启时可用，依赖 useCreditPlan 派生的 takenCids）。 */
   hideTaken: boolean;
 }

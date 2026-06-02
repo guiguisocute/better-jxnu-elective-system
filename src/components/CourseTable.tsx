@@ -1,10 +1,12 @@
-import type { Course, DataSource, FormalSection } from "../types";
+import { useState } from "react";
+import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
 import { TagBadge } from "./TagBadge";
 import { StarRating } from "./StarRating";
 import { CopyIdButton } from "./CopyIdButton";
 import { displayTags, isInPlan, compactTags } from "../lib/planMatch";
 import { DataSourceSwitcher } from "./DataSourceSwitcher";
 import { SemesterSelector } from "./SemesterSelector";
+import { FeatureHints } from "./FeatureHints";
 import { isTestSemester } from "../lib/term";
 import { normalizePeriods, unselectedIncludeSlots, slotLabel } from "../lib/scheduleParse";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
@@ -26,8 +28,10 @@ interface Props {
   /** 数据源（预选 / 正选 / 补退选）。 */
   dataSource: DataSource;
   onChangeDataSource: (v: DataSource) => void;
-  /** 正选/补退选 sections（已按 semester 过滤）。 */
-  formalSections?: FormalSection[];
+  /** 正选/补退选 课程分组（同课程号折叠；已按当前排序排好、按组分页）。 */
+  formalGroups?: FormalGroup[];
+  /** 有任意筛选（搜索/学院/学分/标签/教学区/培养方案/时段/隐藏已修）时默认全展开；用户仍可逐组收起。 */
+  defaultExpandFormal?: boolean;
   formalAvailable?: boolean;
   formalLoading?: boolean;
   /** 学期下拉选项（来自 useFormalData.allSemesters）+ 当前选中值。 */
@@ -46,6 +50,16 @@ interface Props {
   scheduleFilter?: ScheduleFilterMap;
   /** 课程号 → Course 映射。正选/补退选行据此回查 plans，做培养方案归属高亮。 */
   coursesById?: Map<string, Course>;
+  /** 无任何筛选时，用「功能说明层」替换正常课程列表（loading/未发布/空态仍优先）。 */
+  showHints?: boolean;
+  /** 「直接展示全部课程」—— 临时揭开本次列表。 */
+  onShowAll?: () => void;
+  /** 「进入模拟选课」—— 打开模拟选课引导。 */
+  onEnterSim?: () => void;
+  /** 左侧筛选栏是否展开（说明层据此切换「展开筛选」按钮 / 文案提示）。 */
+  sidebarOpen?: boolean;
+  /** 展开左侧筛选栏（说明层折叠态的「展开筛选」按钮）。 */
+  onExpandSidebar?: () => void;
 }
 
 // 多时段冲突悬停文案：该 section 因某时段命中 include 入选，但还占用了未选时段。
@@ -195,16 +209,317 @@ const FORMAL_HEADERS = [
 
 const DESKTOP_TOOLBAR_HEIGHT = 50;
 
+// 一行「班级」（desktop table tr，11 列）。indented：作为折叠组子行时首列加左缩进。
+interface RowShared {
+  selectedPlan: string;
+  coursesById?: Map<string, Course>;
+  scheduleFilter?: ScheduleFilterMap;
+  selectedSectionKey?: string | null;
+  getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
+  onSelectSection?: (s: FormalSection) => void;
+}
+function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
+  const sKey = `${s.id}|${s.className}|${s.teacherId}`;
+  const isSelected = sKey === selectedSectionKey;
+  const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
+  const sCourse = selectedPlan ? coursesById?.get(s.id) : undefined;
+  const inPlan = !!sCourse && isInPlan(sCourse, selectedPlan);
+  const tags = sCourse ? compactTags(displayTags(sCourse, selectedPlan)) : compactTags(s.tags);
+  return (
+    <tr
+      onClick={() => onSelectSection?.(s)}
+      className={`group transition-colors cursor-pointer ${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : indented ? "bg-gray-50 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
+    >
+      <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected && !indented ? "border-l-2 border-l-indigo-400" : ""} ${indented ? "pl-9 shadow-[inset_24px_0_0_-22px_#d1d5db] dark:shadow-[inset_24px_0_0_-22px_#30363d]" : ""}`}>
+        <span className="inline-flex items-center gap-1">
+          {s.id}
+          <CopyIdButton text={s.id} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+        </span>
+      </td>
+      <td className={`px-3 py-3 text-[13px] font-medium border-b border-gray-50 ${isSelected ? "text-red-600" : "text-gray-800"}`}>
+        <span className="flex items-center gap-2 min-w-0">
+          {isSelected && <span className="w-[3px] h-4 rounded-full bg-red-500 shrink-0" />}
+          {!isSelected && inPlan && <span className="w-[3px] h-4 rounded-full bg-indigo-400 shrink-0" />}
+          <span className="block truncate" title={s.name}>{s.name}</span>
+        </span>
+      </td>
+      <td className="px-3 py-3 border-b border-gray-50">
+        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${getCreditColor(s.credits)}`}>
+          {s.credits || "—"}
+        </span>
+      </td>
+      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50">
+        <span className="block truncate" title={s.dept}>{s.dept || "—"}</span>
+      </td>
+      <td className="px-3 py-3 border-b border-gray-50 align-top">
+        <div className="flex flex-col gap-1 items-start min-w-0 overflow-hidden">
+          {tags.slice(0, 2).map((t) => (
+            <span key={t} className="max-w-full truncate" title={t}>
+              <TagBadge tag={t} />
+            </span>
+          ))}
+          {tags.length > 2 && <span className="text-[11px] text-gray-400">+{tags.length - 2}</span>}
+        </div>
+      </td>
+      <td className="px-3 py-3 text-xs text-gray-600 border-b border-gray-50 whitespace-nowrap">
+        <span className="block truncate" title={s.teacher}>{s.teacher || "—"}</span>
+      </td>
+      <td className={`px-3 py-3 text-xs border-b border-gray-50 ${warnSlots.length > 0 ? "bg-rose-50" : ""}`}>
+        <span
+          className={`flex items-center gap-1 min-w-0 ${warnSlots.length > 0 ? "text-rose-700 font-medium" : "text-gray-600"}`}
+          title={warnSlots.length > 0 ? conflictTitle(warnSlots) : s.schedule}
+        >
+          <span className="truncate">{compressSchedule(s.schedule)}</span>
+          <ConflictMark slots={warnSlots} />
+        </span>
+      </td>
+      <td className="px-3 py-3 text-xs text-gray-600 border-b border-gray-50">
+        <span className="block truncate" title={s.className}>{compressClassName(s.className)}</span>
+      </td>
+      <td className="px-3 py-3 text-xs text-gray-500 font-mono border-b border-gray-50 whitespace-nowrap">
+        <span className="block truncate" title={s.classroom}>{s.classroom || "—"}</span>
+      </td>
+      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50 whitespace-nowrap">{s.capacity ?? "—"}</td>
+      <td className="px-3 py-3 border-b border-gray-50 whitespace-nowrap">
+        {(() => {
+          const avg = getTeacherAvg?.(s.id, s.teacherId)?.avg ?? null;
+          if (avg === null || avg === undefined) return <span className="text-xs text-gray-300">—</span>;
+          return (
+            <span className="inline-flex items-baseline gap-0.5 tabular-nums">
+              <span className="text-amber-500 text-[11px]">★</span>
+              <span className="text-[13px] font-semibold text-gray-700">{avg.toFixed(1)}</span>
+            </span>
+          );
+        })()}
+      </td>
+    </tr>
+  );
+}
+
+// 折叠组「组头」行（11 列：前 5 列课程级信息，中间 colSpan=5 显示「N 个班级」，末列最高评分）。点击切换展开。
+function FormalGroupHeaderRow({ group, expanded, selectedPlan, getTeacherAvg, onToggle }: {
+  group: FormalGroup; expanded: boolean; selectedPlan: string;
+  getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
+  onToggle: () => void;
+}) {
+  const { sections, course, id } = group;
+  const head = sections[0];
+  const inPlan = !!course && isInPlan(course, selectedPlan);
+  const tags = course ? compactTags(displayTags(course, selectedPlan)) : compactTags(head.tags);
+  const bestAvg = Math.max(...sections.map((s) => getTeacherAvg?.(s.id, s.teacherId)?.avg ?? -1));
+  return (
+    <tr
+      onClick={onToggle}
+      className={`group transition-colors cursor-pointer select-none ${inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
+    >
+      <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap text-gray-500 ${inPlan ? "border-l-2 border-l-indigo-400" : ""}`}>
+        <span className="inline-flex items-center gap-1">
+          <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expanded ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+          </svg>
+          {id}
+          <CopyIdButton text={id} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+        </span>
+      </td>
+      <td className="px-3 py-3 text-[13px] font-medium border-b border-gray-50 text-gray-800">
+        <span className="flex items-center gap-2 min-w-0">
+          {inPlan && <span className="w-[3px] h-4 rounded-full bg-indigo-400 shrink-0" />}
+          <span className="block truncate" title={head.name}>{head.name}</span>
+        </span>
+      </td>
+      <td className="px-3 py-3 border-b border-gray-50">
+        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${getCreditColor(head.credits)}`}>
+          {head.credits || "—"}
+        </span>
+      </td>
+      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50">
+        <span className="block truncate" title={head.dept}>{head.dept || "—"}</span>
+      </td>
+      <td className="px-3 py-3 border-b border-gray-50 align-top">
+        <div className="flex flex-col gap-1 items-start min-w-0 overflow-hidden">
+          {tags.slice(0, 2).map((t) => (
+            <span key={t} className="max-w-full truncate" title={t}><TagBadge tag={t} /></span>
+          ))}
+          {tags.length > 2 && <span className="text-[11px] text-gray-400">+{tags.length - 2}</span>}
+        </div>
+      </td>
+      <td colSpan={5} className="px-3 py-3 border-b border-gray-50">
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
+          <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 11a3 3 0 100-6 3 3 0 000 6zM2.5 20a6.5 6.5 0 0113 0M16 5.5a3 3 0 010 5.5M21.5 20a6.5 6.5 0 00-4.5-6.18" />
+          </svg>
+          {sections.length} 个班级
+          <span className="text-gray-400">· {expanded ? "点击收起" : "点击展开"}</span>
+        </span>
+      </td>
+      <td className="px-3 py-3 border-b border-gray-50 whitespace-nowrap">
+        {bestAvg >= 0 ? (
+          <span className="inline-flex items-baseline gap-0.5 tabular-nums" title="该课各班级最高评分">
+            <span className="text-amber-500 text-[11px]">★</span>
+            <span className="text-[13px] font-semibold text-gray-700">{bestAvg.toFixed(1)}</span>
+          </span>
+        ) : (
+          <span className="text-xs text-gray-300">—</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+// 折叠组（desktop）：组头行 + 展开时各班级行。
+function FormalGroupFragment({ group, expanded, onToggle, rowProps }: {
+  group: FormalGroup; expanded: boolean; onToggle: () => void; rowProps: RowShared;
+}) {
+  return (
+    <>
+      <FormalGroupHeaderRow
+        group={group}
+        expanded={expanded}
+        selectedPlan={rowProps.selectedPlan}
+        getTeacherAvg={rowProps.getTeacherAvg}
+        onToggle={onToggle}
+      />
+      {expanded && group.sections.map((s) => (
+        <FormalSectionRow key={`${s.id}-${s.className}-${s.teacherId}`} s={s} indented {...rowProps} />
+      ))}
+    </>
+  );
+}
+
+// 一张「班级」卡（mobile）。
+function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection }) {
+  const sKey = `${s.id}|${s.className}|${s.teacherId}`;
+  const isSelected = sKey === selectedSectionKey;
+  const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
+  const sCourse = selectedPlan ? coursesById?.get(s.id) : undefined;
+  const inPlan = !!sCourse && isInPlan(sCourse, selectedPlan);
+  const tags = sCourse ? compactTags(displayTags(sCourse, selectedPlan)) : compactTags(s.tags);
+  return (
+    <div
+      onClick={() => onSelectSection?.(s)}
+      className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm ${isSelected ? "bg-red-50/50 border-red-200 border-l-[3px] border-l-red-500" : inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-[13px] font-semibold text-gray-800 truncate">{s.name}</h3>
+          <p className="text-xs text-gray-500 mt-1">{s.id} · {s.dept}</p>
+        </div>
+        <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(s.credits)}`}>
+          {s.credits || "—"}<span className="font-normal opacity-70">学分</span>
+        </span>
+      </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2.5">
+          {tags.map((t) => <TagBadge key={t} tag={t} />)}
+        </div>
+      )}
+      <div className="mt-2.5 text-xs text-gray-500 space-y-1">
+        <InfoRow icon={<TeacherIcon />} label="教师">{s.teacher || "—"}</InfoRow>
+        {s.schedule && (
+          <InfoRow
+            icon={<ClockIcon />}
+            label="时间"
+            tone={warnSlots.length > 0 ? "alert" : "default"}
+            title={warnSlots.length > 0 ? conflictTitle(warnSlots) : s.schedule}
+            trailing={warnSlots.length > 0 ? <ConflictMark slots={warnSlots} /> : undefined}
+          >
+            {compressSchedule(s.schedule)}
+          </InfoRow>
+        )}
+        {s.className && (
+          <InfoRow icon={<ClassIcon />} label="班级" title={s.className}>
+            {compressClassName(s.className)}
+          </InfoRow>
+        )}
+        {s.classroom && <InfoRow icon={<RoomIcon />} label="教室">{s.classroom}</InfoRow>}
+      </div>
+      <div className="mt-2">
+        <StarRating rating={getTeacherAvg?.(s.id, s.teacherId)?.avg ?? null} />
+      </div>
+    </div>
+  );
+}
+
+// 折叠组（mobile）：组头卡（课名+学分+「N 个班级」+chevron）+ 展开时各班级卡。
+function FormalGroupCard({ group, expanded, onToggle, rowProps }: {
+  group: FormalGroup; expanded: boolean; onToggle: () => void; rowProps: RowShared;
+}) {
+  const { sections, course, id } = group;
+  const head = sections[0];
+  const inPlan = !!course && isInPlan(course, rowProps.selectedPlan);
+  const tags = course ? compactTags(displayTags(course, rowProps.selectedPlan)) : compactTags(head.tags);
+  return (
+    <div>
+      <div
+        onClick={onToggle}
+        className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm select-none ${inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-[13px] font-semibold text-gray-800 truncate">{head.name}</h3>
+            <p className="text-xs text-gray-500 mt-1">{id} · {head.dept}</p>
+          </div>
+          <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(head.credits)}`}>
+            {head.credits || "—"}<span className="font-normal opacity-70">学分</span>
+          </span>
+        </div>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2.5">
+            {tags.map((t) => <TagBadge key={t} tag={t} />)}
+          </div>
+        )}
+        <div className="mt-2.5 flex items-center justify-between text-xs">
+          <span className="inline-flex items-center gap-1.5 font-medium text-gray-500">
+            <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 11a3 3 0 100-6 3 3 0 000 6zM2.5 20a6.5 6.5 0 0113 0M16 5.5a3 3 0 010 5.5M21.5 20a6.5 6.5 0 00-4.5-6.18" />
+            </svg>
+            {sections.length} 个班级
+          </span>
+          <span className="inline-flex items-center gap-1 text-gray-400">
+            {expanded ? "收起" : "展开"}
+            <svg className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+            </svg>
+          </span>
+        </div>
+      </div>
+      {expanded && (
+        <div className="mt-2 space-y-2 p-2 pl-3 rounded-xl border-l-2 border-gray-200 bg-gray-50/60 dark:bg-white/[0.03] dark:border-l-white/10">
+          {sections.map((s) => (
+            <FormalSectionCard key={`${s.id}-${s.className}-${s.teacherId}`} s={s} {...rowProps} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CourseTable({
   courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc,
   stickyTop = 0, getCourseAvg, getTeacherAvg, selectedPlan = "",
   dataSource, onChangeDataSource,
-  formalSections = [], formalAvailable = false, formalLoading = false,
+  formalGroups = [], defaultExpandFormal = false, formalAvailable = false, formalLoading = false,
   allSemesters = [], selectedSemester = "", onChangeSemester,
   onSelectSection,
   selectedSectionKey = null,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
+  showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
 }: Props) {
+  // 同课程号折叠的展开态：按课程号存「显式覆盖」（true=展开 / false=收起）。
+  // 未覆盖的组取默认值 defaultExpandFormal（有搜索词时默认展开，否则默认收起）。
+  // 这样搜索时默认展开、但用户仍可逐组收起/再展开（不再强制锁死）。
+  const [formalOpenOverride, setFormalOpenOverride] = useState<Map<string, boolean>>(new Map());
+  const isGroupExpanded = (id: string) =>
+    formalOpenOverride.has(id) ? !!formalOpenOverride.get(id) : defaultExpandFormal;
+  const toggleFormalGroup = (id: string) =>
+    setFormalOpenOverride((prev) => {
+      const cur = prev.has(id) ? !!prev.get(id) : defaultExpandFormal;
+      const next = new Map(prev);
+      next.set(id, !cur);
+      return next;
+    });
+  // formal 列表里所有班级（扁平），供空态判断（替代旧 formalSections）。
+  const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);
   const handleSort = () => {
     setRatingSortAsc(null);
     setSortAsc(!sortAsc);
@@ -258,7 +573,12 @@ export function CourseTable({
           )}
         </div>
 
-        {isFormal ? (
+        {/* 无筛选 + 数据就绪（正选需已发布且非加载中）时，用功能说明层替换正常列表。 */}
+        {isFormal && showHints && formalAvailable && !formalLoading ? (
+          <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
+        ) : !isFormal && showHints && courses.length > 0 ? (
+          <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
+        ) : isFormal ? (
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
@@ -351,7 +671,7 @@ export function CourseTable({
                       </div>
                     </td>
                   </tr>
-                ) : formalSections.length === 0 ? (
+                ) : formalSectionCount === 0 ? (
                   <tr>
                     <td colSpan={FORMAL_HEADERS.length} className="py-24">
                       <div className="flex flex-col items-center justify-center text-gray-400">
@@ -361,98 +681,21 @@ export function CourseTable({
                     </td>
                   </tr>
                 ) : (
-                  formalSections.map((s, idx) => {
-                    const sKey = `${s.id}|${s.className}|${s.teacherId}`;
-                    const isSelected = sKey === selectedSectionKey;
-                    const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
-                    const sCourse = selectedPlan ? coursesById?.get(s.id) : undefined;
-                    const inPlan = !!sCourse && isInPlan(sCourse, selectedPlan);
+                  formalGroups.map((g) => {
+                    const rowProps = { selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection };
+                    // 单班级：直接平铺一行；多班级：组头 + （展开时）各班级。
+                    if (g.sections.length === 1) {
+                      return <FormalSectionRow key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
+                    }
+                    const expanded = isGroupExpanded(g.id);
                     return (
-                    <tr
-                      key={`${s.id}-${s.className}-${s.teacherId}-${idx}`}
-                      onClick={() => onSelectSection?.(s)}
-                      className={`group transition-colors cursor-pointer ${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-gray-50"}`}
-                    >
-                      <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected ? "border-l-2 border-l-indigo-400" : ""}`}>
-                        <span className="inline-flex items-center gap-1">
-                          {s.id}
-                          <CopyIdButton text={s.id} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </span>
-                      </td>
-                      <td className={`px-3 py-3 text-[13px] font-medium border-b border-gray-50 ${isSelected ? "text-red-600" : "text-gray-800"}`}>
-                        <span className="flex items-center gap-2 min-w-0">
-                          {isSelected && <span className="w-[3px] h-4 rounded-full bg-red-500 shrink-0" />}
-                          {!isSelected && inPlan && <span className="w-[3px] h-4 rounded-full bg-indigo-400 shrink-0" />}
-                          <span className="block truncate" title={s.name}>{s.name}</span>
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 border-b border-gray-50">
-                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${getCreditColor(s.credits)}`}>
-                          {s.credits || "—"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50">
-                        <span className="block truncate" title={s.dept}>{s.dept || "—"}</span>
-                      </td>
-                      {/* 标签格：内层 min-w-0 overflow-hidden 确保 badge 不会越界吃到下一格。
-                         compactTags：当存在「公选课-XXX」子类时省掉冗余的「公选课」父 tag。
-                         选了培养方案 → 走 displayTags（裁剪非本方案 nature + 注入「任意选修」），与预选一致。 */}
-                      {(() => {
-                        const tags = sCourse
-                          ? compactTags(displayTags(sCourse, selectedPlan))
-                          : compactTags(s.tags);
-                        return (
-                          <td className="px-3 py-3 border-b border-gray-50 align-top">
-                            <div className="flex flex-col gap-1 items-start min-w-0 overflow-hidden">
-                              {tags.slice(0, 2).map((t) => (
-                                <span key={t} className="max-w-full truncate" title={t}>
-                                  <TagBadge tag={t} />
-                                </span>
-                              ))}
-                              {tags.length > 2 && (
-                                <span className="text-[11px] text-gray-400">+{tags.length - 2}</span>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })()}
-                      <td className="px-3 py-3 text-xs text-gray-600 border-b border-gray-50 whitespace-nowrap">
-                        <span className="block truncate" title={s.teacher}>{s.teacher || "—"}</span>
-                      </td>
-                      <td className={`px-3 py-3 text-xs border-b border-gray-50 ${warnSlots.length > 0 ? "bg-rose-50" : ""}`}>
-                        <span
-                          className={`flex items-center gap-1 min-w-0 ${warnSlots.length > 0 ? "text-rose-700 font-medium" : "text-gray-600"}`}
-                          title={warnSlots.length > 0 ? conflictTitle(warnSlots) : s.schedule}
-                        >
-                          <span className="truncate">{compressSchedule(s.schedule)}</span>
-                          <ConflictMark slots={warnSlots} />
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-gray-600 border-b border-gray-50">
-                        <span className="block truncate" title={s.className}>{compressClassName(s.className)}</span>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-gray-500 font-mono border-b border-gray-50 whitespace-nowrap">
-                        <span className="block truncate" title={s.classroom}>{s.classroom || "—"}</span>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50 whitespace-nowrap">{s.capacity ?? "—"}</td>
-                      {/* 评分：正选/补退选 按 (课程, 该 section 老师) 取分；该老师无人评 → "—"。
-                          预选行（下面）仍用 getCourseAvg（课程跨教师平均）。 */}
-                      <td className="px-3 py-3 border-b border-gray-50 whitespace-nowrap">
-                        {(() => {
-                          const t = getTeacherAvg?.(s.id, s.teacherId);
-                          const avg = t?.avg ?? null;
-                          if (avg === null || avg === undefined) {
-                            return <span className="text-xs text-gray-300">—</span>;
-                          }
-                          return (
-                            <span className="inline-flex items-baseline gap-0.5 tabular-nums">
-                              <span className="text-amber-500 text-[11px]">★</span>
-                              <span className="text-[13px] font-semibold text-gray-700">{avg.toFixed(1)}</span>
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    </tr>
+                      <FormalGroupFragment
+                        key={`grp-${g.id}`}
+                        group={g}
+                        expanded={expanded}
+                        onToggle={() => toggleFormalGroup(g.id)}
+                        rowProps={rowProps}
+                      />
                     );
                   })
                 )}
@@ -596,7 +839,11 @@ export function CourseTable({
           </div>
         )}
 
-        {isFormal ? (
+        {isFormal && showHints && formalAvailable && !formalLoading ? (
+          <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />
+        ) : !isFormal && showHints && courses.length > 0 ? (
+          <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />
+        ) : isFormal ? (
           formalLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <div className="w-8 h-8 border-3 border-red-200 border-t-red-500 rounded-full animate-spin" />
@@ -612,68 +859,27 @@ export function CourseTable({
               </p>
               <p className="text-xs mt-1 text-gray-400">教务系统发布数据后此处将自动显示</p>
             </div>
-          ) : formalSections.length === 0 ? (
+          ) : formalSectionCount === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <p className="text-sm font-medium text-gray-500">未找到匹配课程</p>
               <p className="text-xs mt-1 text-gray-400">请调整筛选条件或切换学期</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {formalSections.map((s, idx) => {
-                const sKey = `${s.id}|${s.className}|${s.teacherId}`;
-                const isSelected = sKey === selectedSectionKey;
-                const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
-                const sCourse = selectedPlan ? coursesById?.get(s.id) : undefined;
-                const inPlan = !!sCourse && isInPlan(sCourse, selectedPlan);
+              {formalGroups.map((g) => {
+                const rowProps = { selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection };
+                if (g.sections.length === 1) {
+                  return <FormalSectionCard key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
+                }
+                const expanded = isGroupExpanded(g.id);
                 return (
-                <div
-                  key={`${s.id}-${s.className}-${s.teacherId}-${idx}`}
-                  onClick={() => onSelectSection?.(s)}
-                  className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm ${isSelected ? "bg-red-50/50 border-red-200 border-l-[3px] border-l-red-500" : inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-[13px] font-semibold text-gray-800 truncate">{s.name}</h3>
-                      <p className="text-xs text-gray-500 mt-1">{s.id} · {s.dept}</p>
-                    </div>
-                    <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(s.credits)}`}>
-                      {s.credits || "—"}<span className="font-normal opacity-70">学分</span>
-                    </span>
-                  </div>
-                  {(() => {
-                    const tags = sCourse
-                      ? compactTags(displayTags(sCourse, selectedPlan))
-                      : compactTags(s.tags);
-                    return tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2.5">
-                        {tags.map((t) => <TagBadge key={t} tag={t} />)}
-                      </div>
-                    );
-                  })()}
-                  <div className="mt-2.5 text-xs text-gray-500 space-y-1">
-                    <InfoRow icon={<TeacherIcon />} label="教师">{s.teacher || "—"}</InfoRow>
-                    {s.schedule && (
-                      <InfoRow
-                        icon={<ClockIcon />}
-                        label="时间"
-                        tone={warnSlots.length > 0 ? "alert" : "default"}
-                        title={warnSlots.length > 0 ? conflictTitle(warnSlots) : s.schedule}
-                        trailing={warnSlots.length > 0 ? <ConflictMark slots={warnSlots} /> : undefined}
-                      >
-                        {compressSchedule(s.schedule)}
-                      </InfoRow>
-                    )}
-                    {s.className && (
-                      <InfoRow icon={<ClassIcon />} label="班级" title={s.className}>
-                        {compressClassName(s.className)}
-                      </InfoRow>
-                    )}
-                    {s.classroom && <InfoRow icon={<RoomIcon />} label="教室">{s.classroom}</InfoRow>}
-                  </div>
-                  <div className="mt-2">
-                    <StarRating rating={getTeacherAvg?.(s.id, s.teacherId)?.avg ?? null} />
-                  </div>
-                </div>
+                  <FormalGroupCard
+                    key={`grp-${g.id}`}
+                    group={g}
+                    expanded={expanded}
+                    onToggle={() => toggleFormalGroup(g.id)}
+                    rowProps={rowProps}
+                  />
                 );
               })}
             </div>

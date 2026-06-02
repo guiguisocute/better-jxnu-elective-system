@@ -26,8 +26,11 @@ function loadSaved(): { filters: Filters; page: number; sortAsc: boolean } {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
+      const filters: Filters = { ...EMPTY_FILTERS, ...saved.filters };
+      // 归一化已废弃的 planFilter "exclude" 历史值 → "none"。
+      if ((filters.planFilter as string) === "exclude") filters.planFilter = "none";
       return {
-        filters: { ...EMPTY_FILTERS, ...saved.filters },
+        filters,
         page: saved.page ?? 1,
         sortAsc: saved.sortAsc ?? true,
       };
@@ -107,12 +110,12 @@ export function useCourseFilter(
     setPage(1);
   }, []);
 
+  // 胶囊开关：none ↔ include（已去掉 exclude 态）。
   const cyclePlanFilter = useCallback(() => {
-    setFilters((prev) => {
-      const next: Filters["planFilter"] =
-        prev.planFilter === "none" ? "include" : prev.planFilter === "include" ? "exclude" : "none";
-      return { ...prev, planFilter: next };
-    });
+    setFilters((prev) => ({
+      ...prev,
+      planFilter: prev.planFilter === "include" ? "none" : "include",
+    }));
     setPage(1);
   }, []);
 
@@ -202,15 +205,9 @@ export function useCourseFilter(
       });
     }
     // 培养方案默认仅软过滤（通过 tagsOf 影响 tag/type 过滤 + CourseTable 高亮）。
-    // planFilter 升级为三态硬过滤：
-    //   include → 只看本方案的课程
-    //   exclude → 只看**不**在本方案里的课程
-    if (filters.plan) {
-      if (filters.planFilter === "include") {
-        result = result.filter((c) => isInPlan(c, filters.plan));
-      } else if (filters.planFilter === "exclude") {
-        result = result.filter((c) => !isInPlan(c, filters.plan));
-      }
+    // planFilter === "include"（胶囊开关开）→ 硬过滤为只看本方案的课程。
+    if (filters.plan && filters.planFilter === "include") {
+      result = result.filter((c) => isInPlan(c, filters.plan));
     }
     // 隐藏已修课程（仅 sim 模式 + 选了培养方案时才会被 HomePage 传入非空 takenCids）。
     if (filters.hideTaken && takenCids && takenCids.size > 0) {
