@@ -908,7 +908,7 @@ export function OnboardingModal({
                   输入学号一键导入
                 </span>
                 <h2 className="text-lg font-black text-gray-900 leading-tight mt-2">从历史课表自动填写</h2>
-                <p className="text-[12px] text-gray-500 mt-1">仅输学号，自动带出方案/在读学期/已修学分/本学期选修/已修限选。</p>
+                <p className="text-[12px] text-gray-500 mt-1">一键自动导入</p>
               </div>
               <button
                 onClick={() => setImportOpen(false)}
@@ -946,8 +946,8 @@ export function OnboardingModal({
               </div>
               {importErr && <p className="mt-2 text-[12px] text-rose-600">{importErr}</p>}
               <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
-                数据源无成绩，已修课程一律按「已通过」估算。方案要求但档案未出现的必修会自动标缺口（取消勾选），
-                若有误判或重修课程请前往第「核对」项手动调整。
+                数据源无成绩，已修课程一律按「已通过」估算。
+                若有识别错误或重修课程请前往第「核对」项手动调整。
               </p>
 
               {/* 预览区 */}
@@ -1042,7 +1042,7 @@ export function OnboardingModal({
                           </svg>
                         )}
                       </span>
-                      <span className="flex-1 text-[13px] text-gray-800">转专业学生（前两学期在原专业修读）</span>
+                      <span className="flex-1 text-[13px] text-gray-800">转专业学生</span>
                     </button>
                     {editTransfer && (
                       <div className="mt-2.5">
@@ -1055,7 +1055,7 @@ export function OnboardingModal({
                           seedQuery={majorHint(undefined, preview.rec.className)}
                         />
                         <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
-                          选你<strong className="text-gray-600">入学时</strong>的原专业。前两学期同 cid 课自动抵转入专业必修/限选；导入后可在引导第 1 步再改。
+                          选你<strong className="text-gray-600">入学时</strong>的原专业。
                         </p>
                       </div>
                     )}

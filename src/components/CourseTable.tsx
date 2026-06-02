@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
 import { TagBadge } from "./TagBadge";
 import { StarRating } from "./StarRating";
@@ -30,7 +30,8 @@ interface Props {
   onChangeDataSource: (v: DataSource) => void;
   /** 正选/补退选 课程分组（同课程号折叠；已按当前排序排好、按组分页）。 */
   formalGroups?: FormalGroup[];
-  /** 有任意筛选（搜索/学院/学分/标签/教学区/培养方案/时段/隐藏已修）时默认全展开；用户仍可逐组收起。 */
+  /** 有「收窄列表」的筛选（搜索/学院/学分/标签/教学区/时段/仅看本方案/隐藏已修）时默认全展开；
+   *  裸选培养方案不算。用户仍可逐组收起。 */
   defaultExpandFormal?: boolean;
   formalAvailable?: boolean;
   formalLoading?: boolean;
@@ -208,6 +209,7 @@ const FORMAL_HEADERS = [
 ];
 
 const DESKTOP_TOOLBAR_HEIGHT = 50;
+const FORMAL_SECTION_BATCH_SIZE = 60;
 
 // 一行「班级」（desktop table tr，11 列）。indented：作为折叠组子行时首列加左缩进。
 interface RowShared {
@@ -218,7 +220,110 @@ interface RowShared {
   getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
   onSelectSection?: (s: FormalSection) => void;
 }
-function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
+
+function useProgressiveSectionCount(expanded: boolean, total: number) {
+  const initialCount = Math.min(FORMAL_SECTION_BATCH_SIZE, total);
+  const [visibleCount, setVisibleCount] = useState(initialCount);
+
+  useEffect(() => {
+    setVisibleCount((prev) => {
+      if (!expanded) return initialCount;
+      if (prev < initialCount) return initialCount;
+      return Math.min(prev, total);
+    });
+  }, [expanded, initialCount, total]);
+
+  const showMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(total, prev + FORMAL_SECTION_BATCH_SIZE));
+  }, [total]);
+
+  const showAll = useCallback(() => {
+    setVisibleCount(total);
+  }, [total]);
+
+  return {
+    visibleCount: Math.min(visibleCount, total),
+    remaining: Math.max(0, total - visibleCount),
+    showMore,
+    showAll,
+  };
+}
+
+const FormalSectionMoreRow = memo(function FormalSectionMoreRow({
+  visibleCount,
+  total,
+  onShowMore,
+  onShowAll,
+}: {
+  visibleCount: number;
+  total: number;
+  onShowMore: () => void;
+  onShowAll: () => void;
+}) {
+  const remaining = total - visibleCount;
+  const nextCount = Math.min(FORMAL_SECTION_BATCH_SIZE, remaining);
+  return (
+    <tr>
+      <td colSpan={FORMAL_HEADERS.length} className="px-3 py-3 border-b border-gray-50 bg-gray-50/70">
+        <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+          <span className="tabular-nums">已显示 {visibleCount} / {total} 个班级</span>
+          <button
+            type="button"
+            onClick={onShowMore}
+            className="px-2.5 py-1 rounded-md bg-white border border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-500 transition-colors"
+          >
+            继续显示 {nextCount} 个
+          </button>
+          <button
+            type="button"
+            onClick={onShowAll}
+            className="px-2.5 py-1 rounded-md text-gray-400 hover:bg-white hover:text-gray-600 transition-colors"
+          >
+            显示全部
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+const FormalSectionMoreCard = memo(function FormalSectionMoreCard({
+  visibleCount,
+  total,
+  onShowMore,
+  onShowAll,
+}: {
+  visibleCount: number;
+  total: number;
+  onShowMore: () => void;
+  onShowAll: () => void;
+}) {
+  const remaining = total - visibleCount;
+  const nextCount = Math.min(FORMAL_SECTION_BATCH_SIZE, remaining);
+  return (
+    <div className="rounded-xl border border-dashed border-gray-200 bg-white/80 px-3 py-3 text-center text-xs text-gray-500">
+      <div className="tabular-nums">已显示 {visibleCount} / {total} 个班级</div>
+      <div className="mt-2 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={onShowMore}
+          className="px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-500 transition-colors"
+        >
+          继续显示 {nextCount} 个
+        </button>
+        <button
+          type="button"
+          onClick={onShowAll}
+          className="px-2.5 py-1.5 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
+        >
+          显示全部
+        </button>
+      </div>
+    </div>
+  );
+});
+
+const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -294,10 +399,10 @@ function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilt
       </td>
     </tr>
   );
-}
+});
 
 // 折叠组「组头」行（11 列：前 5 列课程级信息，中间 colSpan=5 显示「N 个班级」，末列最高评分）。点击切换展开。
-function FormalGroupHeaderRow({ group, expanded, selectedPlan, getTeacherAvg, onToggle }: {
+const FormalGroupHeaderRow = memo(function FormalGroupHeaderRow({ group, expanded, selectedPlan, getTeacherAvg, onToggle }: {
   group: FormalGroup; expanded: boolean; selectedPlan: string;
   getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
   onToggle: () => void;
@@ -364,12 +469,15 @@ function FormalGroupHeaderRow({ group, expanded, selectedPlan, getTeacherAvg, on
       </td>
     </tr>
   );
-}
+});
 
-// 折叠组（desktop）：组头行 + 展开时各班级行。
-function FormalGroupFragment({ group, expanded, onToggle, rowProps }: {
-  group: FormalGroup; expanded: boolean; onToggle: () => void; rowProps: RowShared;
+// 折叠组（desktop）：组头行 + 展开时各班级行。onToggle 接收课程号，保证父级传入引用稳定 → memo 生效。
+const FormalGroupFragment = memo(function FormalGroupFragment({ group, expanded, onToggle, rowProps }: {
+  group: FormalGroup; expanded: boolean; onToggle: (id: string) => void; rowProps: RowShared;
 }) {
+  const { visibleCount, remaining, showMore, showAll } = useProgressiveSectionCount(expanded, group.sections.length);
+  const visibleSections = expanded ? group.sections.slice(0, visibleCount) : [];
+
   return (
     <>
       <FormalGroupHeaderRow
@@ -377,17 +485,25 @@ function FormalGroupFragment({ group, expanded, onToggle, rowProps }: {
         expanded={expanded}
         selectedPlan={rowProps.selectedPlan}
         getTeacherAvg={rowProps.getTeacherAvg}
-        onToggle={onToggle}
+        onToggle={() => onToggle(group.id)}
       />
-      {expanded && group.sections.map((s) => (
+      {visibleSections.map((s) => (
         <FormalSectionRow key={`${s.id}-${s.className}-${s.teacherId}`} s={s} indented {...rowProps} />
       ))}
+      {expanded && remaining > 0 && (
+        <FormalSectionMoreRow
+          visibleCount={visibleCount}
+          total={group.sections.length}
+          onShowMore={showMore}
+          onShowAll={showAll}
+        />
+      )}
     </>
   );
-}
+});
 
 // 一张「班级」卡（mobile）。
-function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection }) {
+const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -438,20 +554,22 @@ function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selec
       </div>
     </div>
   );
-}
+});
 
 // 折叠组（mobile）：组头卡（课名+学分+「N 个班级」+chevron）+ 展开时各班级卡。
-function FormalGroupCard({ group, expanded, onToggle, rowProps }: {
-  group: FormalGroup; expanded: boolean; onToggle: () => void; rowProps: RowShared;
+const FormalGroupCard = memo(function FormalGroupCard({ group, expanded, onToggle, rowProps }: {
+  group: FormalGroup; expanded: boolean; onToggle: (id: string) => void; rowProps: RowShared;
 }) {
   const { sections, course, id } = group;
+  const { visibleCount, remaining, showMore, showAll } = useProgressiveSectionCount(expanded, sections.length);
+  const visibleSections = expanded ? sections.slice(0, visibleCount) : [];
   const head = sections[0];
   const inPlan = !!course && isInPlan(course, rowProps.selectedPlan);
   const tags = course ? compactTags(displayTags(course, rowProps.selectedPlan)) : compactTags(head.tags);
   return (
     <div>
       <div
-        onClick={onToggle}
+        onClick={() => onToggle(id)}
         className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm select-none ${inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
       >
         <div className="flex items-start justify-between gap-2">
@@ -485,14 +603,22 @@ function FormalGroupCard({ group, expanded, onToggle, rowProps }: {
       </div>
       {expanded && (
         <div className="mt-2 space-y-2 p-2 pl-3 rounded-xl border-l-2 border-gray-200 bg-gray-50/60 dark:bg-white/[0.03] dark:border-l-white/10">
-          {sections.map((s) => (
+          {visibleSections.map((s) => (
             <FormalSectionCard key={`${s.id}-${s.className}-${s.teacherId}`} s={s} {...rowProps} />
           ))}
+          {remaining > 0 && (
+            <FormalSectionMoreCard
+              visibleCount={visibleCount}
+              total={sections.length}
+              onShowMore={showMore}
+              onShowAll={showAll}
+            />
+          )}
         </div>
       )}
     </div>
   );
-}
+});
 
 export function CourseTable({
   courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc,
@@ -511,13 +637,19 @@ export function CourseTable({
   const [formalOpenOverride, setFormalOpenOverride] = useState<Map<string, boolean>>(new Map());
   const isGroupExpanded = (id: string) =>
     formalOpenOverride.has(id) ? !!formalOpenOverride.get(id) : defaultExpandFormal;
-  const toggleFormalGroup = (id: string) =>
+  // 稳定引用：传给 memo 化的组件，避免每次 render 生成新函数把 memo 击穿。
+  const toggleFormalGroup = useCallback((id: string) =>
     setFormalOpenOverride((prev) => {
       const cur = prev.has(id) ? !!prev.get(id) : defaultExpandFormal;
       const next = new Map(prev);
       next.set(id, !cur);
       return next;
-    });
+    }), [defaultExpandFormal]);
+  // 行/卡片共享 props 收敛为稳定对象 —— 配合 memo 让「切换一个组」只重渲染该组，不波及其余 50 组。
+  const rowProps = useMemo(
+    () => ({ selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }),
+    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection],
+  );
   // formal 列表里所有班级（扁平），供空态判断（替代旧 formalSections）。
   const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);
   const handleSort = () => {
@@ -682,7 +814,6 @@ export function CourseTable({
                   </tr>
                 ) : (
                   formalGroups.map((g) => {
-                    const rowProps = { selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection };
                     // 单班级：直接平铺一行；多班级：组头 + （展开时）各班级。
                     if (g.sections.length === 1) {
                       return <FormalSectionRow key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
@@ -690,10 +821,10 @@ export function CourseTable({
                     const expanded = isGroupExpanded(g.id);
                     return (
                       <FormalGroupFragment
-                        key={`grp-${g.id}`}
+                        key={`grp-${g.id}-${expanded ? "open" : "closed"}`}
                         group={g}
                         expanded={expanded}
-                        onToggle={() => toggleFormalGroup(g.id)}
+                        onToggle={toggleFormalGroup}
                         rowProps={rowProps}
                       />
                     );
@@ -867,17 +998,16 @@ export function CourseTable({
           ) : (
             <div className="space-y-2">
               {formalGroups.map((g) => {
-                const rowProps = { selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection };
                 if (g.sections.length === 1) {
                   return <FormalSectionCard key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
                 }
                 const expanded = isGroupExpanded(g.id);
                 return (
                   <FormalGroupCard
-                    key={`grp-${g.id}`}
+                    key={`grp-${g.id}-${expanded ? "open" : "closed"}`}
                     group={g}
                     expanded={expanded}
-                    onToggle={() => toggleFormalGroup(g.id)}
+                    onToggle={toggleFormalGroup}
                     rowProps={rowProps}
                   />
                 );
