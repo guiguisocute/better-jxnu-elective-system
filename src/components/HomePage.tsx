@@ -313,7 +313,9 @@ export function HomePage() {
     return m;
   }, [courses]);
 
-  const visibleFormalSections = useMemo(() => {
+  // 「内容筛选」后的班级集合：搜索/学院/方案/学分/类型/教学区/隐藏已修，但【不含】课表时段筛选。
+  // 课表格子里的数字基于它统计 —— 数字随内容筛选变化，却不被你点选的时段格子反向影响（issue #2 · 方案①）。
+  const contentFilteredSections = useMemo(() => {
     if (!selectedSemester) return [];
     const f = filter.filters;
     const search = f.search.toLowerCase();
@@ -356,25 +358,27 @@ export function HomePage() {
       }
       // 隐藏已修课程（仅 sim 模式下生效，与 useCourseFilter 同口径）。
       if (f.hideTaken && sim.mode === "sim" && credit.takenCids.has(s.id)) return false;
-      // 课表时段筛选（点格子三态）。无激活格子时直接放行。
-      if (!sectionMatchesSchedule(s, schedule.filter)) return false;
       return true;
     });
-  }, [formal.sections, selectedSemester, filter.filters, schedule.filter, coursesById, sim.mode, credit.takenCids]);
+  }, [formal.sections, selectedSemester, filter.filters, coursesById, sim.mode, credit.takenCids]);
 
-  // 课表每格班级数（当前学期，未经时段筛选）：用于网格内提示。
+  // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）。
+  const visibleFormalSections = useMemo(
+    () => contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter)),
+    [contentFilteredSections, schedule.filter],
+  );
+
+  // 课表每格班级数：基于「内容筛选后」的班级统计（issue #2 · 方案① —— 随内容筛选变，不随已选时段格子变）。
   const scheduleCellCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    if (!selectedSemester) return counts;
-    for (const s of formal.sections) {
-      if (s.semester !== selectedSemester) continue;
+    for (const s of contentFilteredSections) {
       for (const m of parseSchedule(s.schedule)) {
         const key = `${m.day},${m.slot}`;
         counts[key] = (counts[key] ?? 0) + 1;
       }
     }
     return counts;
-  }, [formal.sections, selectedSemester]);
+  }, [contentFilteredSections]);
 
   // 正选/补退选的排序：复用预选的 sortAsc / ratingSortAsc 状态，行为一致。
   // 评分排序优先级高于学分；ratingSortAsc === null 时退回学分排序。
