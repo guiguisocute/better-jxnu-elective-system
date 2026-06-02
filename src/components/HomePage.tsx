@@ -27,6 +27,8 @@ import { ThemeToggle } from "./ThemeToggle";
 import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
 
 const DATA_SOURCE_KEY = "jxnu_data_source";
+const FORMAL_AUTO_EXPAND_SECTION_LIMIT = 240;
+const FORMAL_AUTO_EXPAND_GROUP_LIMIT = 30;
 
 function loadDataSource(): DataSource {
   // 默认进「正选」（学期由下方兜底 effect 落到最新 = 2026-09 测试）；
@@ -131,8 +133,8 @@ export function HomePage() {
   };
   const hasAnyActiveFilters = filter.hasActiveFilters || schedule.active;
 
-  // 「真正收窄列表」的筛选 —— 用于折叠组的默认展开判定。
-  // 裸选培养方案（仅高亮、未勾「仅看本方案」）不算收窄，故折叠组仍默认收起，避免太宽泛。
+  // 「真正收窄列表」的筛选 —— 后面会结合结果规模决定折叠组是否默认展开。
+  // 裸选培养方案（仅高亮、未勾「仅看本方案」）不算收窄，避免太宽泛。
   const hasNarrowingFilter = useMemo(() => {
     const f = filter.filters;
     return (
@@ -447,8 +449,10 @@ export function HomePage() {
 
   // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）。
   const visibleFormalSections = useMemo(
-    () => contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter)),
-    [contentFilteredSections, schedule.filter],
+    () => schedule.active
+      ? contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter))
+      : contentFilteredSections,
+    [contentFilteredSections, schedule.active, schedule.filter],
   );
 
   // 课表每格班级数：基于「内容筛选后」的班级统计（issue #2 · 方案① —— 随内容筛选变，不随已选时段格子变）。
@@ -545,6 +549,10 @@ export function HomePage() {
     () => formalGroupsAll.slice((safeFormalPage - 1) * FORMAL_PAGE_SIZE, safeFormalPage * FORMAL_PAGE_SIZE),
     [formalGroupsAll, safeFormalPage],
   );
+  // 自动展开只适合「结果已经很窄」的场景；大结果集保持折叠，避免一次筛选挂载大量班级行导致主线程卡顿。
+  const shouldAutoExpandFormal = hasNarrowingFilter
+    && visibleFormalSections.length <= FORMAL_AUTO_EXPAND_SECTION_LIMIT
+    && formalGroupsAll.length <= FORMAL_AUTO_EXPAND_GROUP_LIMIT;
 
   const [selected, setSelected] = useState<Course | null>(null);
   const [mobileCourse, setMobileCourse] = useState<Course | null>(null);
@@ -1051,7 +1059,7 @@ export function HomePage() {
             dataSource={dataSource}
             onChangeDataSource={setDataSource}
             formalGroups={paginatedFormalGroups}
-            defaultExpandFormal={hasNarrowingFilter}
+            defaultExpandFormal={shouldAutoExpandFormal}
             formalAvailable={formal.available}
             formalLoading={formal.loading}
             allSemesters={allSemesters}

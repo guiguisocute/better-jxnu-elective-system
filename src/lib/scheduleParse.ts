@@ -53,10 +53,13 @@ export interface MeetSlot {
 }
 
 const SEG_RE = /星期(.)-第([\d一二三四五六七八九十]+)节/;
+const scheduleCache = new Map<string, MeetSlot[]>();
 
 /** 解析 schedule（多时段以 " / " 分隔）→ 去重后的 {day, slot}[]。无法识别的段跳过。 */
 export function parseSchedule(raw: string): MeetSlot[] {
   if (!raw) return [];
+  const cached = scheduleCache.get(raw);
+  if (cached) return cached;
   const out: MeetSlot[] = [];
   const seen = new Set<string>();
   for (const seg of raw.split(" / ")) {
@@ -73,6 +76,7 @@ export function parseSchedule(raw: string): MeetSlot[] {
       }
     }
   }
+  scheduleCache.set(raw, out);
   return out;
 }
 
