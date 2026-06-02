@@ -400,8 +400,10 @@ body {
 /* 空格（可点）：深底、隐藏描边（靠 body 间隙作网格线，与 secgrid 一致）；hover 提亮一档作反馈 */
 :where(.dark) .fltgrid-cell        { background-color: #0D1117; border-color: transparent }
 :where(.dark) .fltgrid-cell:hover  { background-color: #1C2128 }
-/* 排除态：中性去饱和深灰 + 描边 + 划线，明显区别于空格（不再用暖红） */
-:where(.dark) .fltgrid-cell-ex     { background-color: #161B22; border-color: #30363D; color: #6E7681; text-decoration-color: #6E7681 }
+/* 排除态：偏亮冷灰 + 描边 + 划线，作为"已选择排除"状态需比空格明显一档 */
+:where(.dark) .fltgrid-cell-ex     { background-color: #3D444D; border-color: #6E7681; color: #CDD9E5; text-decoration-color: #CDD9E5; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08) }
+:where(.dark) .fltgrid-state-inc   { background-color: #C83F3F }
+:where(.dark) .fltgrid-state-ex    { background-color: #8B949E; color: #0D1117 }
 /* 仅看态（数据红）：与 secgrid 占用格同色，红只承载数据 */
 :where(.dark) .fltgrid-occ         { background-color: #E15554; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20) }
 /* 空格内「该时段有课」提示点：中性灰，不在中性网格里留扎眼色点 */

@@ -93,8 +93,9 @@ export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, c
                         )}
                         {state !== "none" && (
                           <span
-                            className="absolute -top-px -right-px text-[8px] leading-none px-0.5 py-px rounded-bl text-white font-bold"
-                            style={{ background: state === "include" ? "#dc2626" : "#9ca3af" }}
+                            className={`absolute -top-px -right-px text-[8px] leading-none px-0.5 py-px rounded-bl text-white font-bold ${
+                              state === "include" ? "bg-red-600 fltgrid-state-inc" : "bg-gray-400 fltgrid-state-ex"
+                            }`}
                           >
                             {state === "include" ? "仅" : "排"}
                           </span>
@@ -116,6 +117,10 @@ export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, c
           色块复用 .fltgrid-* 钩子，暗色下与真实格子完全同色（详见 index.css）。 */}
       <div className="mt-2 space-y-1 text-[10px]">
         <div className="flex items-center gap-3 flex-wrap text-gray-500">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-gray-50/40 border border-gray-200 fltgrid-cell" />
+            <span>默认</span>
+          </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-red-500 fltgrid-occ" />
             <span className="text-red-700 font-medium">仅看能填</span>
