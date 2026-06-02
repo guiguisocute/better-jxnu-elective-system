@@ -131,6 +131,23 @@ export function HomePage() {
   };
   const hasAnyActiveFilters = filter.hasActiveFilters || schedule.active;
 
+  // 「真正收窄列表」的筛选 —— 用于折叠组的默认展开判定。
+  // 裸选培养方案（仅高亮、未勾「仅看本方案」）不算收窄，故折叠组仍默认收起，避免太宽泛。
+  const hasNarrowingFilter = useMemo(() => {
+    const f = filter.filters;
+    return (
+      f.search.trim() !== "" ||
+      f.credits.length > 0 || f.creditsExclude.length > 0 ||
+      f.dept.length > 0 || f.deptExclude.length > 0 ||
+      f.type.length > 0 || f.typeExclude.length > 0 ||
+      f.tag.length > 0 || f.tagExclude.length > 0 ||
+      f.area.length > 0 || f.areaExclude.length > 0 ||
+      (f.plan !== "" && f.planFilter === "include") ||
+      f.hideTaken ||
+      schedule.active
+    );
+  }, [filter.filters, schedule.active]);
+
   // 功能说明层：无任何筛选时中间区不堆课，先解释各区域功能（详见 FeatureHints）。
   // 「直接展示全部课程」只是临时揭开本次清洁态的列表；一旦再施加筛选就重置，
   // 下次清空筛选又会重新显示（按产品决策：每次清空筛选都显示）。不落 storage。
@@ -597,14 +614,15 @@ export function HomePage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Body scroll lock when mobile filter / mobile course overlay / PC left drawer is open
+  // Body scroll lock when mobile filter / mobile course overlay / PC left drawer / 模拟选课引导弹窗 is open
+  const onboardingOpen = sim.mode === "onboarding";
   useEffect(() => {
-    if (showMobileFilter || mobileCourse || mobileSection || leftAsDrawer) {
+    if (showMobileFilter || mobileCourse || mobileSection || leftAsDrawer || onboardingOpen) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => { document.body.style.overflow = prev; };
     }
-  }, [showMobileFilter, mobileCourse, mobileSection, leftAsDrawer]);
+  }, [showMobileFilter, mobileCourse, mobileSection, leftAsDrawer, onboardingOpen]);
 
   // Back button closes mobile course/section overlay
   useEffect(() => {
@@ -629,7 +647,8 @@ export function HomePage() {
 
   // Formal/补退选 行点击：永远走 FormalSectionDetail（section-centric 单教师视图）。
   // 渲染处再用 courses.find lookup 把同课程号的 Course 当 prop 喂进去补齐 desc/plans/prereq。
-  const handleSelectSection = (s: FormalSection) => {
+  // useCallback 稳定引用 —— 作为 CourseTable rowProps 一员传给 memo 化的行组件，避免击穿 memo。
+  const handleSelectSection = useCallback((s: FormalSection) => {
     setSelectedSectionKey(`${s.id}|${s.className}|${s.teacherId}`);
     if (window.innerWidth >= 1280) {
       setSelectedSection(s);
@@ -639,7 +658,7 @@ export function HomePage() {
       setMobileSection(s);
       window.history.pushState({ sectionId: s.id }, "", `/course/${s.id}`);
     }
-  };
+  }, []);
 
   const closeMobileCourse = () => {
     if (closingRef.current) return;
@@ -1032,7 +1051,7 @@ export function HomePage() {
             dataSource={dataSource}
             onChangeDataSource={setDataSource}
             formalGroups={paginatedFormalGroups}
-            defaultExpandFormal={hasAnyActiveFilters}
+            defaultExpandFormal={hasNarrowingFilter}
             formalAvailable={formal.available}
             formalLoading={formal.loading}
             allSemesters={allSemesters}

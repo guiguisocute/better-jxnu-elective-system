@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { copyText } from "../lib/clipboard";
 
 // 复制课程号小按钮：成功后短暂显示 ✓。clipboard 不可用时（HTTP LAN）由 copyText 兜底 execCommand。
@@ -10,13 +10,17 @@ interface Props {
 
 export function CopyIdButton({ text, className = "", title = "复制课程号" }: Props) {
   const [copied, setCopied] = useState(false);
+  // 计时器存 ref 并在卸载时清理 —— 列表里大量复制按钮被快速挂载/卸载时不残留定时器。
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const ok = await copyText(text);
     if (ok) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 1200);
     }
   };
 
@@ -24,7 +28,7 @@ export function CopyIdButton({ text, className = "", title = "复制课程号" }
     <button
       onClick={handle}
       title={title}
-      className={`inline-flex items-center justify-center w-5 h-5 rounded transition-colors ${
+      className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
         copied ? "text-green-500" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
       } ${className}`}
     >
