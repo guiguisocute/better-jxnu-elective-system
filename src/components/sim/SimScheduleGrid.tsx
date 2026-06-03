@@ -1,7 +1,7 @@
 import { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { DAY_LABELS, SLOT_KEYS, slotLabel, dayLabel } from "../../lib/scheduleParse";
-import type { PlacedCourse, PlacedKind } from "../../lib/schedulePlacement";
+import type { PlacedCourse, PlacedKind, PlacedOption } from "../../lib/schedulePlacement";
 import { natureColor } from "../../lib/creditPlan";
 import { tagColorClasses } from "../TagBadge";
 import { CopyIdButton } from "../CopyIdButton";
@@ -35,6 +35,74 @@ function cellHeaderLabel(key: string): string {
   const d = Number(dStr);
   const slotText = slot === "晚上" ? "晚上" : `${slot}节`;
   return `${dayLabel(d)} · ${slotText}`;
+}
+
+// 评估「把某门课换到某个班级 option」会不会与其它已落格课程时段冲突：
+// 拿该 option 的全部 slots 去比对当前 cellMap（网格已占格），命中的占用课里排除该课自身，
+// 即为换上去后会撞车的其它课。返回去重后的冲突课程名（空数组 = 该班级与其它课无时段冲突）。
+function conflictNamesFor(
+  cellMap: Map<string, PlacedCourse[]>,
+  course: PlacedCourse,
+  option: PlacedOption,
+): string[] {
+  const byCid = new Map<string, string>(); // cid → name，跨多个 slot 命中同一门课时去重
+  for (const m of option.slots) {
+    const occ = cellMap.get(`${m.day},${m.slot}`);
+    if (!occ) continue;
+    for (const other of occ) {
+      if (other.cid !== course.cid) byCid.set(other.cid, other.name);
+    }
+  }
+  return [...byCid.values()];
+}
+
+// 换班 chip（浮窗 / 选班列表共用）：选中态深底；未选中按「换上去会不会撞别的课」着色 ——
+// 无冲突＝绿点 + 中性底（可放心换）；有冲突＝红点 + 浅红底，并标出会撞哪一门（"撞 X"，多门时 +N）。
+function SectionChip({
+  option,
+  active,
+  conflicts,
+  onChoose,
+}: {
+  option: PlacedOption;
+  active: boolean;
+  conflicts: string[];
+  onChoose: () => void;
+}) {
+  const hasConflict = conflicts.length > 0;
+  const slotsText = option.slots.map((m) => slotLabel(m)).join(" / ");
+  const title =
+    `${option.className ?? ""} · ${option.teacher ?? ""} · ${slotsText}` +
+    (hasConflict ? ` · 换上后与「${conflicts.join("、")}」时段冲突` : " · 与其它课无时段冲突，可放心换");
+  return (
+    <button
+      onClick={onChoose}
+      title={title}
+      className={`px-2 py-1 rounded-md border text-left max-w-[150px] transition-colors ${
+        active
+          ? "bg-[#1F2937] border-gray-800 text-white dark:bg-[#30363D] dark:border-[#484F58]"
+          : hasConflict
+            ? "bg-rose-50 border-rose-200 text-rose-700 hover:border-rose-300"
+            : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
+      }`}
+    >
+      <span className="flex items-center gap-1">
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: hasConflict ? "#E11D48" : "#10B981" }}
+        />
+        <span className="min-w-0 truncate text-[10px] font-semibold">{option.teacher || option.className || "班级"}</span>
+      </span>
+      <span className={`block text-[9px] truncate ${active ? "text-white/75" : hasConflict ? "text-rose-500" : "text-gray-400"}`}>
+        {slotsText}
+      </span>
+      {hasConflict && (
+        <span className={`block text-[9px] font-medium truncate ${active ? "text-rose-300" : "text-rose-600"}`}>
+          撞 {conflicts[0]}{conflicts.length > 1 ? ` +${conflicts.length - 1}` : ""}
+        </span>
+      )}
+    </button>
+  );
 }
 
 interface PopState {
@@ -246,7 +314,9 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
       <div className="mt-2 flex items-center gap-3 flex-wrap text-[10px] text-gray-500">
         <span className="inline-flex items-center gap-1"><span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-sm bg-blue-500 text-white text-[7px] font-bold">必</span>必修标记</span>
         <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm sim-cell-conflict border border-rose-200" /><span className="text-rose-600">时段冲突</span></span>
-        <span className="text-gray-400">· 点击克换班/退选</span>
+        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#10B981" }} />换班无冲突</span>
+        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#E11D48" }} />换后撞课</span>
+        <span className="text-gray-400">· 点击可换班/退选</span>
       </div>
 
       {/* 点格 mini 浮窗（只读：详情 / 冲突两门）。Portal 到 body 避开 transform 祖先。 */}
@@ -319,24 +389,15 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                       <div className="mt-1.5 pl-3.5">
                         <div className="text-[10px] text-gray-400 mb-1">换班 · {c.options.length} 个班级{c.srcSem ? ` · ${c.srcSem}` : ""}</div>
                         <div className="flex flex-wrap gap-1">
-                          {shownOptions.map((o) => {
-                            const active = o.key === c.activeKey;
-                            return (
-                              <button
-                                key={o.key}
-                                onClick={() => onChooseSection?.(c.cid, o.key)}
-                                title={`${o.className ?? ""} · ${o.teacher ?? ""} · ${o.slots.map((m) => slotLabel(m)).join(" / ")}`}
-                                className={`px-2 py-1 rounded-md border text-left max-w-[150px] transition-colors ${
-                                  active ? "bg-[#1F2937] border-gray-800 text-white dark:bg-[#30363D] dark:border-[#484F58]" : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
-                                }`}
-                              >
-                                <span className="block text-[10px] font-semibold truncate">{o.teacher || o.className || "班级"}</span>
-                                <span className={`block text-[9px] truncate ${active ? "text-white/75" : "text-gray-400"}`}>
-                                  {o.slots.map((m) => slotLabel(m)).join(" / ")}
-                                </span>
-                              </button>
-                            );
-                          })}
+                          {shownOptions.map((o) => (
+                            <SectionChip
+                              key={o.key}
+                              option={o}
+                              active={o.key === c.activeKey}
+                              conflicts={conflictNamesFor(cellMap, c, o)}
+                              onChoose={() => onChooseSection?.(c.cid, o.key)}
+                            />
+                          ))}
                         </div>
                         {collapsible && (
                           <button
@@ -448,24 +509,15 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                             可选 {c.options.length} 个班级{c.srcSem ? ` · ${c.srcSem}` : ""}
                           </div>
                           <div className="flex flex-wrap gap-1">
-                            {shownOptions.map((o) => {
-                              const active = o.key === c.activeKey;
-                              return (
-                                <button
-                                  key={o.key}
-                                  onClick={() => onChooseSection?.(c.cid, o.key)}
-                                  title={`${o.className ?? ""} · ${o.teacher ?? ""} · ${o.slots.map((m) => slotLabel(m)).join(" / ")}`}
-                                  className={`px-2 py-1 rounded-md border text-left max-w-[150px] transition-colors ${
-                                    active ? "bg-[#1F2937] border-gray-800 text-white dark:bg-[#30363D] dark:border-[#484F58]" : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
-                                  }`}
-                                >
-                                  <span className="block text-[10px] font-semibold truncate">{o.teacher || o.className || "班级"}</span>
-                                  <span className={`block text-[9px] truncate ${active ? "text-white/75" : "text-gray-400"}`}>
-                                    {o.slots.map((m) => slotLabel(m)).join(" / ")}
-                                  </span>
-                                </button>
-                              );
-                            })}
+                            {shownOptions.map((o) => (
+                              <SectionChip
+                                key={o.key}
+                                option={o}
+                                active={o.key === c.activeKey}
+                                conflicts={conflictNamesFor(cellMap, c, o)}
+                                onChoose={() => onChooseSection?.(c.cid, o.key)}
+                              />
+                            ))}
                           </div>
                           {collapsible && (
                             <button
