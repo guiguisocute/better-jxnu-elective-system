@@ -13,6 +13,8 @@ import { sectionMatchesSchedule, parseSchedule } from "../lib/scheduleParse";
 import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
+import { importStudentRecord, deriveInputsFromRecord, isPassed } from "../lib/studentRecord";
+import { STUDENT_IMPORT_ENABLED } from "../lib/featureFlags";
 import { FilterBar } from "./FilterBar";
 import { ScheduleFilter } from "./ScheduleFilter";
 import { CourseTable } from "./CourseTable";
@@ -112,8 +114,9 @@ export function HomePage() {
     } catch {}
     return "";
   });
-  // 方案课程清单懒加载（仅模拟选课开启时 fetch ~5MB）。
-  const planCourses = usePlanCourses(sim.mode !== "browse", currentPlan);
+  // 方案课程清单懒加载（~5MB）：模拟选课开启时、或首屏已选培养方案时加载 ——
+  // 后者让进站默认态(browse)的「方案规划入口」也能拿到 nextSemRequired（这学期该上的必修课）。
+  const planCourses = usePlanCourses(sim.mode !== "browse" || !!currentPlan, currentPlan);
   const credit = useCreditPlan(currentPlan, cartCourses, planCourses.courses, planCourses.coursesOf);
   // 预选视图：只展示真正出现在 preselect_catalog 的课（inPre !== false）。
   // inPre === false 的 282 门是 build_data.py 用 formal 真实老师补全的 master 条目（含 25 门零分课），
@@ -150,14 +153,17 @@ export function HomePage() {
     );
   }, [filter.filters, schedule.active]);
 
-  // 功能说明层：无任何筛选时中间区不堆课，先解释各区域功能（详见 FeatureHints）。
-  // 「直接展示全部课程」只是临时揭开本次清洁态的列表；一旦再施加筛选就重置，
-  // 下次清空筛选又会重新显示（按产品决策：每次清空筛选都显示）。不落 storage。
+  // 首屏「方案规划入口」：未做收窄筛选时，中间区不堆课，而是显示 FeatureHints
+  //（选方案 → 毕业目标 + 这学期该上的必修课）。
+  // 关键：判据用 hasNarrowingFilter 而非 hasAnyActiveFilters —— 裸选培养方案不算收窄，
+  // 因此「选了方案」仍停在首屏、就地把入口卡换成规划面板，不跳走列表；只有真正收窄
+  // （搜索/类型/学分/仅看本方案/时段…）或点「浏览全部」才揭开列表。
+  // 「浏览全部」临时揭开本次列表；施加收窄筛选会复位，清空后又重新显示。不落 storage。
   const [hintsDismissed, setHintsDismissed] = useState(false);
   useEffect(() => {
-    if (hasAnyActiveFilters) setHintsDismissed(false);
-  }, [hasAnyActiveFilters]);
-  const showHints = !hasAnyActiveFilters && !hintsDismissed;
+    if (hasNarrowingFilter) setHintsDismissed(false);
+  }, [hasNarrowingFilter]);
+  const showHints = !hasNarrowingFilter && !hintsDismissed;
 
   // 模拟选课入口：未选培养方案 → 先走引导（选方案+填学分）；已选方案 → 直接进 sim，不弹引导。
   const enterSim = useCallback(() => {
@@ -193,6 +199,43 @@ export function HomePage() {
     sim.finishOnboarding();
     maybeShowFilterHint();
   }, [sim, maybeShowFilterHint]);
+
+  // 首屏「填已修 / 学号导入」：强制进模拟选课引导去填已修（即使已选方案），用于算精确缺口。
+  const openFillRecord = useCallback(() => sim.openOnboarding(), [sim]);
+  // 首屏「直接去挑选修课」：进模拟选课态 + 揭开课程列表 —— 只 goSim 不 dismiss 会停在规划面板(showHints 没变)。
+  // 不复用通用 enterSim：顶部开关也走 enterSim，那里不该强行揭开列表。
+  const startElectives = useCallback(() => {
+    enterSim();
+    setHintsDismissed(true);
+    maybeShowFilterHint();
+  }, [enterSim, maybeShowFilterHint]);
+
+  // 首屏学号一键导入：拉档案 → 派生已修 → 写入目标方案 → 切过去。
+  // 本地 dev 无 Functions（/api 返回 index.html）会抛错，由首屏显示提示。
+  const importByStudentId = useCallback(
+    async (studentId: string) => {
+      const rec = await importStudentRecord(studentId);
+      const matched = !!(rec.planKey && allPlans.includes(rec.planKey));
+      const plan = matched ? rec.planKey! : currentPlan;
+      if (!plan) throw new Error("没能识别你的专业，请在下方手动选择。");
+      // 匹配到的专业可能 ≠ 当前方案，且首屏未选方案时 5MB 方案课尚未加载；
+      // 先确保整份方案课就绪再派生（拿不到则空课表降级：仅英语特色课抵扣失效，其余仍准）。
+      const planMap = await planCourses.ensure().catch(() => null);
+      const sug = deriveInputsFromRecord(rec, (planMap && planMap[plan]) ?? []);
+      credit.importInputs(plan, {
+        totalEarned: sug.totalEarned,
+        electiveThisSem: sug.electiveThisSem,
+        term: sug.term ?? null,
+        takenMajorElectives: sug.takenMajorElectiveCids,
+        excludedRequired: sug.excludedRequiredCids,
+        importedTakenCids: rec.detailCourses.filter((c) => isPassed(c) && !!c.courseId).map((c) => c.courseId),
+      });
+      if (matched) filter.updateFilter("plan", rec.planKey!);
+    },
+    [allPlans, currentPlan, planCourses, credit, filter],
+  );
+  // 是否已有真实已修记录（填过总分 / 学号导入过）—— 决定首屏是否亮「毕业还差多少」。
+  const hasRecord = credit.stored.totalEarned > 0 || credit.stored.importedTakenCids.length > 0;
 
   // 筛选提醒的锚点：移动锚 header 漏斗按钮；桌面锚左侧筛选区（展开按钮 or 内联侧栏，同一 callback ref）。
   const mobileFunnelRef = useRef<HTMLButtonElement>(null);
@@ -1044,6 +1087,17 @@ export function HomePage() {
 
         {/* Center - course list */}
         <main className="flex-1 min-w-0">
+          {/* 「浏览全部」是主动揭开列表(setHintsDismissed)，本身不可逆 —— 给一条显式回头路。
+              仅在「主动揭开 + 没有收窄筛选」时出现；有筛选时清空筛选即自动回首屏，不需要它。 */}
+          {hintsDismissed && !hasNarrowingFilter && (
+            <button
+              type="button"
+              onClick={() => setHintsDismissed(false)}
+              className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-red-600 transition-colors"
+            >
+              ← 返回选课规划
+            </button>
+          )}
           <CourseTable
             courses={filter.paginated}
             selectedId={selected?.id}
@@ -1074,9 +1128,17 @@ export function HomePage() {
             coursesById={coursesById}
             showHints={showHints}
             onShowAll={() => { setHintsDismissed(true); maybeShowFilterHint(); }}
-            onEnterSim={enterSim}
+            onEnterSim={startElectives}
             sidebarOpen={sidebarOpen}
             onExpandSidebar={() => setSidebarOpen(true)}
+            allPlans={allPlans}
+            onSelectPlan={(v) => filter.updateFilter("plan", v)}
+            creditView={credit.view}
+            planCoursesLoading={planCourses.loading}
+            onFillRecord={openFillRecord}
+            onImportStudent={importByStudentId}
+            studentImportEnabled={STUDENT_IMPORT_ENABLED}
+            hasRecord={hasRecord}
           />
           {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染）。
               功能说明层显示时（无筛选）隐藏分页。 */}
@@ -1155,7 +1217,8 @@ export function HomePage() {
           onChooseSection={chosenSections.choose}
           onRemove={handleToggleCart}
           onClear={cart.clear}
-          onEditEarned={sim.openOnboarding}
+          onEditEarned={() => sim.openOnboarding()}
+          onExpandSchedule={() => sim.openOnboarding(5, "sim")}
           onCancelRequired={credit.toggleExcludedRequired}
           onSelectCourse={handleSelect}
           onSelectSection={handleSelectSection}
@@ -1208,6 +1271,7 @@ export function HomePage() {
           visitedMajorElective={credit.stored.visitedMajorElective}
           setVisitedMajorElective={credit.setVisitedMajorElective}
           onApplyBundle={handleApplyBundle}
+          initialStep={sim.onboardingStep}
           onCancel={sim.cancelOnboarding}
           onFinish={handleOnboardingFinish}
         />
