@@ -59,6 +59,8 @@ interface Props {
   setVisitedMajorElective: (v: boolean) => void;
   /** 从分享码恢复整套方案（覆盖 plan+已修+待选+选班，并进入 sim）。 */
   onApplyBundle: (bundle: PlanBundle) => void;
+  /** 打开时定位到第几步（默认 1）。dock「放大查看课表」传 5 → 直接落到「下学期必修排课表」。 */
+  initialStep?: number;
   onCancel: () => void;
   onFinish: () => void;
 }
@@ -99,9 +101,10 @@ export function OnboardingModal({
   transferMode, originalPlan, setTransferMode, setOriginalPlan, transferEarlyCids,
   showFutureRequired, setShowFutureRequired,
   visitedMajorElective, setVisitedMajorElective,
-  onApplyBundle, onCancel, onFinish,
+  onApplyBundle, onCancel, onFinish, initialStep,
 }: Props) {
-  const [step, setStep] = useState(1);
+  // 每次开引导都重新挂载，lazy init 即可读到当次 initialStep；夹到合法步数范围。
+  const [step, setStep] = useState(() => Math.min(Math.max(initialStep ?? 1, 1), TOTAL));
   const [dir, setDir] = useState<1 | -1>(1);
   const go = (n: number) => {
     setDir(n >= step ? 1 : -1);

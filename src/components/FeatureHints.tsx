@@ -76,16 +76,26 @@ const FEATURES = [
   { icon: GradCapIcon, title: "毕业进度", desc: "课表方案精准模拟，毕业学分实时清算" },
 ] as const;
 
-const TITLE = "看清每一门课";
 const SUBTITLE = "致力于减少每位江师大er的选课折磨";
 
 /* ---------- 子件 ---------- */
-function Eyebrow() {
+function HeroLogo({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-500 text-[11px] font-semibold tracking-wide">
-      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-      JXNU 选课 PLUS
-    </span>
+    <img
+      src="/img/weblogo.png"
+      alt="JXNU选课PLUS"
+      className={`mx-auto object-contain ${compact ? "w-32 h-32" : "w-44 h-44"}`}
+    />
+  );
+}
+
+function BrandTitle() {
+  return (
+    <h1 className="text-[30px] sm:text-[34px] font-black leading-none text-gray-900">
+      <span className="text-red-500">JXNU</span>
+      <span className="mx-2 text-gray-900">选课</span>
+      <span className="text-red-500">PLUS</span>
+    </h1>
   );
 }
 
@@ -155,9 +165,11 @@ export function FeatureHints({
     return (
       <div className="rounded-2xl bg-white border border-gray-100 shadow-sm px-6 py-9">
         <div className="text-center">
-          <Eyebrow />
-          <h2 className="mt-3.5 text-[19px] font-bold text-gray-800 leading-snug">{TITLE}</h2>
-          <p className="mt-2 text-[13px] text-gray-400 leading-relaxed">{SUBTITLE}</p>
+          <HeroLogo compact />
+          <div className="mt-3">
+            <BrandTitle />
+          </div>
+          <p className="mt-3 text-[13px] text-gray-400 leading-relaxed">{SUBTITLE}</p>
         </div>
 
         <div className="mt-6 space-y-4">
@@ -190,9 +202,11 @@ export function FeatureHints({
   return (
     <div className="flex flex-col justify-center items-stretch px-8 py-16 min-h-[calc(100vh-220px)]">
       <div className="max-w-lg mx-auto text-center">
-        <Eyebrow />
-        <h2 className="mt-4 text-[26px] font-bold text-gray-800 leading-tight">{TITLE}</h2>
-        <p className="mt-3 text-sm text-gray-500 leading-relaxed">{SUBTITLE}</p>
+        <HeroLogo />
+        <div className="mt-4">
+          <BrandTitle />
+        </div>
+        <p className="mt-4 text-sm text-gray-500 leading-relaxed">{SUBTITLE}</p>
         <div className="mt-7">
           <CTAButtons simActive={simActive} onShowAll={onShowAll} onEnterSim={onEnterSim} />
         </div>

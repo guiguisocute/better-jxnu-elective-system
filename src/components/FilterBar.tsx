@@ -347,16 +347,17 @@ function FilterSection({
 }
 
 function HideTakenToggle({ enabled, active, onClick }: { enabled: boolean; active: boolean; onClick: () => void }) {
-  // 胶囊开关：未开模拟选课时整体灰色禁用；开启后未激活灰底、激活琥珀色 + thumb 滑到右侧。
+  // 胶囊开关：未开模拟选课时整体灰色禁用；开启后未激活灰底、激活品牌红 bg-brand + thumb 滑到右侧。
+  // 与「折叠同名 / 仅看本方案」统一为同一品牌红，不再用琥珀色。
   const trackCls = !enabled
     ? "bg-gray-200"
     : active
-    ? "bg-amber-500"
+    ? "bg-brand"
     : "bg-gray-300";
   const labelCls = !enabled
     ? "text-gray-300"
     : active
-    ? "text-amber-700 font-semibold"
+    ? "text-red-600 font-semibold"
     : "text-gray-600";
   return (
     <button
@@ -372,7 +373,7 @@ function HideTakenToggle({ enabled, active, onClick }: { enabled: boolean; activ
       <span className={labelCls}>隐藏已修课程</span>
       <span className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${trackCls}`}>
         <span
-          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-brand-fg shadow-sm transition-transform duration-200 ease-out ${
             active ? "translate-x-4" : "translate-x-0"
           }`}
         />
@@ -382,8 +383,8 @@ function HideTakenToggle({ enabled, active, onClick }: { enabled: boolean; activ
 }
 
 function FoldGroupsToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
-  // 胶囊开关：折叠同名课程。默认开启（active）→ 品牌红；关闭 → 灰，回退扁平列表。
-  const trackCls = active ? "bg-red-500" : "bg-gray-300";
+  // 胶囊开关：折叠同名课程。默认开启（active）→ 品牌红 bg-brand（明暗自适应，避开 red-500 暗色被压成的脏砖红 #A33）；关闭 → 灰，回退扁平列表。
+  const trackCls = active ? "bg-brand" : "bg-gray-300";
   const labelCls = active ? "text-red-600 font-semibold" : "text-gray-600";
   return (
     <button
@@ -396,7 +397,7 @@ function FoldGroupsToggle({ active, onClick }: { active: boolean; onClick: () =>
       <span className={labelCls}>折叠同名课程</span>
       <span className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${trackCls}`}>
         <span
-          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-brand-fg shadow-sm transition-transform duration-200 ease-out ${
             active ? "translate-x-4" : "translate-x-0"
           }`}
         />
@@ -406,8 +407,8 @@ function FoldGroupsToggle({ active, onClick }: { active: boolean; onClick: () =>
 }
 
 function PlanOnlyToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
-  // 胶囊开关：仅看本方案课程。与 HideTakenToggle 同一视觉，激活色用品牌红。
-  const trackCls = active ? "bg-red-500" : "bg-gray-300";
+  // 胶囊开关：仅看本方案课程。与 HideTakenToggle 同一视觉，激活色用品牌红 bg-brand。
+  const trackCls = active ? "bg-brand" : "bg-gray-300";
   const labelCls = active ? "text-red-600 font-semibold" : "text-gray-600";
   return (
     <button
@@ -420,7 +421,7 @@ function PlanOnlyToggle({ active, onClick }: { active: boolean; onClick: () => v
       <span className={labelCls}>仅看本方案课程</span>
       <span className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${trackCls}`}>
         <span
-          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-brand-fg shadow-sm transition-transform duration-200 ease-out ${
             active ? "translate-x-4" : "translate-x-0"
           }`}
         />

@@ -33,6 +33,11 @@ function initialMode(): SimMode {
 
 export function useSimMode() {
   const [mode, setMode] = useState<SimMode>(initialMode);
+  // 引导定位：openOnboarding 可带 step（默认第1步）。OnboardingModal 每次开引导都重新挂载，读它作初始步。
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  // 取消引导后回到哪：默认 browse（保持首次引导 / 编辑已修的原行为）；
+  // 从 dock「放大查看课表」临时进引导时传 "sim"，关闭后回到 dock。
+  const [onboardingExit, setOnboardingExit] = useState<SimMode>("browse");
 
   // 持久化开关状态（onboarding 中间态不落盘，避免刷新卡在引导）。
   useEffect(() => {
@@ -40,10 +45,20 @@ export function useSimMode() {
     try { sessionStorage.setItem(MODE_KEY, mode); } catch {}
   }, [mode]);
 
-  // 点开关进入：引导过则直达 sim，否则先走引导。
-  const open = useCallback(() => {
-    setMode(hasOnboarded() ? "sim" : "onboarding");
+  // 在 sim 态下重新打开引导：默认第1步、关闭回 browse（如 dock 的「编辑已修」）；
+  // 「放大查看课表」传 (5, "sim") → 定位第5步、关闭回 dock。不影响“已引导”标记。
+  // step 用 typeof 守卫：onClick 直接绑定会把事件当首参传进来，须忽略。
+  const openOnboarding = useCallback((step: number = 1, exitTo: SimMode = "browse") => {
+    setOnboardingStep(typeof step === "number" ? step : 1);
+    setOnboardingExit(exitTo);
+    setMode("onboarding");
   }, []);
+
+  // 点开关进入：引导过则直达 sim，否则先走引导（第1步）。
+  const open = useCallback(() => {
+    if (hasOnboarded()) setMode("sim");
+    else openOnboarding();
+  }, [openOnboarding]);
 
   const close = useCallback(() => setMode("browse"), []);
 
@@ -54,22 +69,20 @@ export function useSimMode() {
     setMode("sim");
   }, []);
 
-  const cancelOnboarding = useCallback(() => setMode("browse"), []);
-
-  // 在 sim 态下重新打开引导（如 dock 里「编辑已修」）。不影响"已引导"标记。
-  const openOnboarding = useCallback(() => setMode("onboarding"), []);
+  const cancelOnboarding = useCallback(() => setMode(onboardingExit), [onboardingExit]);
 
   // 直接进入 sim 态（不走 hasOnboarded gate）。是否先弹引导由调用方按「是否选了培养方案」决定。
   const goSim = useCallback(() => setMode("sim"), []);
 
   // 顶部开关：browse → 进入；sim → 关闭。onboarding 态点开关不动作（由弹窗按钮处理）。
+  // 进引导统一走 openOnboarding（复位 step / exit），避免沿用上次「放大查看」的第5步。
   const toggle = useCallback(() => {
-    setMode((m) => {
-      if (m === "browse") return hasOnboarded() ? "sim" : "onboarding";
-      if (m === "sim") return "browse";
-      return m;
-    });
-  }, []);
+    if (mode === "sim") { setMode("browse"); return; }
+    if (mode === "browse") {
+      if (hasOnboarded()) setMode("sim");
+      else openOnboarding();
+    }
+  }, [mode, openOnboarding]);
 
-  return { mode, toggle, open, goSim, close, finishOnboarding, cancelOnboarding, openOnboarding };
+  return { mode, toggle, open, goSim, close, finishOnboarding, cancelOnboarding, openOnboarding, onboardingStep };
 }

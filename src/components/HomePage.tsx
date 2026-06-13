@@ -112,7 +112,7 @@ export function HomePage() {
     } catch {}
     return "";
   });
-  // 方案课程清单懒加载（仅模拟选课开启时 fetch ~5MB）。
+  // 方案课程清单懒加载（~5MB）：仅在模拟选课开启时加载。
   const planCourses = usePlanCourses(sim.mode !== "browse", currentPlan);
   const credit = useCreditPlan(currentPlan, cartCourses, planCourses.courses, planCourses.coursesOf);
   // 预选视图：只展示真正出现在 preselect_catalog 的课（inPre !== false）。
@@ -1155,7 +1155,8 @@ export function HomePage() {
           onChooseSection={chosenSections.choose}
           onRemove={handleToggleCart}
           onClear={cart.clear}
-          onEditEarned={sim.openOnboarding}
+          onEditEarned={() => sim.openOnboarding()}
+          onExpandSchedule={() => sim.openOnboarding(5, "sim")}
           onCancelRequired={credit.toggleExcludedRequired}
           onSelectCourse={handleSelect}
           onSelectSection={handleSelectSection}
@@ -1208,6 +1209,7 @@ export function HomePage() {
           visitedMajorElective={credit.stored.visitedMajorElective}
           setVisitedMajorElective={credit.setVisitedMajorElective}
           onApplyBundle={handleApplyBundle}
+          initialStep={sim.onboardingStep}
           onCancel={sim.cancelOnboarding}
           onFinish={handleOnboardingFinish}
         />
