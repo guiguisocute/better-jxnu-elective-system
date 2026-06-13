@@ -10,7 +10,6 @@ import { FeatureHints } from "./FeatureHints";
 import { isTestSemester } from "../lib/term";
 import { normalizePeriods, unselectedIncludeSlots, slotLabel } from "../lib/scheduleParse";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
-import type { CreditPlanView } from "../lib/creditPlan";
 
 interface Props {
   courses: Course[];
@@ -62,21 +61,6 @@ interface Props {
   sidebarOpen?: boolean;
   /** 展开左侧筛选栏（说明层折叠态的「展开筛选」按钮）。 */
   onExpandSidebar?: () => void;
-  /** 首屏方案规划：全部方案选项 + 选择回调。 */
-  allPlans?: string[];
-  onSelectPlan?: (plan: string) => void;
-  /** 首屏方案规划：学分核算视图（HomePage 持续提供 credit.view）。 */
-  creditView: CreditPlanView;
-  /** 方案课程清单（~5MB）是否仍在加载 —— 决定「这学期必修课」显示骨架还是真列表。 */
-  planCoursesLoading?: boolean;
-  /** 首屏「填已修 / 学号导入」→ 打开模拟选课引导。 */
-  onFillRecord?: () => void;
-  /** 首屏学号一键导入：拉档案 + 写已修 + 切方案。 */
-  onImportStudent?: (studentId: string) => Promise<void>;
-  /** 学号导入功能开关。 */
-  studentImportEnabled?: boolean;
-  /** 是否已有真实已修记录（决定首屏是否亮「毕业还差多少」）。 */
-  hasRecord?: boolean;
 }
 
 // 多时段冲突悬停文案：该 section 因某时段命中 include 入选，但还占用了未选时段。
@@ -645,9 +629,7 @@ export function CourseTable({
   onSelectSection,
   selectedSectionKey = null,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
-  showHints = false, onShowAll, onEnterSim,
-  allPlans = [], onSelectPlan, creditView, planCoursesLoading = false, onFillRecord,
-  onImportStudent, studentImportEnabled, hasRecord,
+  showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
 }: Props) {
   // 同课程号折叠的展开态：按课程号存「显式覆盖」（true=展开 / false=收起）。
   // 未覆盖的组取默认值 defaultExpandFormal（有搜索词时默认展开，否则默认收起）。
@@ -725,9 +707,9 @@ export function CourseTable({
 
         {/* 无筛选 + 数据就绪（正选需已发布且非加载中）时，用功能说明层替换正常列表。 */}
         {isFormal && showHints && formalAvailable && !formalLoading ? (
-          <FeatureHints variant="desktop" selectedPlan={selectedPlan} allPlans={allPlans} onSelectPlan={(v) => onSelectPlan?.(v)} creditView={creditView} planCoursesLoading={planCoursesLoading} onFillRecord={() => onFillRecord?.()} onStartElectives={() => onEnterSim?.()} onShowAll={() => onShowAll?.()} simActive={simMode} coursesById={coursesById} onSelectCourse={onSelect} onImportStudent={onImportStudent} studentImportEnabled={studentImportEnabled} hasRecord={hasRecord} />
+          <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
         ) : !isFormal && showHints && courses.length > 0 ? (
-          <FeatureHints variant="desktop" selectedPlan={selectedPlan} allPlans={allPlans} onSelectPlan={(v) => onSelectPlan?.(v)} creditView={creditView} planCoursesLoading={planCoursesLoading} onFillRecord={() => onFillRecord?.()} onStartElectives={() => onEnterSim?.()} onShowAll={() => onShowAll?.()} simActive={simMode} coursesById={coursesById} onSelectCourse={onSelect} onImportStudent={onImportStudent} studentImportEnabled={studentImportEnabled} hasRecord={hasRecord} />
+          <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
         ) : isFormal ? (
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
@@ -989,9 +971,9 @@ export function CourseTable({
         )}
 
         {isFormal && showHints && formalAvailable && !formalLoading ? (
-          <FeatureHints variant="mobile" selectedPlan={selectedPlan} allPlans={allPlans} onSelectPlan={(v) => onSelectPlan?.(v)} creditView={creditView} planCoursesLoading={planCoursesLoading} onFillRecord={() => onFillRecord?.()} onStartElectives={() => onEnterSim?.()} onShowAll={() => onShowAll?.()} simActive={simMode} coursesById={coursesById} onSelectCourse={onSelect} onImportStudent={onImportStudent} studentImportEnabled={studentImportEnabled} hasRecord={hasRecord} />
+          <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />
         ) : !isFormal && showHints && courses.length > 0 ? (
-          <FeatureHints variant="mobile" selectedPlan={selectedPlan} allPlans={allPlans} onSelectPlan={(v) => onSelectPlan?.(v)} creditView={creditView} planCoursesLoading={planCoursesLoading} onFillRecord={() => onFillRecord?.()} onStartElectives={() => onEnterSim?.()} onShowAll={() => onShowAll?.()} simActive={simMode} coursesById={coursesById} onSelectCourse={onSelect} onImportStudent={onImportStudent} studentImportEnabled={studentImportEnabled} hasRecord={hasRecord} />
+          <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />
         ) : isFormal ? (
           formalLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
