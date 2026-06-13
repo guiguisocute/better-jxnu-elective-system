@@ -24,6 +24,8 @@ interface Props {
   onRemove: (id: string) => void;
   onClear: () => void;
   onEditEarned: () => void;
+  /** 在大窗口（引导第5步）中查看完整周课表 —— 周课表 tab 的「放大查看」。 */
+  onExpandSchedule: () => void;
   /** 取消/恢复本学期必修（toggle excludedRequired）。 */
   onCancelRequired: (cid: string) => void;
   /** 点击待选清单课程（无开课班级时）→ 预选课程详情。 */
@@ -83,7 +85,7 @@ function defaultPos(w: number, h: number): Pos {
 // 右下角悬浮圆环「本学期 X/30」，可拖动 + 点开展开面板。圆环填充 = 本学期已规划 / 30，超限标红。
 export function SimPanel({
   view, cartCourses, selectedPlan, term, formalSections, chosen, onChooseSection,
-  onRemove, onClear, onEditEarned, onCancelRequired, onSelectCourse, onSelectSection,
+  onRemove, onClear, onEditEarned, onExpandSchedule, onCancelRequired, onSelectCourse, onSelectSection,
   selectedCourseId, inputs, onApplyBundle, showFutureRequired, setShowFutureRequired,
   moocOffset, setMoocOffset, competitionOffset, setCompetitionOffset,
 }: Props) {
@@ -658,9 +660,21 @@ export function SimPanel({
 
             {tab === "schedule" && (
               <div>
-                <div className="text-[11px] text-gray-400 mb-2">
-                  规划学期：<span className="font-semibold text-gray-600">{planLabel || "—"}</span>
-                  <span className="ml-1">（第 {planLabel ? planTerm : "—"} 学期 ）</span>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-gray-400">
+                    规划学期：<span className="font-semibold text-gray-600">{planLabel || "—"}</span>
+                    <span className="ml-1">（第 {planLabel ? planTerm : "—"} 学期 ）</span>
+                  </div>
+                  <button
+                    onClick={onExpandSchedule}
+                    title="在大窗口中查看完整课表（含课程详情 / 选班）"
+                    className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                    </svg>
+                    放大查看
+                  </button>
                 </div>
                 <SimScheduleGrid
                   placed={placed}
