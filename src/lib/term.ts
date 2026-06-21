@@ -89,10 +89,10 @@ export function termToCalLabel(enrollY: number, term: number): string {
   return `${year}-${odd ? "09" : "03"}`;
 }
 
-// 测试学期：仅正选/补退选 视图给它们加「（测试）」后缀（数据是借的，前端要给用户提示）。
-// 预选视图永远不带后缀 —— 即使学期 key 是同一个 "2026-09"，预选目录是真实数据。
-// 真实下学期 formal 数据到位后清空该集合即可。
-const TEST_SEMESTERS = new Set<string>(["2026-09"]);
+// 测试学期：仅正选/补退选 视图给它们加「（测试）」后缀 + 顶部提示横幅（数据是借的/占位时提示用户）。
+// 预选视图永远不带后缀。
+// 2026-09 已改用真实开班数据(openclass_status)，故移出测试集合；将来若再引入借用/占位学期，加进来即可。
+const TEST_SEMESTERS = new Set<string>([]);
 
 /** 给定学期 key 是否属于"借数据/未发布"测试集合（用于在详情页给提示）。 */
 export function isTestSemester(sem: string): boolean {

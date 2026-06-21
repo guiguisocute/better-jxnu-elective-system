@@ -4,5 +4,5 @@
   "endDate": "2027-01-15",
   "fetchedAt": "2026-05-20",
   "isCurrent": true,
-  "note": "预选目录(preselect_catalog)为 2026 真实数据；formal_schedule 仍借用 2025/9/1（2025秋）真实数据作下学期(2026-09)规划占位 —— 仅正选/补退选侧显示「2026-09（测试）」；预选侧显示「2026-09」(无后缀)。build_data.py 的 MIRROR_SEMESTERS 会再镜像一份 2025-09 给正选/补退选切换。"
+  "note": "预选目录(preselect_catalog)与 openclass_status 均为 2026 真实数据。正选/补退选改用 openclass_status（真实选课开班：课程号/老师/容量/班级名称），暂无星期/节次/教室（周课表网格为空），待后续补时段 JSON。数据已为真实，故已移出 term.ts:TEST_SEMESTERS（不再显示「（测试）」后缀与提示横幅）。原借用的 2025秋 formal 已归位为真实 2025-09 学期。"
 }

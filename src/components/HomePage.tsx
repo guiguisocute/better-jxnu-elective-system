@@ -374,7 +374,7 @@ export function HomePage() {
 
   // 预选侧 allSemesters：从 courses.json 派生（catalog 当前学期，通常只 1 个），过滤掉非 YYYY-MM 形态。
   const preSemesters = useMemo(
-    () => [...new Set(courses.map((c) => c.semester).filter((s) => /^\d{4}-(03|09)$/.test(s)))].sort(),
+    () => [...new Set(courses.map((c) => c.semester).filter((s) => /^\d{4}-(03|09)$/.test(s)))].sort((a, b) => b.localeCompare(a)),
     [courses],
   );
   const allSemesters = dataSource === "pre" ? preSemesters : formal.allSemesters;

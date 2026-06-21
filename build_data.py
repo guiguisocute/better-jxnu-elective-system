@@ -52,11 +52,16 @@ RAW_STAGES = (
     "formal_actual",
     "addDrop_schedule",
     "addDrop_actual",
+    # 选课开班状态（爬虫 tools/crawl_courses.py 产出）：真实开班信息，
+    # 含 课程号/老师/容量/班级名称，但无星期/节次/教室。某学期若有此文件，
+    # 其 formal sections 改由它生成（见 build_sections_from_openclass）。
+    "openclass_status",
 )
 
 # 测试用学期镜像：把某学期的 formal sections 原样复制成另一个学期标签（多课表功能测试，
-# 避免重复 17MB raw）。真实多学期数据到位后清空即可。源 2026-09(借 2025秋数据作下学期目标)→镜像 2025-09。
-MIRROR_SEMESTERS: dict[str, list[str]] = {"2026-09": ["2025-09"]}
+# 避免重复 raw）。真实多学期数据到位后清空。2025-09 已是真实历史学期、2026-09 走 openclass，
+# 不再需要镜像 → 置空。
+MIRROR_SEMESTERS: dict[str, list[str]] = {}
 
 
 # ============ 工具 ============
@@ -306,6 +311,13 @@ def build_master(semesters: dict, training_plan: list) -> dict:
                         "dept": (s.get("单位名称") or "").strip(),
                         "credits": _parse_credits(ci.get("学分")),
                     }
+        # openclass_status：让只出现在开班数据里的真实课程号（不在预选目录/课表里）也进 master。
+        oc = data.get("openclass_status")
+        if oc:
+            for r in iter_openclass_rows(oc):
+                cid = r["cid"]
+                if cid and cid not in sch_map:
+                    sch_map[cid] = {"name": r["name"], "dept": r["dept"], "credits": 0}
         sch_meta_per_sem[sem] = sch_map
 
     # cid 全集
@@ -424,6 +436,17 @@ def build_master(semesters: dict, training_plan: list) -> dict:
                     r.get("单位名称"),
                     sem_label,
                 )
+        # openclass_status 必修「选课结果」自带 教号+姓名 —— 累积进 master（跳过占位 000000/待定）。
+        oc = semesters[sem].get("openclass_status")
+        if oc:
+            for g in oc.get("colleges", []) or []:
+                college = (g.get("college") or "").strip()
+                for c in g.get("courses", []) or []:
+                    for r in c.get("选课结果", []) or []:
+                        tid = (r.get("教号") or "").strip()
+                        if not tid or tid == "000000":
+                            continue
+                        _upsert_teacher(tid, r.get("教师姓名"), "", college, sem_label)
     teachers = sorted(teachers_acc.values(), key=lambda t: t["id"])
 
     reqs = build_major_requirements(training_plan)
@@ -443,6 +466,109 @@ def build_master(semesters: dict, training_plan: list) -> dict:
 
 
 # ============ Stage 4: public ============
+
+def _parse_int(v) -> int | None:
+    """容量/人数 文本 → int；空/非数字 → None。"""
+    try:
+        s = str(v).strip()
+        return int(float(s)) if s else None
+    except (ValueError, TypeError):
+        return None
+
+
+def iter_openclass_rows(openclass: dict):
+    """展平 openclass_status（嵌套 colleges→courses→班级/开班/选课结果）为 section 级 dict 流。
+
+    每条 yield：{cid, name, dept, teacher, teacherId, className, capacity, nature}
+      - 必修：每条「班级」行一个 section；teacherId 先按姓名匹配该课「选课结果」的教号。
+      - 选修：每条「开班」行一个 section；teacherId 留空（由 catalog t_lookup 兜底）。
+    无星期/节次/教室 —— schedule/classroom 留空，待后续带时段数据补。
+    """
+    for g in openclass.get("colleges", []) or []:
+        college = (g.get("college") or "").strip()
+        for c in g.get("courses", []) or []:
+            cid = (c.get("course_num") or "").strip()
+            if not cid:
+                continue
+            info = c.get("info") or {}
+            name = (info.get("课程名称标识") or "").strip()
+            nature = c.get("nature") or ""
+            if nature == "必修":
+                tid_by_name: dict = {}
+                for r in c.get("选课结果", []) or []:
+                    nm = (r.get("教师姓名") or "").strip()
+                    tid = (r.get("教号") or "").strip()
+                    if nm and tid and nm not in tid_by_name:
+                        tid_by_name[nm] = tid
+                for r in c.get("班级", []) or []:
+                    teacher = (r.get("任课老师") or "").strip()
+                    yield {
+                        "cid": cid, "name": name, "dept": college,
+                        "teacher": teacher, "teacherId": tid_by_name.get(teacher, ""),
+                        "className": (r.get("班级名称") or "").strip(),
+                        "capacity": _parse_int(r.get("班级人数")),
+                        "nature": nature,
+                    }
+            else:  # 选修
+                # 教学院长审核状态（lblInfor 的 <li> 文案：「教学院长已经审核！」/「教学院长未审核！」）
+                approved = any(
+                    "已经审核" in n or ("审核" in n and "未审核" not in n)
+                    for n in (c.get("info_notes") or [])
+                )
+                for r in c.get("开班", []) or []:
+                    cap_raw = (r.get("每班容量") or "").strip()
+                    kb = (r.get("拟开班数") or "").strip()
+                    # 已审核 且 拟开班数=0 且 每班容量=0 = 教学院长已确认本班不开 → 排除
+                    if approved and kb == "0" and cap_raw == "0":
+                        continue
+                    teacher = (r.get("任课老师姓名") or "").strip()
+                    yield {
+                        "cid": cid, "name": name,
+                        "dept": (r.get("任课老师所在单位") or college).strip(),
+                        "teacher": teacher, "teacherId": "",
+                        "className": "",
+                        "capacity": _parse_int(cap_raw),
+                        "nature": nature,
+                    }
+
+
+def build_sections_from_openclass(
+    openclass: dict, master_by_id: dict, teacher_id_lookup: dict, sem_label: str,
+) -> list:
+    """openclass_status → FormalSection 行（结构同 build_sections_for_semester，但 schedule/classroom 空）。"""
+    sections = []
+    for row in iter_openclass_rows(openclass):
+        cid = row["cid"]
+        mc = master_by_id.get(cid, {})
+        name = row["name"] or mc.get("name", "")
+        dept = mc.get("dept", "") or row["dept"]
+        teacher = row["teacher"]
+        teacher_id = (
+            row["teacherId"]
+            or teacher_id_lookup.get((cid, teacher), "")
+            or teacher_id_lookup.get(("", teacher), "")
+        )
+        section = {
+            "id": cid,
+            "name": name,
+            "credits": mc.get("credits", 0),
+            "dept": dept,
+            "tags": mc.get("tags", []),
+            "teacher": teacher,
+            "teacherId": teacher_id,
+            "schedule": "",          # openclass 无星期/节次 —— 周课表网格暂空
+            "className": row["className"],
+            "classroom": "",         # openclass 无教室号
+            "capacity": row["capacity"],
+            "semester": sem_label,
+            "desc": "",
+        }
+        sp = [section["id"], section["name"], section["dept"], section["teacher"],
+              section["teacherId"], section["className"], *section["tags"]]
+        section["_search"] = " ".join(p for p in sp if p).lower()
+        sections.append(section)
+    return sections
+
 
 def build_search_course(course: dict, teachers: list) -> str:
     parts = [course["id"], course["name"], course["dept"]]
@@ -616,11 +742,20 @@ def build_public(semesters: dict, master: dict) -> None:
                     tid = (embed.get("UserNum") or "").strip()
                     if cid and tname and tid and (cid, tname) not in t_lookup:
                         t_lookup[(cid, tname)] = tid
-        for stage in ("formal_schedule", "addDrop_schedule"):
-            rows = data.get(stage) or []
-            if not rows:
-                continue
-            public_sections.extend(build_sections_for_semester(rows, master_by_id, t_lookup, sem_label, unmatched_foreign_teachers))
+        # 学期若有 openclass_status（真实开班数据），其 formal sections 改由它生成，
+        # 跳过 formal_schedule/addDrop_schedule（如 2026-09：真实课程/老师/容量，无时段）。
+        if data.get("openclass_status"):
+            public_sections.extend(
+                build_sections_from_openclass(
+                    data["openclass_status"], master_by_id, t_lookup, sem_label,
+                )
+            )
+        else:
+            for stage in ("formal_schedule", "addDrop_schedule"):
+                rows = data.get(stage) or []
+                if not rows:
+                    continue
+                public_sections.extend(build_sections_for_semester(rows, master_by_id, t_lookup, sem_label, unmatched_foreign_teachers))
 
     # 测试用：镜像学期（同一份 formal 数据换个学期标签，验证多课表切换）。
     if MIRROR_SEMESTERS:
