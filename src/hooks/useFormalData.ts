@@ -29,7 +29,8 @@ export function useFormalData() {
   }, []);
 
   const available = !loading && !error && sections.length > 0;
-  const allSemesters = [...new Set(sections.map((s) => s.semester).filter(Boolean))].sort();
+  // 降序：最近的学期排在最上（下拉框首项）。YYYY-MM 字典序 == 时间序。
+  const allSemesters = [...new Set(sections.map((s) => s.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a));
 
   return { sections, loading, error, available, allSemesters };
 }

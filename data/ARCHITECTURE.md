@@ -89,6 +89,7 @@ better-jxnu-elective-system/
 | `formal_actual.json` | 正选 | 选课系统 | 正选进行中 | 与 schedule 对照可看到正选阶段又被裁掉的课。暂可空。 |
 | `addDrop_schedule.json` | 补退选 | 开课安排公告 | 补退选开始前夕 | 课程范围比 formal_schedule 更小、时间跨度更长 |
 | `addDrop_actual.json` | 补退选 | 选课系统 | 补退选进行中 | 暂可空。 |
+| `openclass_status.json` | 正选(替代) | 选课开班界面（`tools/crawl_courses.py` + `tools/cas_login.py` 爬取） | 开班阶段 | 真实开班：课程号/老师(必修带教号)/容量/班级名称/选课人数；**无星期/节次/教室**。某学期若有此文件，其 formal sections 由它生成（`build_sections_from_openclass`），**跳过** formal_schedule/addDrop_schedule。用于真实 formal 时段数据未发布前先上真实课程集与师资/容量。 |
 
 **注**：当前 `data/raw/course_schedule.json` 实际是 `formal_schedule` 角色。迁移时按学期归类。
 
@@ -237,6 +238,13 @@ npm run dev   # 抽查 预选/正选/补退选 三个 tab
 
 ## 8. 迁移历史
 
+**2026-06-22** 2026-09 正选改用真实开班数据 + 借用数据归位：
+- 新增 raw stage `openclass_status`（`tools/crawl_courses.py` 爬选课开班界面）；`data/semesters/2026-09/raw/openclass_status.json` = 真实 2026 开班（2046 行 / 1941 课程号；含老师/容量/班级名称，无星期节次教室）。
+- `build_data.py`：新增 `iter_openclass_rows` + `build_sections_from_openclass`；某学期有 openclass 则 formal sections 由它生成（schedule/classroom 空，capacity 填真实值），跳过 formal_schedule/addDrop；openclass 课程号/老师并入 master。
+- **借用的 2025秋 formal 归位**：`data/semesters/2026-09/raw/formal_schedule.json` → `data/semesters/2025-09/raw/formal_schedule.json` + 新建 `2025-09/meta.json`。2025-09 成为带完整周课表的真实历史学期。
+- `MIRROR_SEMESTERS` 置空 `{}`（不再镜像）。`TEST_SEMESTERS` 仍含 `2026-09`（缺时段，UI 续标「（测试）」）。
+- 产物：`master/courses.json` 7696、`teachers.json` 2240、`public/courses.json` 6213、`public/formal_sections.json` 12855（2026-09 openclass 7783 无时段 + 2025-09 真实 5072 带时段）。
+
 **2026-05-21** 一次性完成迁移：
 - `data/raw/course_catalog.json` → `data/semesters/2026-03/raw/preselect_catalog.json`
 - `data/raw/course_schedule.json` → `data/semesters/2026-03/raw/formal_schedule.json`
@@ -269,6 +277,7 @@ npm run dev   # 抽查 预选/正选/补退选 三个 tab
 
 ## 9. 未决项 / 将来再说
 
-- **真实 2026 秋 formal 数据**：目前 `2026-09` 的 formal_schedule 是借的 2025秋数据，前端在正选/补退选侧加「（测试）」后缀提示。真实数据到位后清空 `term.ts:TEST_SEMESTERS` + `build_data.py:MIRROR_SEMESTERS`，并把真实 raw 落到 `data/semesters/2026-09/raw/`。
+- **真实 2026 秋 formal 时段数据**：`2026-09` 正选/补退选现已改用真实 `openclass_status.json`（真实课程/老师/容量/班级名称），但**仍缺星期/节次/教室**（周课表网格为空）。因数据已为真实，`term.ts:TEST_SEMESTERS` 已置空（不再显示「（测试）」后缀与提示横幅）。原借用的 2025秋 formal 已归位为真实 `2025-09` 学期（带完整周课表）。**待真实带时段的 formal 数据到位**：落 `data/semesters/2026-09/raw/formal_schedule.json` 并让 build 优先用它（或在 `build_sections_from_openclass` 里并入时段）。
+- **学期下拉排序**：`useFormalData.allSemesters` 与 `HomePage.preSemesters` 均按 YYYY-MM **降序**（最近学期排最上 = 下拉首项）。
 - **正选 vs 补退选 数据分裂**：现在 addDrop 复用 formal 数据。等真实补退选 JSON 到位后，会分两份独立 schedule。
 - **教师跨课程聚合**：master/teachers.json 是否带 `taughtCourses: cid[]`？需要算但便于"教师所授课程"查询。暂不加，等真实需求出现。
