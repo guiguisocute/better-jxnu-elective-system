@@ -63,22 +63,62 @@ function GithubIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-/** 侧栏底部的浅灰说明文字（含内联 GitHub 链接），跟随筛选项滚动到底才会出现。 */
+// 项目贡献者（按贡献排序）。头像走 GitHub 的 <login>.png 端点，无需 API。
+const CONTRIBUTORS = [
+  { login: "guiguisocute", label: "第一贡献者", url: "https://github.com/guiguisocute" },
+  { login: "xmy3", label: "第二贡献者", url: "https://github.com/xmy3" },
+];
+
+/** 贡献者头像墙：GitHub 头像 + 悬停放大/红环、点击下沉动效 + 跳转主页。 */
+function Contributors() {
+  return (
+    <div className="mt-6 mb-1 flex flex-col items-center gap-2.5">
+      <div className="text-[11px] font-medium tracking-wide text-gray-400">贡献者</div>
+      <div className="flex items-start justify-center gap-5">
+        {CONTRIBUTORS.map((c) => (
+          <a
+            key={c.login}
+            href={c.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`${c.label} · @${c.login}`}
+            className="group flex w-16 flex-col items-center gap-1.5 transition-transform duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+          >
+            <img
+              src={`https://github.com/${c.login}.png?size=96`}
+              alt={`${c.label} ${c.login}`}
+              loading="lazy"
+              className="h-11 w-11 rounded-full object-cover ring-2 ring-gray-200 shadow-sm transition-all duration-200 ease-out group-hover:scale-110 group-hover:ring-brand group-hover:shadow-md group-active:scale-100"
+            />
+            <span className="max-w-full truncate text-[11px] text-gray-400 transition-colors group-hover:text-brand">
+              @{c.login}
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 侧栏底部的浅灰说明文字（含内联 GitHub 链接）+ 贡献者展示，跟随筛选项滚动到底才会出现。 */
 function SidebarDisclaimer() {
   return (
-    <p className="mt-10 mb-2 px-2 text-center text-[12px] leading-relaxed text-gray-400">
-      本站课程数据均同步自学校教务系统。若发现数据纰漏或希望提出改进建议，欢迎提交{" "}
-      <a
-        href={GITHUB_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 align-baseline text-gray-500 hover:text-gray-700 transition-colors underline-offset-2 hover:underline"
-      >
-        <GithubIcon className="w-3 h-3 -mt-px" />
-        <span>Issue 或 Pull Request</span>
-      </a>
-      。
-    </p>
+    <>
+      <p className="mt-10 mb-2 px-2 text-center text-[12px] leading-relaxed text-gray-400">
+        本站课程数据均同步自学校教务系统。若发现数据纰漏或希望提出改进建议，欢迎提交{" "}
+        <a
+          href={GITHUB_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 align-baseline text-gray-500 hover:text-gray-700 transition-colors underline-offset-2 hover:underline"
+        >
+          <GithubIcon className="w-3 h-3 -mt-px" />
+          <span>Issue 或 Pull Request</span>
+        </a>
+        。
+      </p>
+      <Contributors />
+    </>
   );
 }
 
