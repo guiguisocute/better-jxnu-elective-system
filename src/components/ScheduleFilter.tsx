@@ -65,7 +65,7 @@ export function ScheduleFilter({
           className={`mb-2 w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${
             requiredExcluded
               ? "bg-gray-200/70 text-gray-600 border-gray-300 hover:bg-gray-200"
-              : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+              : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
           }`}
         >
           <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
