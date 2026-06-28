@@ -207,6 +207,7 @@ export function OnboardingModal({
             return isPassed(c) && !!c.courseId && (sug.term == null || pti <= 0 || pti <= sug.term);
           })
           .map((c) => c.courseId),
+        importedDetailCourses: rec.detailCourses,
         // D1 返回的真实课表是权威快照；空数组也表示该生明确无课表，不能再由前端反推。
         importedSchedule: scheduleSnapshot,
       });
@@ -977,6 +978,11 @@ export function OnboardingModal({
                 数据源无成绩，已修课程一律按「已通过」估算。
                 若有识别错误或重修课程请前往第「核对」项手动调整。
               </p>
+              {import.meta.env.DEV && (
+                <p className="mt-1 text-[11px] font-medium text-indigo-500">
+                  本地开发未连接学号库时，可输入 demo 体验导入流程。
+                </p>
+              )}
 
               {/* 预览区 */}
               {preview && (

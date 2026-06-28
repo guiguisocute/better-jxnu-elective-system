@@ -15,6 +15,8 @@ import { termToCalLabel, enrollYear } from "../lib/term";
 import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
+import { isPassed } from "../lib/studentRecord";
+import { enrollYear, termToCalLabel } from "../lib/term";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { ScheduleFilter } from "./ScheduleFilter";
@@ -57,6 +59,18 @@ function sortSemesters(list: string[]): string[] {
 }
 
 const GITHUB_URL = "https://github.com/guiguisocute/better-jxnu-elective-system";
+
+const formalSectionKey = (s: FormalSection) => `${s.id}|${s.className}|${s.teacherId}`;
+const normalizeTeacherName = (v: string | undefined) => (v ?? "").replace(/\s+/g, "");
+const splitTeacherNames = (v: string | undefined) =>
+  normalizeTeacherName(v).split(/[、,，/]/).map((x) => x.trim()).filter(Boolean);
+const teacherMatches = (sectionTeacher: string, importedTeacher: string | undefined) => {
+  const section = normalizeTeacherName(sectionTeacher);
+  if (!section) return false;
+  const names = splitTeacherNames(importedTeacher);
+  if (names.length === 0) return true;
+  return names.some((name) => section.includes(name) || name.includes(section));
+};
 
 function GithubIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -132,6 +146,7 @@ export function HomePage() {
     if (filter.filters.plan !== currentPlan) setCurrentPlan(filter.filters.plan);
   }, [filter.filters.plan, currentPlan]);
   const chosenSections = useChosenSections();
+  const [quickRatingActive, setQuickRatingActive] = useState(false);
 
   // 一键排除必修课时段：模拟选课开启时，把下学期必修课（按当前选班）占用的周时段算出来，
   // 供课表筛选「一键排除」按钮把这些格子标为 exclude，方便错峰挑选修课。
@@ -159,10 +174,11 @@ export function HomePage() {
   );
 
   const clearAllFilters = () => {
+    setQuickRatingActive(false);
     filter.clearAll();
     schedule.clear();
   };
-  const hasAnyActiveFilters = filter.hasActiveFilters || schedule.active;
+  const hasAnyActiveFilters = filter.hasActiveFilters || schedule.active || quickRatingActive;
 
   // 「真正收窄列表」的筛选 —— 后面会结合结果规模决定折叠组是否默认展开。
   // 裸选培养方案（仅高亮、未勾「仅看本方案」）不算收窄，避免太宽泛。
@@ -177,9 +193,10 @@ export function HomePage() {
       f.area.length > 0 || f.areaExclude.length > 0 ||
       (f.plan !== "" && f.planFilter === "include") ||
       f.hideTaken ||
-      schedule.active
+      schedule.active ||
+      quickRatingActive
     );
-  }, [filter.filters, schedule.active]);
+  }, [filter.filters, schedule.active, quickRatingActive]);
 
   // 功能说明层：无任何筛选时中间区不堆课，先解释各区域功能（详见 FeatureHints）。
   // 「直接展示全部课程」只是临时揭开本次清洁态的列表；一旦再施加筛选就重置，
@@ -410,6 +427,12 @@ export function HomePage() {
   );
   const allSemesters = dataSource === "pre" ? preSemesters : formal.allSemesters;
   const selectedSemester = semesterByDS[dataSource];
+  const quickRatingSemester = useMemo(() => {
+    const lastTerm = credit.term - 1;
+    if (!currentPlan || lastTerm < 1) return "";
+    const sem = termToCalLabel(enrollYear(currentPlan), lastTerm);
+    return sem && formal.allSemesters.includes(sem) ? sem : "";
+  }, [credit.term, currentPlan, formal.allSemesters]);
 
   // 当前激活 dataSource 的 slot 若为空 / 不在选项中，按当前学期 → 最新可选项兜底。
   // 仅惰性初始化当前激活那一个槽位（不预填三个，避免对 formal 未就绪时的竞争）。
@@ -431,6 +454,61 @@ export function HomePage() {
     return m;
   }, [courses]);
 
+  const quickRatingCourses = useMemo(() => {
+    const lastTerm = credit.term - 1;
+    if (!quickRatingSemester || lastTerm < 1) return [];
+    return (credit.stored.importedDetailCourses ?? []).filter((c) =>
+      !c.supplemented &&
+      isPassed(c) &&
+      !!c.courseId &&
+      c.planTermIndex === lastTerm,
+    );
+  }, [credit.stored.importedDetailCourses, credit.term, quickRatingSemester]);
+  const quickRatingSectionKeys = useMemo(() => {
+    if (quickRatingCourses.length === 0) return new Set<string>();
+    const importedByCid = new Map<string, typeof quickRatingCourses>();
+    for (const c of quickRatingCourses) {
+      const list = importedByCid.get(c.courseId) ?? [];
+      list.push(c);
+      importedByCid.set(c.courseId, list);
+    }
+    const keys = new Set<string>();
+    for (const s of formal.sections) {
+      if (s.semester !== quickRatingSemester) continue;
+      const imported = importedByCid.get(s.id);
+      if (!imported) continue;
+      if (imported.some((c) =>
+        teacherMatches(s.teacher, c.teacher) ||
+        (!!c.teachingClass && c.teachingClass === s.className)
+      )) {
+        keys.add(formalSectionKey(s));
+      }
+    }
+    return keys;
+  }, [formal.sections, quickRatingCourses, quickRatingSemester]);
+  const hasStudentImport = (credit.stored.importedDetailCourses?.length ?? 0) > 0;
+  const quickRatingImportedCourseCount = new Set(quickRatingCourses.map((c) => c.courseId)).size;
+  const quickRatingReady = quickRatingSectionKeys.size > 0;
+  const quickRatingDisabledReason = !currentPlan
+    ? "先选择或通过学号导入培养方案"
+    : !hasStudentImport
+    ? "先在模拟选课里输入学号导入"
+    : !quickRatingSemester
+    ? "暂无可匹配的上学期正式开课数据"
+    : quickRatingImportedCourseCount === 0
+    ? "导入记录里没有上学期课程"
+    : !quickRatingReady
+    ? "上学期课程暂未匹配到任课老师"
+    : "";
+  useEffect(() => {
+    if (quickRatingActive && !quickRatingReady) setQuickRatingActive(false);
+  }, [quickRatingActive, quickRatingReady]);
+  useEffect(() => {
+    if (quickRatingActive && (dataSource !== "formal" || selectedSemester !== quickRatingSemester)) {
+      setQuickRatingActive(false);
+    }
+  }, [dataSource, quickRatingActive, quickRatingSemester, selectedSemester]);
+
   // 「内容筛选」后的班级集合：搜索/学院/方案/学分/类型/教学区/隐藏已修，但【不含】课表时段筛选。
   // 课表格子里的数字基于它统计 —— 数字随内容筛选变化，却不被你点选的时段格子反向影响（issue #2 · 方案①）。
   const contentFilteredSections = useMemo(() => {
@@ -451,6 +529,7 @@ export function HomePage() {
       return tagsOf(s).includes(t);
     };
     return formal.sections.filter((s) => {
+      if (quickRatingActive && !quickRatingSectionKeys.has(formalSectionKey(s))) return false;
       if (s.semester !== selectedSemester) return false;
       if (search && !s._search.includes(search)) return false;
       if (f.credits.length > 0 && !f.credits.includes(s.credits)) return false;
@@ -476,7 +555,7 @@ export function HomePage() {
       if (f.hideTaken && sim.mode === "sim" && credit.takenCids.has(s.id)) return false;
       return true;
     });
-  }, [formal.sections, selectedSemester, filter.filters, coursesById, sim.mode, credit.takenCids]);
+  }, [formal.sections, selectedSemester, filter.filters, coursesById, sim.mode, credit.takenCids, quickRatingActive, quickRatingSectionKeys]);
 
   // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）。
   const visibleFormalSections = useMemo(
@@ -706,6 +785,29 @@ export function HomePage() {
     setTimeout(() => { closingRef.current = false; }, 400);
   };
 
+  const handleQuickRatePreviousSemester = useCallback(() => {
+    if (!quickRatingReady || !quickRatingSemester) return;
+    if (quickRatingActive) {
+      setQuickRatingActive(false);
+      return;
+    }
+    filter.clearAll({ preservePlan: true });
+    schedule.clear();
+    setQuickRatingActive(true);
+    setHintsDismissed(true);
+    setDataSource("formal");
+    setSemesterByDS((prev) => ({ ...prev, formal: quickRatingSemester }));
+    filter.setRatingSortAsc(false);
+    setFormalPage(1);
+    setSelected(null);
+    setSelectedSection(null);
+    setSelectedSectionKey(null);
+    setMobileCourse(null);
+    setMobileSection(null);
+    setShowMobileFilter(false);
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+  }, [filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-page">
@@ -750,6 +852,20 @@ export function HomePage() {
               <span className="text-xs hidden sm:inline" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
             <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleQuickRatePreviousSemester}
+                disabled={!quickRatingReady}
+                title={quickRatingReady ? (quickRatingActive ? "取消只看上学期课程" : `评价 ${quickRatingSemester} 上学期课程`) : quickRatingDisabledReason}
+                className={`md:hidden shrink-0 h-8 rounded-lg px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
+                  quickRatingReady ? "bg-white/20 text-white hover:bg-white/30" : "bg-white/10 text-white/45 cursor-not-allowed"
+                }`}
+              >
+                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3.5z" />
+                </svg>
+                <span>评价</span>
+              </button>
               {/* 主题切换：桌面 / 手机统一放顶部红条右侧 */}
               <ThemeToggle />
               {/* 模拟选课开关：仅手机端 (<md) 显示（桌面端在搜索行）。 */}
@@ -1097,7 +1213,10 @@ export function HomePage() {
             getTeacherAvg={getTeacherAvg}
             selectedPlan={filter.filters.plan}
             dataSource={dataSource}
-            onChangeDataSource={setDataSource}
+            onChangeDataSource={(v) => {
+              setDataSource(v);
+              if (v !== "formal") setQuickRatingActive(false);
+            }}
             formalGroups={paginatedFormalGroups}
             defaultExpandFormal={shouldAutoExpandFormal}
             formalAvailable={formal.available}
@@ -1117,10 +1236,17 @@ export function HomePage() {
             onEnterSim={enterSim}
             sidebarOpen={sidebarOpen}
             onExpandSidebar={() => setSidebarOpen(true)}
+            quickRatingSemester={quickRatingSemester}
+            quickRatingReady={quickRatingReady}
+            quickRatingActive={quickRatingActive}
+            quickRatingCount={quickRatingSectionKeys.size}
+            quickRatingDisabledReason={quickRatingDisabledReason}
+            quickRatingSections={visibleFormalSections}
+            onQuickRatePreviousSemester={handleQuickRatePreviousSemester}
           />
           {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染）。
               功能说明层显示时（无筛选）隐藏分页。 */}
-          {showHints ? null : isFormalMode ? (
+          {showHints || quickRatingActive ? null : isFormalMode ? (
             formal.available && visibleFormalSections.length > 0 && (
               <Pagination
                 page={safeFormalPage}

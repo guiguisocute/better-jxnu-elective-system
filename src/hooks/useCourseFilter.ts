@@ -149,10 +149,10 @@ export function useCourseFilter(
     setPage(1);
   }, []);
 
-  const clearAll = useCallback(() => {
-    setFilters(EMPTY_FILTERS);
+  const clearAll = useCallback((opts?: { preservePlan?: boolean }) => {
+    setFilters((prev) => (opts?.preservePlan ? { ...EMPTY_FILTERS, plan: prev.plan } : EMPTY_FILTERS));
     setPage(1);
-    sessionStorage.removeItem(STORAGE_KEY);
+    if (!opts?.preservePlan) sessionStorage.removeItem(STORAGE_KEY);
   }, []);
 
   const filtered = useMemo(() => {

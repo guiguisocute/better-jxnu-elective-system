@@ -38,6 +38,11 @@ export interface StudentDetailCourse {
   /** 成绩，及格判断用；缺省视为通过。 */
   grade?: number | string;
   passed?: boolean;
+  /** 学号导入源记录里的任课教师，用于“评价我上学期课程”精确匹配。 */
+  teacher?: string;
+  teachingClass?: string;
+  /** 构建脚本补算的非课表来源课程，不应用于教师评价。 */
+  supplemented?: boolean;
 }
 
 export interface StudentRecord {
@@ -120,6 +125,9 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
       planTermIndex: o.planTermIndex != null ? num(o.planTermIndex) : undefined,
       grade: (o.grade ?? o.cj ?? o.成绩) as number | string | undefined,
       passed: typeof o.passed === "boolean" ? o.passed : undefined,
+      teacher: str(o.teacher ?? o.js ?? o.教师) || undefined,
+      teachingClass: str(o.teachingClass ?? o.jxbmc ?? o.教学班) || undefined,
+      supplemented: o.supplemented === true,
     };
   });
 
@@ -308,6 +316,13 @@ export function computeImportExclusions(record: StudentRecord, planCourses: Plan
 export async function importStudentRecord(studentId: string): Promise<StudentRecord> {
   const sid = studentId.trim();
   if (!sid) throw new Error("请输入学号。");
+  const devDemo = import.meta.env.DEV && /^(demo|local|test)$/i.test(sid);
+  if (devDemo) {
+    const res = await fetch("/student-record-demo.json", { cache: "no-cache" });
+    const rec = parseStudentRecord((await res.json()) as Record<string, unknown>);
+    if (!rec) throw new Error("本地 demo 数据格式异常。");
+    return rec;
+  }
 
   const url = `/api/student-record?sid=${encodeURIComponent(sid)}`;
   let res: Response;
@@ -320,6 +335,9 @@ export async function importStudentRecord(studentId: string): Promise<StudentRec
   // 本地 dev 没起 Functions，/api/* 会回 index.html —— 用 content-type 判一下。
   const ct = res.headers.get("content-type") || "";
   if (!ct.includes("application/json")) {
+    if (import.meta.env.DEV) {
+      throw new Error("本地 Vite 预览未连接学号库；请输入 demo 体验导入流程。");
+    }
     throw new Error("接口未部署或返回了非 JSON。");
   }
 

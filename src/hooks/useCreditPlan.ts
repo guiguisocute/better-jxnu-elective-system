@@ -3,7 +3,7 @@ import type { Course, PlanCourse } from "../types";
 import { useMajorRequirements } from "./useMajorRequirements";
 import { buildCreditPlan, findRequirement, REQUIRED_NATURES } from "../lib/creditPlan";
 import type { CreditInputs } from "../lib/creditPlan";
-import type { StudentScheduleSnapshot } from "../lib/studentRecord";
+import type { StudentDetailCourse, StudentScheduleSnapshot } from "../lib/studentRecord";
 import { currentPlanTerm, currentCalTerm, enrollYear, termIndexOf, effectiveTermIndex } from "../lib/term";
 
 // 转专业边界：与 creditPlan.ts 同步（仅用于派生 transferEarlyCids，门控由 buildCreditPlan 内部再判一次）。
@@ -28,6 +28,8 @@ export interface StoredInputs {
   visitedMajorElective: boolean;
   /** 学号导入的真实已修 cid（按 isPassed 过滤）。空数组 = 未导入 / 已清空，走启发式。 */
   importedTakenCids: string[];
+  /** 学号导入的课程明细快照；用于只评价自己上个学期选过的课。 */
+  importedDetailCourses: StudentDetailCourse[];
   /** 学号导入的 D1 真实规划课表；null = 未导入，非 null（含空 items）= 禁止前端反推班级。 */
   importedSchedule: StudentScheduleSnapshot | null;
   /** 一次性迁移标记：修复曾把 2026-09 规划快照误当在读学期而多加 1 的本地状态。 */
@@ -50,6 +52,7 @@ const EMPTY: StoredInputs = {
   showFutureRequired: false,
   visitedMajorElective: false,
   importedTakenCids: [],
+  importedDetailCourses: [],
   importedSchedule: null,
   studentSnapshotTermFixV1: false,
   moocOffset: false,
