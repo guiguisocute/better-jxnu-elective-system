@@ -3,8 +3,8 @@ import type { Course, FormalSection, MajorRequirement, PlanCourse } from "../../
 import type { CreditPlanView } from "../../lib/creditPlan";
 import { REQUIRED_NATURES } from "../../lib/creditPlan";
 import { termIndexOf, effectiveTermIndex, termToCalLabel, enrollYear } from "../../lib/term";
-import { buildPlacement, previewSemsOf } from "../../lib/schedulePlacement";
-import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentRecord, type ImportSuggestion } from "../../lib/studentRecord";
+import { buildPlacement, IMPORTED_SCHEDULE_OPTION_KEY, previewSemsOf } from "../../lib/schedulePlacement";
+import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentRecord, type ImportSuggestion, type StudentScheduleSnapshot } from "../../lib/studentRecord";
 import { decodeBundle, type PlanBundle } from "../../lib/planShare";
 import type { StoredInputs } from "../../hooks/useCreditPlan";
 import { STUDENT_IMPORT_ENABLED } from "../../lib/featureFlags";
@@ -24,6 +24,8 @@ interface Props {
   planCourses: PlanCourse[];
   cartCourses: Course[];
   formalSections: FormalSection[];
+  /** 已由学号导入的 D1 真实课表；非 null 时禁止为必修课自动猜班。 */
+  importedSchedule: StudentScheduleSnapshot | null;
   chosen: Record<string, string>;
   onChooseSection: (cid: string, optionKey: string) => void;
   onRemoveCart: (cid: string) => void;
@@ -93,7 +95,7 @@ function majorHint(planKey?: string, className?: string): string {
 }
 
 export function OnboardingModal({
-  selectedPlan, allPlans, onSelectPlan, requirement, view, planCourses, cartCourses, formalSections,
+  selectedPlan, allPlans, onSelectPlan, requirement, view, planCourses, cartCourses, formalSections, importedSchedule,
   chosen, onChooseSection, onRemoveCart,
   term, totalEarned, electiveThisSem, takenMajorElectives, excludedRequired,
   setTotalEarned, setElectiveThisSem, toggleMajorElective, toggleExcludedRequired, importInputs, coursesOf,
@@ -184,6 +186,11 @@ export function OnboardingModal({
     const matched = !!(rec.planKey && allPlans.includes(rec.planKey));
     const plan = matched ? rec.planKey! : selectedPlan;
     if (plan) {
+      const scheduleSnapshot: StudentScheduleSnapshot = {
+        items: rec.scheduleItems,
+        semester: rec.planningSemester,
+        className: rec.className,
+      };
       importInputs(plan, {
         totalEarned: edit?.totalEarned ?? sug.totalEarned,
         electiveThisSem: edit?.electiveThisSem ?? sug.electiveThisSem,
@@ -195,9 +202,18 @@ export function OnboardingModal({
         excludedRequired: sug.excludedRequiredCids,
         // 学号导入的真实已修 cid（仅 isPassed）→ 驱动「隐藏已修课程」用真实档案。
         importedTakenCids: rec.detailCourses
-          .filter((c) => isPassed(c) && !!c.courseId)
+          .filter((c) => {
+            const pti = c.planTermIndex ?? 0;
+            return isPassed(c) && !!c.courseId && (sug.term == null || pti <= 0 || pti <= sug.term);
+          })
           .map((c) => c.courseId),
+        // D1 返回的真实课表是权威快照；空数组也表示该生明确无课表，不能再由前端反推。
+        importedSchedule: scheduleSnapshot,
       });
+      // 覆盖可能残留的旧选班：导入后每门真实课程都先以 D1 时段为准；之后用户仍可主动换班。
+      for (const cid of new Set(rec.scheduleItems.map((x) => x.courseId).filter(Boolean))) {
+        onChooseSection(cid, IMPORTED_SCHEDULE_OPTION_KEY);
+      }
     }
     if (matched) onSelectPlan(rec.planKey!);
     setImportOpen(false);
@@ -244,8 +260,8 @@ export function OnboardingModal({
   const planTerm = term + 1;
   const planLabel = useMemo(() => termToCalLabel(enrollYear(selectedPlan), planTerm), [selectedPlan, planTerm]);
   const placed = useMemo(
-    () => buildPlacement(view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan),
-    [view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan],
+    () => buildPlacement(view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan, importedSchedule),
+    [view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan, importedSchedule],
   );
   const previewSems = useMemo(() => previewSemsOf(placed, planLabel), [placed, planLabel]);
 
@@ -1077,6 +1093,11 @@ export function OnboardingModal({
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {preview.rec.noSchedule && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-[12px] text-gray-500 leading-relaxed">
+                      该生在 {preview.rec.termLabel || "本学期"} 确认无课表；历年课程与学分仍已正常导入。
                     </div>
                   )}
                 </div>

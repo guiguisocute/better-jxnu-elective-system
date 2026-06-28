@@ -4,6 +4,7 @@ import type { CreditPlanView } from "../../lib/creditPlan";
 import { courseNature, REQUIRED_NATURES } from "../../lib/creditPlan";
 import { enrollYear, termToCalLabel } from "../../lib/term";
 import { buildPlacement } from "../../lib/schedulePlacement";
+import type { StudentScheduleSnapshot } from "../../lib/studentRecord";
 import { copyText } from "../../lib/clipboard";
 import { encodeBundle, decodeBundle, shareUrlOf, type PlanBundle } from "../../lib/planShare";
 import { CreditRing, CreditRingLegend, FutureRequiredToggle } from "./CreditRing";
@@ -19,6 +20,8 @@ interface Props {
   selectedPlan: string;
   term: number;
   formalSections: FormalSection[];
+  /** 已由学号导入的 D1 真实课表；非 null 时作为课表权威初始值。 */
+  importedSchedule: StudentScheduleSnapshot | null;
   chosen: Record<string, string>;
   onChooseSection: (cid: string, optionKey: string) => void;
   onRemove: (id: string) => void;
@@ -84,7 +87,7 @@ function defaultPos(w: number, h: number): Pos {
 
 // 右下角悬浮圆环「本学期 X/30」，可拖动 + 点开展开面板。圆环填充 = 本学期已规划 / 30，超限标红。
 export function SimPanel({
-  view, cartCourses, selectedPlan, term, formalSections, chosen, onChooseSection,
+  view, cartCourses, selectedPlan, term, formalSections, importedSchedule, chosen, onChooseSection,
   onRemove, onClear, onEditEarned, onExpandSchedule, onCancelRequired, onSelectCourse, onSelectSection,
   selectedCourseId, inputs, onApplyBundle, showFutureRequired, setShowFutureRequired,
   moocOffset, setMoocOffset, competitionOffset, setCompetitionOffset,
@@ -232,8 +235,8 @@ export function SimPanel({
 
   // 周课表落格：下学期必修 + 待选清单（逻辑见 lib/schedulePlacement）。
   const placed = useMemo(
-    () => buildPlacement(view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan),
-    [view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan],
+    () => buildPlacement(view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan, importedSchedule),
+    [view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan, importedSchedule],
   );
 
   // 待选清单分类汇总（与毕业核算环图同口径 / 同色板）：

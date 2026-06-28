@@ -53,13 +53,13 @@ RAW_STAGES = (
     "addDrop_schedule",
     "addDrop_actual",
     # 选课开班状态（爬虫 tools/crawl_courses.py 产出）：真实开班信息，
-    # 含 课程号/老师/容量/班级名称，但无星期/节次/教室。某学期若有此文件，
-    # 其 formal sections 改由它生成（见 build_sections_from_openclass）。
+    # 含 课程号/老师/容量/班级名称，但无星期/节次/教室。仅在该学期还没有
+    # formal_schedule / addDrop_schedule 时作为 formal sections 的兜底来源。
     "openclass_status",
 )
 
 # 测试用学期镜像：把某学期的 formal sections 原样复制成另一个学期标签（多课表功能测试，
-# 避免重复 raw）。真实多学期数据到位后清空。2025-09 已是真实历史学期、2026-09 走 openclass，
+# 避免重复 raw）。真实多学期数据到位后清空。2025-09 与 2026-09 均已有真实课表，
 # 不再需要镜像 → 置空。
 MIRROR_SEMESTERS: dict[str, list[str]] = {}
 
@@ -109,6 +109,14 @@ def slot_order(entry: dict) -> tuple:
 def is_foreign_teacher_name(name: str) -> bool:
     """外教在预选目录中通常使用拉丁字母姓名，对应 jwc 开头的临时教号。"""
     return bool(re.search(r"[A-Za-z]", name or ""))
+
+
+def is_valid_email(value: str) -> bool:
+    """只接收结构完整的单一邮箱；混入手机号、缺 @ 等上游脏值不写入 master。"""
+    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", (value or "").strip()))
+
+
+_EMPTY_PROFILE_VALUES = {"未定", "待定", "未知", "无", "暂无", "-"}
 
 
 # 手动维护：开课表里出现但 catalog 没收录的外教 → jwc 教号。
@@ -303,21 +311,41 @@ def build_master(semesters: dict, training_plan: list) -> dict:
         for rows in (data.get("formal_schedule") or [], data.get("addDrop_schedule") or []):
             for s in rows:
                 cid = (s.get("课程号") or "").strip()
-                if cid and cid not in sch_map:
-                    # 课程信息（新格式自带学分）—— 兜底给 catalog/training_plan 都没收录的 cid（如纯慕课课）。
-                    ci = s.get("课程信息") or {}
-                    sch_map[cid] = {
-                        "name": (s.get("课程名称") or "").strip(),
-                        "dept": (s.get("单位名称") or "").strip(),
-                        "credits": _parse_credits(ci.get("学分")),
-                    }
+                if not cid:
+                    continue
+                # 新格式 课程信息 自带学分 / 英文名 / 简介。按 cid 合并非空值，避免该课
+                # 第一条时段行恰好缺少嵌套块时锁死为空。
+                ci = s.get("课程信息") if isinstance(s.get("课程信息"), dict) else {}
+                meta = sch_map.setdefault(cid, {
+                    "name": "", "dept": "", "credits": 0, "englishName": "", "desc": "",
+                })
+                if not meta["name"]:
+                    meta["name"] = (
+                        (s.get("课程名称") or "").strip()
+                        or (ci.get("课程名称标识") or ci.get("课程名称") or "").strip()
+                    )
+                if not meta["dept"]:
+                    meta["dept"] = (s.get("单位名称") or "").strip()
+                if not meta["credits"]:
+                    meta["credits"] = _parse_credits(ci.get("学分"))
+                if not meta["englishName"]:
+                    meta["englishName"] = (ci.get("课程英文名称") or "").strip()
+                if not meta["desc"]:
+                    meta["desc"] = (ci.get("内容简介") or "").strip()
         # openclass_status：让只出现在开班数据里的真实课程号（不在预选目录/课表里）也进 master。
         oc = data.get("openclass_status")
         if oc:
             for r in iter_openclass_rows(oc):
                 cid = r["cid"]
-                if cid and cid not in sch_map:
-                    sch_map[cid] = {"name": r["name"], "dept": r["dept"], "credits": 0}
+                if not cid:
+                    continue
+                meta = sch_map.setdefault(cid, {
+                    "name": "", "dept": "", "credits": 0, "englishName": "", "desc": "",
+                })
+                if not meta["name"]:
+                    meta["name"] = r["name"]
+                if not meta["dept"]:
+                    meta["dept"] = r["dept"]
         sch_meta_per_sem[sem] = sch_map
 
     # cid 全集
@@ -333,13 +361,16 @@ def build_master(semesters: dict, training_plan: list) -> dict:
     courses = []
     for cid in sorted(cids):
         cat_row = next((catalog_per_sem[s][cid] for s in sems_desc if cid in catalog_per_sem[s]), None)
-        sch_row = next((sch_meta_per_sem[s][cid] for s in sems_desc if cid in sch_meta_per_sem[s]), None)
+        sch_rows = [sch_meta_per_sem[s][cid] for s in sems_desc if cid in sch_meta_per_sem[s]]
+
+        def latest_schedule_value(field: str, default=""):
+            return next((row[field] for row in sch_rows if row.get(field)), default)
 
         # 名称：training_plan > catalog > schedule
         name = (
             names_by_id.get(cid)
             or (cat_row.get("课程名称", "") if cat_row else "")
-            or (sch_row.get("name", "") if sch_row else "")
+            or latest_schedule_value("name")
         )
 
         # 学分：training_plan > catalog > schedule（schedule 兜底覆盖只在课表出现的纯慕课课等）
@@ -349,15 +380,15 @@ def build_master(semesters: dict, training_plan: list) -> dict:
                 credits = int(cat_row.get("学分", "0") or 0)
             except ValueError:
                 credits = 0
-        if credits == 0 and sch_row:
-            credits = sch_row.get("credits", 0) or 0
+        if credits == 0:
+            credits = latest_schedule_value("credits", 0)
 
         # 学院：catalog > schedule（training_plan 无此字段）
         dept = ""
         if cat_row:
             dept = (cat_row.get("课程管理单位", "") or "").strip()
-        if not dept and sch_row:
-            dept = sch_row.get("dept", "")
+        if not dept:
+            dept = latest_schedule_value("dept")
 
         # 标签：catalog 原 tags（去关键字搜索）+ 前缀派生 + nature + 学位课
         tags: list = []
@@ -374,13 +405,16 @@ def build_master(semesters: dict, training_plan: list) -> dict:
         if is_degree and "学位课" not in tags:
             tags.append("学位课")
 
-        desc = (cat_row.get("简介", "") if cat_row else "") or ""
+        english_name = latest_schedule_value("englishName")
+        # catalog 简介通常更完整；没有时再用最新正式课表的 课程信息.内容简介 补齐。
+        desc = (cat_row.get("简介", "") if cat_row else "") or latest_schedule_value("desc")
         prereqId = (cat_row.get("先修课程号", "") if cat_row else "") or ""
         prereqDesc = (cat_row.get("先修课程说明", "") if cat_row else "") or ""
 
         courses.append({
             "id": cid,
             "name": name,
+            "englishName": english_name,
             "credits": credits,
             "dept": dept,
             "prereqId": prereqId,
@@ -395,7 +429,17 @@ def build_master(semesters: dict, training_plan: list) -> dict:
     # schedule 自带 任课老师 是新格式特性；让 master 也能记录「只在开课表出现」的老师。
     teachers_acc: dict = {}
 
-    def _upsert_teacher(tid: str, name: str, gender: str, dept: str, sem_label: str):
+    def _upsert_teacher(
+        tid: str,
+        name: str,
+        gender: str,
+        dept: str,
+        sem_label: str,
+        *,
+        email: str = "",
+        title: str = "",
+        bio: str = "",
+    ):
         tid = (tid or "").strip()
         if not tid:
             return
@@ -404,6 +448,9 @@ def build_master(semesters: dict, training_plan: list) -> dict:
                 "id": tid,
                 "name": (name or "").strip(),
                 "gender": (gender or "").strip(),
+                "email": "",
+                "title": "",
+                "bio": "",
                 "depts": [],
                 "firstSeenSem": sem_label,
                 "lastSeenSem": sem_label,
@@ -414,6 +461,15 @@ def build_master(semesters: dict, training_plan: list) -> dict:
             tr["name"] = name.strip()
         if not tr["gender"] and gender:
             tr["gender"] = gender.strip()
+        clean_email = (email or "").strip()
+        if is_valid_email(clean_email):
+            tr["email"] = clean_email
+        clean_title = (title or "").strip()
+        if clean_title and clean_title not in _EMPTY_PROFILE_VALUES:
+            tr["title"] = clean_title
+        clean_bio = (bio or "").strip()
+        if clean_bio:
+            tr["bio"] = clean_bio
         d = (dept or "").strip()
         if d and d not in tr["depts"]:
             tr["depts"].append(d)
@@ -435,6 +491,9 @@ def build_master(semesters: dict, training_plan: list) -> dict:
                     embed.get("性别"),
                     r.get("单位名称"),
                     sem_label,
+                    email=embed.get("Email"),
+                    title=embed.get("职称"),
+                    bio=embed.get("教学简介"),
                 )
         # openclass_status 必修「选课结果」自带 教号+姓名 —— 累积进 master（跳过占位 000000/待定）。
         oc = semesters[sem].get("openclass_status")
@@ -532,6 +591,21 @@ def iter_openclass_rows(openclass: dict):
                     }
 
 
+def build_openclass_capacity_lookup(openclass: dict) -> dict[tuple[str, str], int]:
+    """按 (课程号, 班级名称) 提取可安全复用的 openclass 容量。
+
+    只保留班级名非空、容量非空且同键仅有一个容量值的记录；若上游以后出现
+    同一键多个容量，保守跳过，避免把容量写到错误教学班。
+    """
+    values: dict[tuple[str, str], set[int]] = defaultdict(set)
+    for row in iter_openclass_rows(openclass):
+        key = ((row.get("cid") or "").strip(), (row.get("className") or "").strip())
+        capacity = row.get("capacity")
+        if key[0] and key[1] and capacity is not None:
+            values[key].add(capacity)
+    return {key: next(iter(capacities)) for key, capacities in values.items() if len(capacities) == 1}
+
+
 def build_sections_from_openclass(
     openclass: dict, master_by_id: dict, teacher_id_lookup: dict, sem_label: str,
 ) -> list:
@@ -563,7 +637,7 @@ def build_sections_from_openclass(
             "semester": sem_label,
             "desc": "",
         }
-        sp = [section["id"], section["name"], section["dept"], section["teacher"],
+        sp = [section["id"], section["name"], mc.get("englishName", ""), section["dept"], section["teacher"],
               section["teacherId"], section["className"], *section["tags"]]
         section["_search"] = " ".join(p for p in sp if p).lower()
         sections.append(section)
@@ -571,7 +645,7 @@ def build_sections_from_openclass(
 
 
 def build_search_course(course: dict, teachers: list) -> str:
-    parts = [course["id"], course["name"], course["dept"]]
+    parts = [course["id"], course["name"], course.get("englishName", ""), course["dept"]]
     for t in teachers:
         parts.append(t.get("name", ""))
         parts.append(t.get("id", ""))
@@ -586,6 +660,7 @@ def build_sections_for_semester(
     teacher_id_lookup: dict,
     sem_label: str,
     unmatched_foreign_teachers: list | None = None,
+    capacity_lookup: dict[tuple[str, str], int] | None = None,
 ) -> list:
     """开课安排 → section 行（按 (课程号, 班级号, 任课教师) 聚合时段）。
 
@@ -645,6 +720,8 @@ def build_sections_for_semester(
             pass
         sec_desc = (ci.get("内容简介") or "").strip()
 
+        class_name = (first.get("班级名称") or "").strip()
+        capacity = (capacity_lookup or {}).get((cid.strip(), class_name))
         section = {
             "id": cid,
             "name": name,
@@ -654,13 +731,13 @@ def build_sections_for_semester(
             "teacher": teacher,
             "teacherId": teacher_id,
             "schedule": " / ".join(sched),
-            "className": first.get("班级名称", ""),
+            "className": class_name,
             "classroom": " / ".join(rooms),
-            "capacity": None,
+            "capacity": capacity,
             "semester": sem_label,
             "desc": sec_desc,
         }
-        sp = [section["id"], section["name"], section["dept"], section["teacher"],
+        sp = [section["id"], section["name"], mc.get("englishName", ""), section["dept"], section["teacher"],
               section["teacherId"], section["className"], section["classroom"], *section["tags"]]
         section["_search"] = " ".join(p for p in sp if p).lower()
         sections.append(section)
@@ -742,20 +819,29 @@ def build_public(semesters: dict, master: dict) -> None:
                     tid = (embed.get("UserNum") or "").strip()
                     if cid and tname and tid and (cid, tname) not in t_lookup:
                         t_lookup[(cid, tname)] = tid
-        # 学期若有 openclass_status（真实开班数据），其 formal sections 改由它生成，
-        # 跳过 formal_schedule/addDrop_schedule（如 2026-09：真实课程/老师/容量，无时段）。
-        if data.get("openclass_status"):
+        # 带时段的正式课表是 section 真值源；尚未发布课表时，才用 openclass_status
+        # 先提供真实课程/老师/容量（但 schedule/classroom 为空）。
+        has_schedule_rows = any(data.get(stage) for stage in ("formal_schedule", "addDrop_schedule"))
+        if has_schedule_rows:
+            capacity_lookup = build_openclass_capacity_lookup(data["openclass_status"]) if data.get("openclass_status") else {}
+            for stage in ("formal_schedule", "addDrop_schedule"):
+                rows = data.get(stage) or []
+                if not rows:
+                    continue
+                public_sections.extend(build_sections_for_semester(
+                    rows,
+                    master_by_id,
+                    t_lookup,
+                    sem_label,
+                    unmatched_foreign_teachers,
+                    capacity_lookup,
+                ))
+        elif data.get("openclass_status"):
             public_sections.extend(
                 build_sections_from_openclass(
                     data["openclass_status"], master_by_id, t_lookup, sem_label,
                 )
             )
-        else:
-            for stage in ("formal_schedule", "addDrop_schedule"):
-                rows = data.get(stage) or []
-                if not rows:
-                    continue
-                public_sections.extend(build_sections_for_semester(rows, master_by_id, t_lookup, sem_label, unmatched_foreign_teachers))
 
     # 测试用：镜像学期（同一份 formal 数据换个学期标签，验证多课表切换）。
     if MIRROR_SEMESTERS:

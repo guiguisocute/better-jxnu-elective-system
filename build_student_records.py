@@ -2,7 +2,7 @@
 学生档案 build —— studentjson/ 的 8 份学期快照 → D1 student_records 表的 SQL dump。
 
 输入：
-  studentjson/*.json    （学校教务导出的全校课表快照；每份 {data:[{studentId, studentName, className, termLabel, scheduleItems, detailCourses}]}）
+  studentjson/*.json    （学校教务导出的全校课表快照；data=有课表，failures=该学期确认无课表）
   data/master/courses.json          （联学分用：courseNo→credits）
   data/master/plan_courses.json     （planKey 集合，校验匹配）
   data/master/major_requirements.json（planKey 集合，校验匹配）
@@ -222,6 +222,22 @@ def plan_term_from_cal(enroll_y, cal):
     return max(1, cur)
 
 
+def previous_cal_term(cal):
+    """规划快照学期 → 当下在读学期。秋季规划的前一学期是同年春，春季规划的前一学期是上年秋。"""
+    if not cal:
+        return None
+    year, season = cal
+    return (year, "春") if season == "秋" else (year - 1, "秋")
+
+
+def cal_term_key(cal):
+    """(year, 春/秋) → 前端统一学期 key YYYY-03 / YYYY-09。"""
+    if not cal:
+        return ""
+    year, season = cal
+    return f"{year}-{'03' if season == '春' else '09'}"
+
+
 def snapshot_sort_key(path):
     """按文件内 termValue (year, month) 排时间序 —— 不依赖文件名（中文/编号都可能乱序）。"""
     try:
@@ -232,6 +248,18 @@ def snapshot_sort_key(path):
     except OSError:
         pass
     return (9999, 99)
+
+
+def snapshot_term_label(snapshot):
+    """从快照的完整记录提取统一学期标签，供无课表 failures 记录复用。"""
+    labels = {
+        str(row.get("termLabel") or "").strip()
+        for row in (snapshot.get("data") or [])
+        if str(row.get("termLabel") or "").strip()
+    }
+    if len(labels) != 1:
+        raise ValueError(f"快照 termLabel 应唯一，实际为: {sorted(labels)}")
+    return next(iter(labels))
 
 
 def cn_term_index(label):
@@ -294,6 +322,7 @@ def main():
                 "latest_idx": -1,
                 "latest_term": "",
                 "latest_schedule": [],
+                "latest_no_schedule": False,
             })
             cls = str(s.get("className") or "").strip()
             # className 取最新一份（学生升级换班的话用最近的）
@@ -328,6 +357,38 @@ def main():
                 rec["latest_idx"] = idx
                 rec["latest_term"] = term_label
                 rec["latest_schedule"] = sched
+                rec["latest_no_schedule"] = False
+
+        # failures 是本快照中“确认无课表”的学生，不是应丢弃的抓取残次。
+        # 仍将其最新学期推进到本快照，课表置空；历史课程/学分继续保留。
+        # 从未有过完整记录的学号也建立空档案，保证每份全校快照的人员全集不丢失。
+        failures = snap.get("failures", []) or []
+        term_label = snapshot_term_label(snap)
+        successful_ids = {
+            str(row.get("studentId") or "").strip()
+            for row in rows
+            if str(row.get("studentId") or "").strip()
+        }
+        no_schedule_count = 0
+        for failure in failures:
+            sid = str(failure.get("studentId") or "").strip()
+            if not sid or sid in successful_ids:
+                continue
+            rec = students.setdefault(sid, {
+                "className": "",
+                "courses": {},
+                "latest_idx": -1,
+                "latest_term": "",
+                "latest_schedule": [],
+                "latest_no_schedule": False,
+            })
+            if idx >= rec["latest_idx"]:
+                rec["latest_idx"] = idx
+                rec["latest_term"] = term_label
+                rec["latest_schedule"] = []
+                rec["latest_no_schedule"] = True
+            no_schedule_count += 1
+        print(f"    无课表: {no_schedule_count} 名；本快照人员合计: {len(successful_ids) + no_schedule_count} 名")
 
     print(f"\n合并后：去重学生 {len(students)} 名")
 
@@ -340,10 +401,14 @@ def main():
     for sid in sorted(students.keys()):
         rec = students[sid]
 
-        # 0) className → planKey + 入学年 + 在读培养方案学期 + 该方案 nature/必修全集
+        # 0) className → planKey + 入学年 + 在读培养方案学期 + 该方案 nature/必修全集。
+        # studentjson 最新快照代表“本次要规划/选课的学期”，不是当前在读学期：
+        # 26-27第1学期 = 2026-09 规划目标，因此在读仍是它前一学期 2026-03。
         plan_key = classname_to_plankey(rec["className"], valid_keys)
         enroll_y = enroll_year_of(plan_key, rec["className"])
-        reading_plan_term = plan_term_from_cal(enroll_y, parse_student_sem(rec["latest_term"]))
+        planning_cal = parse_student_sem(rec["latest_term"])
+        planning_semester = cal_term_key(planning_cal)
+        reading_plan_term = plan_term_from_cal(enroll_y, previous_cal_term(planning_cal))
         plan_courses_list = pc_map.get(plan_key) or []
         nature_of = {c["cid"]: c["nature"] for c in plan_courses_list}
         required_up_to_reading = []
@@ -371,10 +436,13 @@ def main():
                 "teacher": info["teacher"] or None,
                 "teachingClass": info["teachingClass"] or None,
             })
-            try:
-                total_earned += float(credits)
-            except (TypeError, ValueError):
-                pass
+            # 教务总学分不含当前在读学期，更不能把规划学期的预排课程算成已修。
+            # 学期未知(pti=0)的历史课沿用旧行为计入，避免无标签旧数据被整体漏算。
+            if reading_plan_term <= 0 or pti == 0 or pti < reading_plan_term:
+                try:
+                    total_earned += float(credits)
+                except (TypeError, ValueError):
+                    pass
 
         # 1b) 特殊通识必修补算（红色文化/劳动教育概论等不进课表的全员必修）：
         #     方案要求(ti<=在读)且档案里没有 → 补进 detailCourses 视为已修，避免漏算学分。
@@ -426,13 +494,17 @@ def main():
         # 3) planKey 命中统计（plan_key 已在上方算好）
         if plan_key:
             matched_plan += 1
-        elif len(missing_plan_samples) < 12:
+        elif rec["className"] and len(missing_plan_samples) < 12:
             missing_plan_samples.append(rec["className"])
 
         record_json = {
             "studentId": sid,
             "className": rec["className"] or None,
             "termLabel": rec["latest_term"] or None,
+            # 最新 studentjson 是本次模拟选课的规划目标；readingPlanTerm 是其前一在读学期。
+            "planningSemester": planning_semester or None,
+            # true = 该生出现在快照 failures，语义为本学期确认无课表；不是待重试错误。
+            "noSchedule": rec["latest_no_schedule"],
             # 在读培养方案第几学期（前端据此区分往期/本学期/自动填在读学期）。
             "readingPlanTerm": reading_plan_term or None,
             # 培养方案 ti<=在读 的必修 cid 全集 —— 前端用「全集 − 已修」自动算「核对必修」排除项。

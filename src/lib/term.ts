@@ -91,7 +91,7 @@ export function termToCalLabel(enrollY: number, term: number): string {
 
 // 测试学期：仅正选/补退选 视图给它们加「（测试）」后缀 + 顶部提示横幅（数据是借的/占位时提示用户）。
 // 预选视图永远不带后缀。
-// 2026-09 已改用真实开班数据(openclass_status)，故移出测试集合；将来若再引入借用/占位学期，加进来即可。
+// 2026-09 已有真实 formal_schedule，故不属于测试学期；将来若再引入借用/占位学期，加进来即可。
 const TEST_SEMESTERS = new Set<string>([]);
 
 /** 给定学期 key 是否属于"借数据/未发布"测试集合（用于在详情页给提示）。 */

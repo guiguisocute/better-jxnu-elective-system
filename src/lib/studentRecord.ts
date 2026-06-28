@@ -14,6 +14,16 @@ export interface StudentScheduleItem {
   credits?: number;
 }
 
+/**
+ * 已由学号导入确认过的规划学期课表快照。
+ * `items: []` 仍然是有意义的：表示 D1 明确记录该生本学期无课表，不能再由前端猜班。
+ */
+export interface StudentScheduleSnapshot {
+  items: StudentScheduleItem[];
+  semester?: string;
+  className?: string;
+}
+
 /** 已修明细里的一门课。 */
 export interface StudentDetailCourse {
   courseId: string;
@@ -36,8 +46,12 @@ export interface StudentRecord {
   className?: string;
   /** 离线匹配出来的 planKey（"2023级-英语"），未命中则 undefined。 */
   planKey?: string;
-  /** 该档案对应学期 label（"25-26第2学期"）。 */
+  /** 最新规划快照学期 label（如 "26-27第1学期"），不等同当前在读学期。 */
   termLabel?: string;
+  /** 本次模拟选课目标学期，统一 key（如 "2026-09"）。 */
+  planningSemester?: string;
+  /** true 表示该生存在于全校快照，但本学期确认无课表；历史课程与学分仍保留。 */
+  noSchedule?: boolean;
   /** 在读是培养方案第几学期（build 算好；缺 = 无法推算）。 */
   readingPlanTerm?: number;
   /** 培养方案 ti<=在读 的必修 cid 全集（build 算好；核对必修自动排除用）。 */
@@ -115,6 +129,8 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
     className: str(obj.className ?? obj.bj ?? obj.班级) || undefined,
     planKey: str(obj.planKey) || undefined,
     termLabel: str(obj.termLabel ?? obj.xq ?? obj.学期) || undefined,
+    planningSemester: str(obj.planningSemester) || undefined,
+    noSchedule: obj.noSchedule === true,
     readingPlanTerm: obj.readingPlanTerm != null ? num(obj.readingPlanTerm) || undefined : undefined,
     requiredCidsUpToReading: Array.isArray(rawRequired)
       ? rawRequired.filter((x): x is string => typeof x === "string")
@@ -154,9 +170,11 @@ export function deriveInputsFromRecord(record: StudentRecord, planCourses?: Plan
   let curCount = 0;
   for (const c of record.detailCourses) {
     if (!isPassed(c)) continue;
+    const pti = c.planTermIndex ?? 0;
+    // 最新 studentjson 可含规划学期课程；它们尚未修读，不能进已修、特色课抵扣或隐藏已修。
+    if (term != null && term > 0 && pti > term) continue;
     if (c.courseId) taken.add(c.courseId);
     if (c.nature === "大学英语特色课") {
-      const pti = c.planTermIndex ?? 0;
       if (term != null && term > 0 && pti > 0) {
         if (pti < term) pastCount += 1;
         else if (pti === term) curCount += 1;
@@ -203,6 +221,7 @@ export function deriveInputsFromRecord(record: StudentRecord, planCourses?: Plan
   for (const c of record.detailCourses) {
     if (!isPassed(c)) continue;
     const pti = c.planTermIndex ?? 0;
+    if (term != null && term > 0 && pti > term) continue;
     const isReading = term != null && term > 0 && pti === term;
     if (c.nature === "专业限选" && c.courseId) takenMajorElectiveCids.push(c.courseId);
     if (isReading) {
@@ -239,9 +258,10 @@ export function computeImportExclusions(record: StudentRecord, planCourses: Plan
   let curCount = 0;
   for (const c of record.detailCourses) {
     if (!isPassed(c)) continue;
+    const pti = c.planTermIndex ?? 0;
+    if (term != null && term > 0 && pti > term) continue;
     if (c.courseId) taken.add(c.courseId);
     if (c.nature === "大学英语特色课") {
-      const pti = c.planTermIndex ?? 0;
       if (term != null && term > 0 && pti > 0) {
         if (pti < term) pastCount += 1;
         else if (pti === term) curCount += 1;

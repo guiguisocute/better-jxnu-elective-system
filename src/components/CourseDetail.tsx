@@ -170,6 +170,9 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <InfoItem label="开课学院" value={course.dept} />
             <InfoItem label="开课学期" value={course.semester ? formatSemesterLabel(course.semester) : "未指定"} />
+            {course.englishName && (
+              <InfoItem label="英文名称" value={course.englishName} span2 />
+            )}
             {course.prereqDesc && (
               <InfoItem label="先修课程" value={course.prereqDesc} span2 />
             )}

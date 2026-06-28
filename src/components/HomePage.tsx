@@ -31,7 +31,7 @@ const FORMAL_AUTO_EXPAND_SECTION_LIMIT = 240;
 const FORMAL_AUTO_EXPAND_GROUP_LIMIT = 30;
 
 function loadDataSource(): DataSource {
-  // 默认进「正选」（学期由下方兜底 effect 落到最新 = 2026-09 测试）；
+  // 默认进「正选」（学期由下方兜底 effect 落到最新 = 2026-09）；
   // 同会话内已切到预选/补退选的选择仍被 sessionStorage 尊重。
   if (typeof window === "undefined") return "formal";
   const v = sessionStorage.getItem(DATA_SOURCE_KEY);
@@ -353,7 +353,7 @@ export function HomePage() {
 
   // 学期下拉：三种数据源 (pre / formal / addDrop) 各存各的，互不污染。
   //   - 预选 视图只看 catalog 当前学期（preSemesters），不带「（测试）」后缀。
-  //   - 正选 / 补退选 共用 formal.allSemesters，2026-09 加「（测试）」后缀。
+  //   - 正选 / 补退选 共用 formal.allSemesters；测试学期的后缀由 SemesterSelector 统一处理。
   // 切换 dataSource 不会丢失另一侧的已选学期；sessionStorage 持久化整张 Record。
   const SEM_KEY = "jxnu_selected_semester";
   const [semesterByDS, setSemesterByDS] = useState<Record<DataSource, string>>(() => {
@@ -1151,6 +1151,7 @@ export function HomePage() {
           selectedPlan={filter.filters.plan}
           term={credit.term}
           formalSections={formal.sections}
+          importedSchedule={credit.stored.importedSchedule}
           chosen={chosenSections.chosen}
           onChooseSection={chosenSections.choose}
           onRemove={handleToggleCart}
@@ -1183,6 +1184,7 @@ export function HomePage() {
           planCourses={planCourses.courses}
           cartCourses={cartCourses}
           formalSections={formal.sections}
+          importedSchedule={credit.stored.importedSchedule}
           chosen={chosenSections.chosen}
           onChooseSection={chosenSections.choose}
           onRemoveCart={handleToggleCart}
