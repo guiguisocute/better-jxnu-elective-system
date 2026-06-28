@@ -7,6 +7,7 @@ import { displayTags, isInPlan, compactTags } from "../lib/planMatch";
 import { DataSourceSwitcher } from "./DataSourceSwitcher";
 import { SemesterSelector } from "./SemesterSelector";
 import { FeatureHints } from "./FeatureHints";
+import { QuickRatingPanel } from "./QuickRatingPanel";
 import { isTestSemester } from "../lib/term";
 import { normalizePeriods, unselectedIncludeSlots, slotLabel } from "../lib/scheduleParse";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
@@ -61,6 +62,14 @@ interface Props {
   sidebarOpen?: boolean;
   /** 展开左侧筛选栏（说明层折叠态的「展开筛选」按钮）。 */
   onExpandSidebar?: () => void;
+  /** 通过学号导入后，快速切到自己上个学期选过的正式开课班级。 */
+  quickRatingSemester?: string;
+  quickRatingReady?: boolean;
+  quickRatingActive?: boolean;
+  quickRatingCount?: number;
+  quickRatingDisabledReason?: string;
+  quickRatingSections?: FormalSection[];
+  onQuickRatePreviousSemester?: () => void;
 }
 
 // 多时段冲突悬停文案：该 section 因某时段命中 include 入选，但还占用了未选时段。
@@ -630,6 +639,8 @@ export function CourseTable({
   selectedSectionKey = null,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
   showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
+  quickRatingSemester = "", quickRatingReady = false, quickRatingActive = false,
+  quickRatingCount = 0, quickRatingDisabledReason = "", quickRatingSections = [], onQuickRatePreviousSemester,
 }: Props) {
   // 同课程号折叠的展开态：按课程号存「显式覆盖」（true=展开 / false=收起）。
   // 未覆盖的组取默认值 defaultExpandFormal（有搜索词时默认展开，否则默认收起）。
@@ -683,7 +694,34 @@ export function CourseTable({
           className="sticky z-30 flex h-[50px] items-center justify-between bg-white px-5 border-b border-gray-100 relative"
           style={{ top: stickyTop }}
         >
-          <DataSourceSwitcher value={dataSource} onChange={onChangeDataSource} />
+          <div className="flex items-center gap-2">
+            <DataSourceSwitcher value={dataSource} onChange={onChangeDataSource} />
+            {onQuickRatePreviousSemester && (
+              <button
+                type="button"
+                onClick={onQuickRatePreviousSemester}
+                disabled={!quickRatingReady}
+                title={quickRatingReady ? (quickRatingActive ? "取消只看上学期课程" : `评价 ${quickRatingSemester} 上学期课程`) : quickRatingDisabledReason}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold leading-none transition-all ${
+                  quickRatingReady
+                    ? "border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100"
+                    : "cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300"
+                } ${
+                  quickRatingActive ? "ring-2 ring-red-100" : ""
+                }`}
+              >
+                <svg className="h-3.5 w-3.5 shrink-0 self-center" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3.5z" />
+                </svg>
+                <span className="leading-none">评价上学期课程</span>
+                {quickRatingReady && (
+                  <span className="hidden xl:inline text-[11px] font-medium leading-none tabular-nums opacity-70">
+                    {quickRatingActive ? `${quickRatingCount} 个班级` : quickRatingSemester}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
           {isFormal && selectedSemester && isTestSemester(selectedSemester) && (
             <div
               className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[12px] font-medium text-amber-700 ring-1 ring-amber-200 max-w-[60%]"
@@ -705,8 +743,10 @@ export function CourseTable({
           )}
         </div>
 
-        {/* 无筛选 + 数据就绪（正选需已发布且非加载中）时，用功能说明层替换正常列表。 */}
-        {isFormal && showHints && formalAvailable && !formalLoading ? (
+        {/* 快速评价：使用独立精简面板，避免回到完整选课表心智。 */}
+        {quickRatingActive ? (
+          <QuickRatingPanel sections={quickRatingSections} />
+        ) : isFormal && showHints && formalAvailable && !formalLoading ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
         ) : !isFormal && showHints && courses.length > 0 ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />

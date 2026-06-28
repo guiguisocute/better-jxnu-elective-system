@@ -1,0 +1,43 @@
+{
+  "studentId": "demo",
+  "className": "2025级思想政治教育1班",
+  "planKey": "2025级思想政治教育",
+  "termLabel": "26-27第1学期",
+  "planningSemester": "2026-09",
+  "noSchedule": false,
+  "readingPlanTerm": 2,
+  "requiredCidsUpToReading": [],
+  "scheduleItems": [],
+  "detailCourses": [
+    {
+      "courseId": "001005",
+      "courseName": "江西历史与省情",
+      "credits": 2,
+      "semester": "25-26第1学期",
+      "planTermIndex": 1,
+      "nature": "专业任选",
+      "teacher": "晏雪平",
+      "teachingClass": "晏雪平#1班"
+    },
+    {
+      "courseId": "001013",
+      "courseName": "日语入门",
+      "credits": 2,
+      "semester": "25-26第1学期",
+      "planTermIndex": 1,
+      "nature": "公选课",
+      "teacher": "刘琴",
+      "teachingClass": "刘琴#1班"
+    },
+    {
+      "courseId": "001018",
+      "courseName": "普通话与教师口语（公选）",
+      "credits": 1,
+      "semester": "25-26第1学期",
+      "planTermIndex": 1,
+      "nature": "教师教育选修",
+      "teacher": "张静",
+      "teachingClass": "教工张静#.1班"
+    }
+  ]
+}
