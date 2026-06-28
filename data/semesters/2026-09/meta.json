@@ -2,7 +2,7 @@
   "label": "2026-09",
   "startDate": "2026-09-01",
   "endDate": "2027-01-15",
-  "fetchedAt": "2026-05-20",
+  "fetchedAt": "2026-06-28",
   "isCurrent": true,
-  "note": "预选目录(preselect_catalog)与 openclass_status 均为 2026 真实数据。正选/补退选改用 openclass_status（真实选课开班：课程号/老师/容量/班级名称），暂无星期/节次/教室（周课表网格为空），待后续补时段 JSON。数据已为真实，故已移出 term.ts:TEST_SEMESTERS（不再显示「（测试）」后缀与提示横幅）。原借用的 2025秋 formal 已归位为真实 2025-09 学期。"
+  "note": "预选目录(preselect_catalog)、开班状态(openclass_status)与正式课表(formal_schedule)均为 2026 真实数据。正选/补退选以 formal_schedule 为准，已包含课程号、教师、教学班、星期、节次与教室；openclass_status 保留作课程/教师补充及无正式课表时的兜底。该学期不显示「（测试）」后缀。"
 }

@@ -1079,6 +1079,11 @@ export function OnboardingModal({
                       </div>
                     </div>
                   )}
+                  {preview.rec.noSchedule && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-[12px] text-gray-500 leading-relaxed">
+                      该生在 {preview.rec.termLabel || "本学期"} 确认无课表；历年课程与学分仍已正常导入。
+                    </div>
+                  )}
                 </div>
               )}
             </div>

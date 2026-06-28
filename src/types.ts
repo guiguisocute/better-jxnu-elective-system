@@ -20,7 +20,7 @@ export interface FormalSection {
   schedule: string;       // "星期x-第x节"，多时段以 " / " 分隔
   className: string;      // 班级名称
   classroom: string;      // 教室代号
-  capacity: number | null;// 容量（暂留空 = null）
+  capacity: number | null;// 容量（按课程号+班级名称从 openclass 精确回填；未匹配则 null）
   semester: string;       // 学期 key，例 "2026-09" / "2025-03"（YYYY-MM，秋=09 / 春=03）
   desc: string;           // 课程简介（正选 课程信息.内容简介；详情页与 course.desc 二者取一）
   _search: string;
@@ -46,6 +46,7 @@ export interface CoursePlan {
 export interface Course {
   id: string;
   name: string;
+  englishName: string;
   credits: number;
   dept: string;
   semester: string;

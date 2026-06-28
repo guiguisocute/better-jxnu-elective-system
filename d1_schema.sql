@@ -20,7 +20,8 @@ CREATE INDEX IF NOT EXISTS idx_ratings_course_teacher ON ratings(course_id, teac
 -- 学生档案（blob-per-student；按 studentId 查一行带回 planKey/已修学分/已修课程 + 课表）
 -- 脱敏：不存姓名（去标识化）。仅凭学号查询；class_name 用于方案推断（含年级专业，非 PII）。
 -- record_json 形状对齐 src/lib/studentRecord.ts 的 StudentRecord：
---   { scheduleItems: [{courseId, courseName, teacher?, classroom?, schedule?, credits?, ...}],
+--   { noSchedule: boolean,
+--     scheduleItems: [{courseId, courseName, teacher?, classroom?, schedule?, credits?, ...}],
 --     detailCourses: [{courseId, courseName, credits, nature?, planTermIndex?, semester?, ...}] }
 CREATE TABLE IF NOT EXISTS student_records (
   student_id   TEXT PRIMARY KEY,

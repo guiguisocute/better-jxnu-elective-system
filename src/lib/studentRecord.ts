@@ -38,6 +38,8 @@ export interface StudentRecord {
   planKey?: string;
   /** 该档案对应学期 label（"25-26第2学期"）。 */
   termLabel?: string;
+  /** true 表示该生存在于全校快照，但本学期确认无课表；历史课程与学分仍保留。 */
+  noSchedule?: boolean;
   /** 在读是培养方案第几学期（build 算好；缺 = 无法推算）。 */
   readingPlanTerm?: number;
   /** 培养方案 ti<=在读 的必修 cid 全集（build 算好；核对必修自动排除用）。 */
@@ -115,6 +117,7 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
     className: str(obj.className ?? obj.bj ?? obj.班级) || undefined,
     planKey: str(obj.planKey) || undefined,
     termLabel: str(obj.termLabel ?? obj.xq ?? obj.学期) || undefined,
+    noSchedule: obj.noSchedule === true,
     readingPlanTerm: obj.readingPlanTerm != null ? num(obj.readingPlanTerm) || undefined : undefined,
     requiredCidsUpToReading: Array.isArray(rawRequired)
       ? rawRequired.filter((x): x is string => typeof x === "string")

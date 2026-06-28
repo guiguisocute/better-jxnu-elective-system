@@ -2,7 +2,7 @@
 学生档案 build —— studentjson/ 的 8 份学期快照 → D1 student_records 表的 SQL dump。
 
 输入：
-  studentjson/*.json    （学校教务导出的全校课表快照；每份 {data:[{studentId, studentName, className, termLabel, scheduleItems, detailCourses}]}）
+  studentjson/*.json    （学校教务导出的全校课表快照；data=有课表，failures=该学期确认无课表）
   data/master/courses.json          （联学分用：courseNo→credits）
   data/master/plan_courses.json     （planKey 集合，校验匹配）
   data/master/major_requirements.json（planKey 集合，校验匹配）
@@ -234,6 +234,18 @@ def snapshot_sort_key(path):
     return (9999, 99)
 
 
+def snapshot_term_label(snapshot):
+    """从快照的完整记录提取统一学期标签，供无课表 failures 记录复用。"""
+    labels = {
+        str(row.get("termLabel") or "").strip()
+        for row in (snapshot.get("data") or [])
+        if str(row.get("termLabel") or "").strip()
+    }
+    if len(labels) != 1:
+        raise ValueError(f"快照 termLabel 应唯一，实际为: {sorted(labels)}")
+    return next(iter(labels))
+
+
 def cn_term_index(label):
     """plan_courses 的 "第N学期"/"第十学期" → N；取不到 0。复刻 termIndexOf。"""
     if not label:
@@ -294,6 +306,7 @@ def main():
                 "latest_idx": -1,
                 "latest_term": "",
                 "latest_schedule": [],
+                "latest_no_schedule": False,
             })
             cls = str(s.get("className") or "").strip()
             # className 取最新一份（学生升级换班的话用最近的）
@@ -328,6 +341,38 @@ def main():
                 rec["latest_idx"] = idx
                 rec["latest_term"] = term_label
                 rec["latest_schedule"] = sched
+                rec["latest_no_schedule"] = False
+
+        # failures 是本快照中“确认无课表”的学生，不是应丢弃的抓取残次。
+        # 仍将其最新学期推进到本快照，课表置空；历史课程/学分继续保留。
+        # 从未有过完整记录的学号也建立空档案，保证每份全校快照的人员全集不丢失。
+        failures = snap.get("failures", []) or []
+        term_label = snapshot_term_label(snap)
+        successful_ids = {
+            str(row.get("studentId") or "").strip()
+            for row in rows
+            if str(row.get("studentId") or "").strip()
+        }
+        no_schedule_count = 0
+        for failure in failures:
+            sid = str(failure.get("studentId") or "").strip()
+            if not sid or sid in successful_ids:
+                continue
+            rec = students.setdefault(sid, {
+                "className": "",
+                "courses": {},
+                "latest_idx": -1,
+                "latest_term": "",
+                "latest_schedule": [],
+                "latest_no_schedule": False,
+            })
+            if idx >= rec["latest_idx"]:
+                rec["latest_idx"] = idx
+                rec["latest_term"] = term_label
+                rec["latest_schedule"] = []
+                rec["latest_no_schedule"] = True
+            no_schedule_count += 1
+        print(f"    无课表: {no_schedule_count} 名；本快照人员合计: {len(successful_ids) + no_schedule_count} 名")
 
     print(f"\n合并后：去重学生 {len(students)} 名")
 
@@ -426,13 +471,15 @@ def main():
         # 3) planKey 命中统计（plan_key 已在上方算好）
         if plan_key:
             matched_plan += 1
-        elif len(missing_plan_samples) < 12:
+        elif rec["className"] and len(missing_plan_samples) < 12:
             missing_plan_samples.append(rec["className"])
 
         record_json = {
             "studentId": sid,
             "className": rec["className"] or None,
             "termLabel": rec["latest_term"] or None,
+            # true = 该生出现在快照 failures，语义为本学期确认无课表；不是待重试错误。
+            "noSchedule": rec["latest_no_schedule"],
             # 在读培养方案第几学期（前端据此区分往期/本学期/自动填在读学期）。
             "readingPlanTerm": reading_plan_term or None,
             # 培养方案 ti<=在读 的必修 cid 全集 —— 前端用「全集 − 已修」自动算「核对必修」排除项。
