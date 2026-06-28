@@ -117,6 +117,9 @@ export function buildPlacement(
       .filter((o) => o.slots.length > 0);
     if (options.length === 0) return { status: "none", noneReason: "unpublished", slots: [], options: [] };
     const active = options.find((o) => o.key === chosen[cid]) ?? options[0];
+    // 选中的班级（学号导入校对出的默认班 / 用户手动换的班）置顶：选班列表一眼可见，
+    // 且班级很多触发折叠时不会被藏在 12 个之后。默认班 == options[0] 时顺序不变。
+    const ordered = [active, ...options.filter((o) => o !== active)];
     return {
       status: "placed",
       slots: active.slots,
@@ -124,7 +127,7 @@ export function buildPlacement(
       classroom: active.classroom,
       srcSem: sem,
       altCount: inSem.length,
-      options,
+      options: ordered,
       activeKey: active.key,
     };
   };
