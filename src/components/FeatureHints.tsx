@@ -1,4 +1,5 @@
 import type { DataSource } from "../types";
+import { Contributors } from "./Contributors";
 
 // 无任何筛选时，中间区不直接堆出全部课程，而是渲染这一层「落地入口」：
 // 价值主张（带对比口吻）+ 4 个优势点 + 明确入口（浏览全部 / 模拟选课）+ 左侧筛选引导。
@@ -194,6 +195,8 @@ export function FeatureHints({
         <p className="mt-5 text-center text-[12px] text-gray-400 leading-relaxed">
           点任意课程可查看详情
         </p>
+
+        <Contributors className="mt-7" />
       </div>
     );
   }
@@ -238,6 +241,8 @@ export function FeatureHints({
       <p className="mt-12 text-center text-[12px] text-gray-400">
         点任意课程可查看详情　·　右上角可切换学期
       </p>
+
+      <Contributors className="mt-10" />
     </div>
   );
 }
