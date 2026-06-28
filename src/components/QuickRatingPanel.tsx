@@ -21,6 +21,7 @@ function QuickRatingRow({ section }: { section: FormalSection }) {
   const [rating, setRating] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [myRating, setMyRating] = useState<number | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const hasTeacherId = Boolean(section.teacherId);
   const avg = hasTeacherId ? getAvg(section.teacherId) : null;
@@ -35,10 +36,12 @@ function QuickRatingRow({ section }: { section: FormalSection }) {
 
   const submit = () => {
     if (!hasTeacherId || rating === 0) return;
+    const previousRating = myRating;
     applyOptimistic(section.teacherId, rating);
     setMyRating(rating);
     setEditing(false);
     setShowModal(false);
+    setSubmitError(null);
     fetch("/api/ratings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -48,13 +51,25 @@ function QuickRatingRow({ section }: { section: FormalSection }) {
         rating,
         voterId: getVoterId(),
       }),
-    }).then(() => refresh(section.id)).catch(() => {});
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return refresh(section.id);
+      })
+      .catch(() => {
+        removeOptimistic(section.id, section.teacherId);
+        setMyRating(previousRating);
+        setRating(previousRating ?? 0);
+        setEditing(true);
+        setSubmitError("评分保存失败，请稍后重试");
+      });
   };
 
   const remove = () => {
     if (!hasTeacherId) return;
     const voterId = getVoterId();
     removeOptimistic(section.id, section.teacherId);
+    setSubmitError(null);
     setMyRating(null);
     setEditing(false);
     deleteMyRating(section.id, section.teacherId, voterId)
@@ -63,6 +78,7 @@ function QuickRatingRow({ section }: { section: FormalSection }) {
   };
 
   const openEditor = () => {
+    setSubmitError(null);
     setRating(myRating ?? 0);
     setEditing((v) => !v);
   };
@@ -130,6 +146,9 @@ function QuickRatingRow({ section }: { section: FormalSection }) {
                   提交评分
                 </button>
               </div>
+              {submitError && (
+                <div className="mt-2 text-[12px] font-medium text-rose-600">{submitError}</div>
+              )}
             </div>
           )}
         </div>

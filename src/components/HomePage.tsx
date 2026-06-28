@@ -64,6 +64,7 @@ const splitTeacherNames = (v: string | undefined) =>
   normalizeTeacherName(v).split(/[、,，/]/).map((x) => x.trim()).filter(Boolean);
 const teacherMatches = (sectionTeacher: string, importedTeacher: string | undefined) => {
   const section = normalizeTeacherName(sectionTeacher);
+  if (!section) return false;
   const names = splitTeacherNames(importedTeacher);
   if (names.length === 0) return true;
   return names.some((name) => section.includes(name) || name.includes(section));
