@@ -23,7 +23,7 @@ const SLOT_LABEL: Record<string, string> = {
 const KIND_STYLE: Record<PlacedKind, { label: string; chip: string }> = {
   required: { label: "本学期必修", chip: "bg-blue-100 text-blue-700" },
   cart: { label: "待选", chip: "bg-red-100 text-red-700" },
-  imported: { label: "真实课表", chip: "bg-emerald-100 text-emerald-700" },
+  imported: { label: "已选课程", chip: "bg-emerald-100 text-emerald-700" },
 };
 
 function clamp(v: number, lo: number, hi: number) {
@@ -72,11 +72,9 @@ function SectionChip({
 }) {
   const hasConflict = conflicts.length > 0;
   const slotsText = option.slots.map((m) => slotLabel(m)).join(" / ");
-  const optionName = option.source === "student"
-    ? `真实课表 · ${option.teacher || option.className || "已导入"}`
-    : option.teacher || option.className || "班级";
+  const optionName = option.teacher || option.className || "班级";
   const title =
-    `${option.source === "student" ? "D1 学号导入真实课表" : option.className ?? ""} · ${option.teacher ?? ""} · ${slotsText}` +
+    `${option.className ?? ""} · ${option.teacher ?? ""} · ${slotsText}` +
     (hasConflict ? ` · 换上后与「${conflicts.join("、")}」时段冲突` : " · 与其它课无时段冲突，可放心换");
   return (
     <button
@@ -433,7 +431,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                           移出待选
                         </button>
                       ) : (
-                        <span className="text-[10px] text-emerald-600">D1 导入</span>
+                        <span className="text-[10px] text-emerald-600">已选</span>
                       )}
                     </div>
                   </div>
@@ -498,14 +496,14 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                         移出
                       </button>
                     ) : (
-                      <span className="text-[10px] text-emerald-600 shrink-0">D1 导入</span>
+                      <span className="text-[10px] text-emerald-600 shrink-0">已选</span>
                     )}
                   </div>
 
                   {c.status !== "placed" ? (
                     <div className="mt-1 pl-3.5 text-[11px] text-gray-400">
                       {c.noneReason === "student-record"
-                        ? "D1 真实课表中没有该课程（未自动猜班）"
+                        ? "你导入的课表中没有这门课（未自动选班）"
                         : "课表待发布（规划学期开课安排尚未发布）"}
                     </div>
                   ) : (

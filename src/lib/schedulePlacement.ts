@@ -11,9 +11,6 @@ import type { StudentScheduleItem, StudentScheduleSnapshot } from "./studentReco
 export type PlacedKind = "required" | "cart" | "imported";
 export type PlacedStatus = "placed" | "none";
 
-/** chosenSections 中表示「使用 D1 学号导入课表」的稳定 key。 */
-export const IMPORTED_SCHEDULE_OPTION_KEY = "__student_schedule__";
-
 /** 一门课的一个可选班级（section）。key = "班级名|教号"。 */
 export interface PlacedOption {
   key: string;
@@ -21,7 +18,6 @@ export interface PlacedOption {
   teacher?: string;
   classroom?: string;
   className?: string;
-  source: "student" | "formal";
   /** 该班级对应的原始 section（用于点待选清单跳转到对应班级详情）。 */
   section?: FormalSection;
 }
@@ -116,7 +112,6 @@ export function buildPlacement(
         teacher: s.teacher,
         classroom: s.classroom,
         className: s.className,
-        source: "formal" as const,
         section: s,
       }))
       .filter((o) => o.slots.length > 0);
@@ -145,6 +140,13 @@ export function buildPlacement(
       return resolveFormal(cid);
     }
 
+    // 学号导入：所有班级时段都已在正式开课数据里。导入时已按真实课表「校对」出对应班级写入 chosen，
+    // 这里直接用正式开课数据排班（chosen 命中即为自动选上的真实班级），不再注入「真实课表」虚拟班。
+    const formal = resolveFormal(cid);
+    if (formal.options.length > 0) return formal;
+
+    // 校对兜底：正式开课数据里没有这门课的可解析时段（例如规划学期尚未发布该课），
+    // 退回用导入课表的时段占位，避免课程从周课表里消失。
     const slots = importedSlots(items);
     const teacher = uniqueText(items.map((x) => x.teacher));
     const classroom = uniqueText(items.map((x) => x.classroom));
@@ -159,34 +161,14 @@ export function buildPlacement(
         options: [],
       };
     }
-
-    // 正式开课数据只作为“主动换班”的候选。若其中有一个班与 D1 时段完全相同，
-    // 用真实课表 option 替换它，避免列表里出现两个看似相同的班；教师/教室仍以 D1 为准。
-    const formal = resolveFormal(cid);
-    const exact = formal.options.find((o) => slotSignature(o.slots) === slotSignature(slots));
-    const importedOption: PlacedOption = {
-      key: IMPORTED_SCHEDULE_OPTION_KEY,
+    return {
+      status: "placed",
       slots,
       teacher,
       classroom,
-      className: activeImportedSchedule?.className,
-      source: "student",
-      section: exact?.section,
-    };
-    const options = [importedOption, ...formal.options.filter((o) => o !== exact)];
-    const active = options.find((o) => o.key === chosen[cid]) ?? importedOption;
-    const activeIsImported = active.source === "student";
-    return {
-      status: "placed",
-      slots: active.slots,
-      teacher: active.teacher,
-      classroom: active.classroom,
-      srcSem: activeIsImported
-        ? activeImportedSchedule?.semester || planLabel || undefined
-        : formal.srcSem,
-      altCount: options.length,
-      options,
-      activeKey: active.key,
+      srcSem: activeImportedSchedule?.semester || planLabel || undefined,
+      altCount: 0,
+      options: [],
     };
   };
 
@@ -226,6 +208,41 @@ export function buildPlacement(
     });
   }
   return [...byCid.values()];
+}
+
+/**
+ * 校对：把一门导入课程对应到正式开课数据里的同一个班级，返回它的 optionKey（"班级名|教号"）。
+ * 优先取 preferredSem（规划学期）的开课，缺则取最近学期。匹配优先级：
+ *   教师名 + 时段都吻合 > 时段签名吻合 > 教师名吻合。都不中返回 null（让排班退回默认第一个班）。
+ */
+export function matchImportedSection(
+  formalSections: FormalSection[],
+  preferredSem: string | undefined,
+  cid: string,
+  items: StudentScheduleItem[],
+): string | null {
+  const all = formalSections.filter((s) => s.id === cid);
+  if (all.length === 0) return null;
+  const sems = [...new Set(all.map((s) => s.semester))];
+  const sem = preferredSem && sems.includes(preferredSem) ? preferredSem : [...sems].sort().at(-1)!;
+  const inSem = all.filter((s) => s.semester === sem && parseSchedule(s.schedule).length > 0);
+  if (inSem.length === 0) return null;
+
+  const wantTeachers = new Set(
+    (uniqueText(items.map((x) => x.teacher)) ?? "").split(" / ").map((t) => t.trim()).filter(Boolean),
+  );
+  const wantSig = slotSignature(importedSlots(items));
+  const teacherEq = (s: FormalSection) =>
+    wantTeachers.size > 0 && !!s.teacher && s.teacher.split(" / ").some((t) => wantTeachers.has(t.trim()));
+  const sigEq = (s: FormalSection) => slotSignature(parseSchedule(s.schedule)) === wantSig;
+
+  const both = inSem.find((s) => teacherEq(s) && sigEq(s));
+  if (both) return optionKey(both);
+  const bySig = inSem.find(sigEq);
+  if (bySig) return optionKey(bySig);
+  const byTeacher = inSem.find(teacherEq);
+  if (byTeacher) return optionKey(byTeacher);
+  return null;
 }
 
 /** 落格时段取自非规划学期的那些学期（用于 preview 提示文案）。 */

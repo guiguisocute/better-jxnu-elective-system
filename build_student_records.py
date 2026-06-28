@@ -170,9 +170,14 @@ def fmt_period(start, end):
         e = int(end) if end is not None else s
     except (TypeError, ValueError):
         e = s
+    if e < s:
+        s, e = e, s
     if e == s:
         return f"第{s}节"
-    return f"第{s}{e}节"  # 与既有 parseSchedule 兼容：第89节→8,9
+    # 枚举区间内每一节再拼接，parseSchedule 按 1[0-2]|[1-9] 切分：
+    # 第89节→8,9；第345节→3,4,5（区间端点不相邻时也能展开中间节次）。
+    body = "".join(str(p) for p in range(s, e + 1))
+    return f"第{body}节"
 
 
 def fmt_schedule(item):

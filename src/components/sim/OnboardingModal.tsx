@@ -3,8 +3,8 @@ import type { Course, FormalSection, MajorRequirement, PlanCourse } from "../../
 import type { CreditPlanView } from "../../lib/creditPlan";
 import { REQUIRED_NATURES } from "../../lib/creditPlan";
 import { termIndexOf, effectiveTermIndex, termToCalLabel, enrollYear } from "../../lib/term";
-import { buildPlacement, IMPORTED_SCHEDULE_OPTION_KEY, previewSemsOf } from "../../lib/schedulePlacement";
-import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentRecord, type ImportSuggestion, type StudentScheduleSnapshot } from "../../lib/studentRecord";
+import { buildPlacement, matchImportedSection, previewSemsOf } from "../../lib/schedulePlacement";
+import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentRecord, type ImportSuggestion, type StudentScheduleSnapshot, type StudentScheduleItem } from "../../lib/studentRecord";
 import { decodeBundle, type PlanBundle } from "../../lib/planShare";
 import type { StoredInputs } from "../../hooks/useCreditPlan";
 import { STUDENT_IMPORT_ENABLED } from "../../lib/featureFlags";
@@ -210,9 +210,18 @@ export function OnboardingModal({
         // D1 返回的真实课表是权威快照；空数组也表示该生明确无课表，不能再由前端反推。
         importedSchedule: scheduleSnapshot,
       });
-      // 覆盖可能残留的旧选班：导入后每门真实课程都先以 D1 时段为准；之后用户仍可主动换班。
-      for (const cid of new Set(rec.scheduleItems.map((x) => x.courseId).filter(Boolean))) {
-        onChooseSection(cid, IMPORTED_SCHEDULE_OPTION_KEY);
+      // 校对：把每门真实课程对应到正式开课数据里的同一个班级并自动选上（覆盖可能残留的旧选班）。
+      // 不再注入「真实课表」虚拟班——所有班级时段本就都在 formal_sections 里。之后用户仍可主动换班。
+      const itemsByCid = new Map<string, StudentScheduleItem[]>();
+      for (const it of rec.scheduleItems) {
+        if (!it.courseId) continue;
+        const arr = itemsByCid.get(it.courseId) ?? [];
+        arr.push(it);
+        itemsByCid.set(it.courseId, arr);
+      }
+      for (const [cid, items] of itemsByCid) {
+        const key = matchImportedSection(formalSections, rec.planningSemester, cid, items);
+        if (key) onChooseSection(cid, key);
       }
     }
     if (matched) onSelectPlan(rec.planKey!);
