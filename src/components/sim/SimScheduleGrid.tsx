@@ -23,6 +23,7 @@ const SLOT_LABEL: Record<string, string> = {
 const KIND_STYLE: Record<PlacedKind, { label: string; chip: string }> = {
   required: { label: "本学期必修", chip: "bg-blue-100 text-blue-700" },
   cart: { label: "待选", chip: "bg-red-100 text-red-700" },
+  imported: { label: "真实课表", chip: "bg-emerald-100 text-emerald-700" },
 };
 
 function clamp(v: number, lo: number, hi: number) {
@@ -71,8 +72,11 @@ function SectionChip({
 }) {
   const hasConflict = conflicts.length > 0;
   const slotsText = option.slots.map((m) => slotLabel(m)).join(" / ");
+  const optionName = option.source === "student"
+    ? `真实课表 · ${option.teacher || option.className || "已导入"}`
+    : option.teacher || option.className || "班级";
   const title =
-    `${option.className ?? ""} · ${option.teacher ?? ""} · ${slotsText}` +
+    `${option.source === "student" ? "D1 学号导入真实课表" : option.className ?? ""} · ${option.teacher ?? ""} · ${slotsText}` +
     (hasConflict ? ` · 换上后与「${conflicts.join("、")}」时段冲突` : " · 与其它课无时段冲突，可放心换");
   return (
     <button
@@ -91,7 +95,7 @@ function SectionChip({
           className="w-1.5 h-1.5 rounded-full shrink-0"
           style={{ background: hasConflict ? "#E11D48" : "#10B981" }}
         />
-        <span className="min-w-0 truncate text-[10px] font-semibold">{option.teacher || option.className || "班级"}</span>
+        <span className="min-w-0 truncate text-[10px] font-semibold">{optionName}</span>
       </span>
       <span className={`block text-[9px] truncate ${active ? "text-white/75" : hasConflict ? "text-rose-500" : "text-gray-400"}`}>
         {slotsText}
@@ -420,7 +424,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                           取消必修
                         </button>
-                      ) : (
+                      ) : c.kind === "cart" ? (
                         <button
                           onClick={() => onRemoveCart?.(c.cid)}
                           className="inline-flex items-center gap-1 text-[10px] text-gray-400 border border-gray-200 rounded-md px-2 py-1 hover:text-rose-600 hover:border-rose-300 transition-colors"
@@ -428,6 +432,8 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" d="M6 6l12 12M6 18L18 6" /></svg>
                           移出待选
                         </button>
+                      ) : (
+                        <span className="text-[10px] text-emerald-600">D1 导入</span>
                       )}
                     </div>
                   </div>
@@ -483,7 +489,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                       >
                         取消
                       </button>
-                    ) : (
+                    ) : c.kind === "cart" ? (
                       <button
                         onClick={() => onRemoveCart?.(c.cid)}
                         title="移出待选清单"
@@ -491,11 +497,17 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
                       >
                         移出
                       </button>
+                    ) : (
+                      <span className="text-[10px] text-emerald-600 shrink-0">D1 导入</span>
                     )}
                   </div>
 
                   {c.status !== "placed" ? (
-                    <div className="mt-1 pl-3.5 text-[11px] text-gray-400">课表待发布（规划学期开课安排尚未发布）</div>
+                    <div className="mt-1 pl-3.5 text-[11px] text-gray-400">
+                      {c.noneReason === "student-record"
+                        ? "D1 真实课表中没有该课程（未自动猜班）"
+                        : "课表待发布（规划学期开课安排尚未发布）"}
+                    </div>
                   ) : (
                     <>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-500 pl-3.5">

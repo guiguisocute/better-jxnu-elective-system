@@ -46,6 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       totalEarned: row.total_earned ?? 0,
       takenCount: row.taken_count ?? 0,
       termLabel: record.termLabel ?? null,
+      planningSemester: record.planningSemester ?? null,
       noSchedule: record.noSchedule ?? false,
       readingPlanTerm: record.readingPlanTerm ?? null,
       requiredCidsUpToReading: record.requiredCidsUpToReading ?? [],

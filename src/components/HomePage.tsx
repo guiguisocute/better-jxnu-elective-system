@@ -1151,6 +1151,7 @@ export function HomePage() {
           selectedPlan={filter.filters.plan}
           term={credit.term}
           formalSections={formal.sections}
+          importedSchedule={credit.stored.importedSchedule}
           chosen={chosenSections.chosen}
           onChooseSection={chosenSections.choose}
           onRemove={handleToggleCart}
@@ -1183,6 +1184,7 @@ export function HomePage() {
           planCourses={planCourses.courses}
           cartCourses={cartCourses}
           formalSections={formal.sections}
+          importedSchedule={credit.stored.importedSchedule}
           chosen={chosenSections.chosen}
           onChooseSection={chosenSections.choose}
           onRemoveCart={handleToggleCart}

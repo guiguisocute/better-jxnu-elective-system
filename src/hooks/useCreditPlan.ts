@@ -3,6 +3,7 @@ import type { Course, PlanCourse } from "../types";
 import { useMajorRequirements } from "./useMajorRequirements";
 import { buildCreditPlan, findRequirement, REQUIRED_NATURES } from "../lib/creditPlan";
 import type { CreditInputs } from "../lib/creditPlan";
+import type { StudentScheduleSnapshot } from "../lib/studentRecord";
 import { currentPlanTerm, currentCalTerm, enrollYear, termIndexOf, effectiveTermIndex } from "../lib/term";
 
 // 转专业边界：与 creditPlan.ts 同步（仅用于派生 transferEarlyCids，门控由 buildCreditPlan 内部再判一次）。
@@ -27,6 +28,10 @@ export interface StoredInputs {
   visitedMajorElective: boolean;
   /** 学号导入的真实已修 cid（按 isPassed 过滤）。空数组 = 未导入 / 已清空，走启发式。 */
   importedTakenCids: string[];
+  /** 学号导入的 D1 真实规划课表；null = 未导入，非 null（含空 items）= 禁止前端反推班级。 */
+  importedSchedule: StudentScheduleSnapshot | null;
+  /** 一次性迁移标记：修复曾把 2026-09 规划快照误当在读学期而多加 1 的本地状态。 */
+  studentSnapshotTermFixV1: boolean;
   /** 校外慕课抵扣：勾选 = +5 学分计入选修。 */
   moocOffset: boolean;
   /** 赛事学分抵扣：输入值（浮点）直接计入选修。 */
@@ -45,6 +50,8 @@ const EMPTY: StoredInputs = {
   showFutureRequired: false,
   visitedMajorElective: false,
   importedTakenCids: [],
+  importedSchedule: null,
+  studentSnapshotTermFixV1: false,
   moocOffset: false,
   competitionOffset: 0,
 };
@@ -57,7 +64,19 @@ function loadStored(plan: string): StoredInputs {
   if (!plan) return EMPTY;
   try {
     const raw = localStorage.getItem(simKey(plan));
-    if (raw) return { ...EMPTY, ...(JSON.parse(raw) as Partial<StoredInputs>) };
+    if (raw) {
+      const stored = { ...EMPTY, ...(JSON.parse(raw) as Partial<StoredInputs>) };
+      if (!stored.studentSnapshotTermFixV1) {
+        const autoTerm = currentPlanTerm(enrollYear(plan), currentCalTerm());
+        // 旧版学生快照导入恰好把 term 写成 autoTerm+1（规划学期本身），只迁移这一种已知坏状态。
+        if (stored.importedTakenCids.length > 0 && stored.term === autoTerm + 1) {
+          stored.term = autoTerm;
+        }
+        stored.studentSnapshotTermFixV1 = true;
+        localStorage.setItem(simKey(plan), JSON.stringify(stored));
+      }
+      return stored;
+    }
   } catch {}
   return EMPTY;
 }
