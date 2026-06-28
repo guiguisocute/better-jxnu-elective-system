@@ -10,6 +10,8 @@ import { useCreditPlan } from "../hooks/useCreditPlan";
 import { usePlanCourses } from "../hooks/usePlanCourses";
 import { useScheduleFilter } from "../hooks/useScheduleFilter";
 import { sectionMatchesSchedule, parseSchedule } from "../lib/scheduleParse";
+import { buildPlacement } from "../lib/schedulePlacement";
+import { termToCalLabel, enrollYear } from "../lib/term";
 import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
@@ -130,6 +132,31 @@ export function HomePage() {
     if (filter.filters.plan !== currentPlan) setCurrentPlan(filter.filters.plan);
   }, [filter.filters.plan, currentPlan]);
   const chosenSections = useChosenSections();
+
+  // 一键排除必修课时段：模拟选课开启时，把下学期必修课（按当前选班）占用的周时段算出来，
+  // 供课表筛选「一键排除」按钮把这些格子标为 exclude，方便错峰挑选修课。
+  const simPlanLabel = useMemo(
+    () => termToCalLabel(enrollYear(currentPlan), (credit.term ?? 0) + 1),
+    [currentPlan, credit.term],
+  );
+  const requiredCells = useMemo(() => {
+    if (sim.mode !== "sim") return [];
+    const placed = buildPlacement(
+      credit.view.nextSemRequired, [], formal.sections, simPlanLabel,
+      chosenSections.chosen, currentPlan, credit.stored.importedSchedule,
+    );
+    const cells = new Set<string>();
+    for (const p of placed) {
+      if (p.kind !== "required" || p.status !== "placed") continue;
+      for (const m of p.slots) cells.add(`${m.day},${m.slot}`);
+    }
+    return [...cells];
+  }, [sim.mode, credit.view.nextSemRequired, formal.sections, simPlanLabel, chosenSections.chosen, currentPlan, credit.stored.importedSchedule]);
+  const requiredExcluded = requiredCells.length > 0 && requiredCells.every((k) => schedule.filter[k] === "exclude");
+  const toggleExcludeRequired = useCallback(
+    () => schedule.setCells(requiredCells, requiredExcluded ? null : "exclude"),
+    [schedule, requiredCells, requiredExcluded],
+  );
 
   const clearAllFilters = () => {
     filter.clearAll();
@@ -852,6 +879,9 @@ export function HomePage() {
                   clear={schedule.clear}
                   active={schedule.active}
                   cellCounts={scheduleCellCounts}
+                  requiredCells={requiredCells}
+                  requiredExcluded={requiredExcluded}
+                  onToggleExcludeRequired={toggleExcludeRequired}
                 />
               </div>
             )}
@@ -912,6 +942,9 @@ export function HomePage() {
                   clear={schedule.clear}
                   active={schedule.active}
                   cellCounts={scheduleCellCounts}
+                  requiredCells={requiredCells}
+                  requiredExcluded={requiredExcluded}
+                  onToggleExcludeRequired={toggleExcludeRequired}
                 />
               </div>
             )}
@@ -1018,6 +1051,9 @@ export function HomePage() {
                     clear={schedule.clear}
                     active={schedule.active}
                     cellCounts={scheduleCellCounts}
+                    requiredCells={requiredCells}
+                    requiredExcluded={requiredExcluded}
+                    onToggleExcludeRequired={toggleExcludeRequired}
                   />
                 </div>
               )}

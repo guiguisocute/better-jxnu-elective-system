@@ -16,6 +16,12 @@ interface Props {
   active: boolean;
   /** "day,slot" → 该格上课的班级数（当前学期），用于格内提示。 */
   cellCounts?: Record<string, number>;
+  /** 下学期必修课占用的格子（"day,slot"），仅模拟选课开启时有值；用于「一键排除必修时段」。 */
+  requiredCells?: string[];
+  /** requiredCells 是否已全部处于 exclude 状态（按钮在 排除 / 恢复 间切换）。 */
+  requiredExcluded?: boolean;
+  /** 「一键排除必修时段」按钮回调（toggle）。 */
+  onToggleExcludeRequired?: () => void;
 }
 
 type CellAppearance = CellState | "none";
@@ -27,7 +33,10 @@ function cellCls(state: CellAppearance): string {
   return "bg-gray-50/40 hover:bg-red-50/40 hover:border-red-200 border-gray-200 text-gray-700 fltgrid-cell";
 }
 
-export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, cellCounts = {} }: Props) {
+export function ScheduleFilter({
+  filter, cycleCell, removeCell, clear, active, cellCounts = {},
+  requiredCells = [], requiredExcluded = false, onToggleExcludeRequired,
+}: Props) {
   // 行序：1-2 / 3 / 4 / 5 /（中午分隔）/ 6-7 / 8-9 / 晚上
   const rows: Array<{ kind: "lunch" } | { kind: "slot"; slot: string }> = [];
   for (const s of SLOT_KEYS) {
@@ -47,6 +56,28 @@ export function ScheduleFilter({ filter, cycleCell, removeCell, clear, active, c
           <button onClick={clear} className="text-[10px] text-red-600 hover:bg-red-50 px-1.5 py-0.5 rounded font-medium shrink-0">清除</button>
         )}
       </div>
+
+      {/* 一键排除必修课时段（仅模拟选课开启、且必修课已排好时段时出现） */}
+      {requiredCells.length > 0 && (
+        <button
+          onClick={onToggleExcludeRequired}
+          title="把下学期必修课占用的时间段一键标为「排除」，方便错峰挑选修课"
+          className={`mb-2 w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${
+            requiredExcluded
+              ? "bg-gray-200/70 text-gray-600 border-gray-300 hover:bg-gray-200"
+              : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+          }`}
+        >
+          <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {requiredExcluded ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4 4m0-4l4 4M4 6h16M4 11h7" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18M3 10h18M3 15h7m4 3l5-5m0 5l-5-5" />
+            )}
+          </svg>
+          {requiredExcluded ? "已排除必修课时段 · 点此恢复" : "一键排除必修课时段"}
+        </button>
+      )}
 
       {/* 课表网格 */}
       <div className="select-none rounded-lg overflow-hidden border border-gray-200 bg-white fltgrid">
