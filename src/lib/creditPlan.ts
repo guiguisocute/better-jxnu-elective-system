@@ -105,6 +105,8 @@ export interface CreditPlanView {
   projection: CreditProjection;
   /** 毕业还差 = max(0, minTotal - earned - projection)。minTotal 为 null 时 null。 */
   totalRemaining: number | null;
+  /** 毕业超出 = max(0, earned + projection - minTotal)。minTotal 为 null 时 null。 */
+  totalOverflow: number | null;
   /** 下学期已规划学分（下学期必修 + 待选清单）= projection.value，对照 30 上限。 */
   nextSemCredits: number;
   nextSemCap: number;
@@ -374,7 +376,9 @@ export function buildCreditPlan(
 
   // 全局 earned 也把 futureReqShown 算进去，三处口径（必修块/环图/毕业还差）一致。
   const earned = earnedBeforeFuture + futureReqShown;
-  const totalRemaining = minTotal != null ? Math.max(0, gapBeforeFuture - futureReqShown) : null;
+  const rawTotalGap = minTotal != null ? minTotal - earned - projectionValue : null;
+  const totalRemaining = rawTotalGap != null ? Math.max(0, rawTotalGap) : null;
+  const totalOverflow = rawTotalGap != null ? Math.max(0, -rawTotalGap) : null;
   const nextSemCap = transferMode ? TRANSFER_NEXT_SEM_CAP : NEXT_SEM_CAP;
 
   return {
@@ -384,6 +388,7 @@ export function buildCreditPlan(
     earned,
     projection,
     totalRemaining,
+    totalOverflow,
     nextSemCredits: projectionValue,
     nextSemCap,
     nextSemOver: projectionValue > nextSemCap,

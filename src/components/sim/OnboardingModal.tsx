@@ -131,6 +131,8 @@ export function OnboardingModal({
   // 导入页内的转专业暂存（apply 时随 importInputs 一起写入；抵扣计算在进入引导后由 useCreditPlan 处理）。
   const [editTransfer, setEditTransfer] = useState(false);
   const [editOriginalPlan, setEditOriginalPlan] = useState("");
+  const graduationOverflow = view.totalOverflow ?? 0;
+  const graduationOver = graduationOverflow > 0;
 
   // 第1步「从分享码开始」：粘贴码 → 解码 → 恢复整套方案。
   const [shareOpen, setShareOpen] = useState(false);
@@ -665,8 +667,13 @@ export function OnboardingModal({
                     </div>
                   ))}
                   <div className="pt-1.5 border-t border-gray-100 flex items-baseline justify-between">
-                    <span className="text-gray-500 text-[13px] font-semibold">毕业还差</span>
-                    <span className="font-black text-gray-800 text-[22px] leading-none">{view.totalRemaining ?? "?"}<span className="text-[12px] text-gray-400 font-medium"> 分</span></span>
+                    <span className="text-gray-500 text-[13px] font-semibold">
+                      {graduationOver ? "毕业超出" : "毕业还差"}
+                    </span>
+                    <span className={`font-black text-[22px] leading-none ${graduationOver ? "text-emerald-600" : "text-gray-800"}`}>
+                      {graduationOver ? graduationOverflow : view.totalRemaining ?? "?"}
+                      <span className="text-[12px] text-gray-400 font-medium"> 分</span>
+                    </span>
                   </div>
                 </div>
               </div>

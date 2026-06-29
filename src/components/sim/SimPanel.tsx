@@ -317,6 +317,8 @@ export function SimPanel({
   const cap = view.nextSemCap;
   const used = view.nextSemCredits;
   const over = view.nextSemOver;
+  const graduationOverflow = view.totalOverflow ?? 0;
+  const graduationOver = graduationOverflow > 0;
   const ringPct = Math.min(1, cap > 0 ? used / cap : 0);
 
   const R = 26;
@@ -709,9 +711,12 @@ export function SimPanel({
                       ))}
                     </div>
                     <div className="mt-2 w-full flex items-baseline justify-between">
-                      <span className="text-gray-500 text-[13px] font-semibold">毕业还差</span>
-                      <span className="font-black text-gray-800 text-[22px] leading-none">
-                        {view.totalRemaining ?? "?"}<span className="text-[12px] text-gray-400 font-medium"> 学分</span>
+                      <span className="text-gray-500 text-[13px] font-semibold">
+                        {graduationOver ? "毕业超出" : "毕业还差"}
+                      </span>
+                      <span className={`font-black text-[22px] leading-none ${graduationOver ? "text-emerald-600" : "text-gray-800"}`}>
+                        {graduationOver ? graduationOverflow : view.totalRemaining ?? "?"}
+                        <span className="text-[12px] text-gray-400 font-medium"> 学分</span>
                       </span>
                     </div>
 

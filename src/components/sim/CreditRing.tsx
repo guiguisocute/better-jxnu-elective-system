@@ -60,13 +60,19 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
       dashArrayY: [2, 5],
       rotation: Math.PI / 4,
     } as const;
+    const remainingValue = view.totalRemaining ?? Math.max(0, denom - view.earned - proj);
+    const hasRemaining = remainingValue > 0;
+    const fullRingBaseColor =
+      view.blocks.flatMap((b) => b.segments).find((seg) => seg.value > 0)?.color ?? restColor;
     const data = [
       ...view.blocks.flatMap((b) =>
-        b.segments.map((seg) => ({
-          name: seg.label,
-          value: seg.value,
-          itemStyle: { color: seg.color },
-        })),
+        b.segments
+          .filter((seg) => seg.value > 0)
+          .map((seg) => ({
+            name: seg.label,
+            value: seg.value,
+            itemStyle: { color: seg.color },
+          })),
       ),
       ...view.blocks.flatMap((b) => {
         const subPlanned = b.subTarget?.planned ?? 0;
@@ -88,11 +94,13 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
         }
         return slices;
       }),
-      {
-        name: "剩余",
-        value: Math.max(0, denom - view.earned - proj),
-        itemStyle: { color: restColor },
-      },
+      ...(hasRemaining
+        ? [{
+            name: "剩余",
+            value: remainingValue,
+            itemStyle: { color: restColor },
+          }]
+        : []),
     ];
 
     chart.setOption({
@@ -109,6 +117,23 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
           p.name === "剩余" ? `还差 ${p.value} 学分` : `${p.name}：${p.value} 学分`,
       },
       series: [
+        ...(!hasRemaining
+          ? [{
+              type: "pie",
+              radius: [inner, outer],
+              center: ["50%", "50%"],
+              startAngle: 90,
+              clockwise: true,
+              silent: true,
+              animation: false,
+              avoidLabelOverlap: false,
+              label: { show: false },
+              labelLine: { show: false },
+              itemStyle: { borderWidth: 0 },
+              data: [{ name: "已达标底环", value: 1, itemStyle: { color: fullRingBaseColor } }],
+              z: 0,
+            }]
+          : []),
         {
           type: "pie",
           radius: [inner, outer],
@@ -118,11 +143,12 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
           avoidLabelOverlap: false,
           label: { show: false },
           labelLine: { show: false },
-          itemStyle: { borderColor: segBorder, borderWidth: 1 },
+          itemStyle: { borderColor: segBorder, borderWidth: hasRemaining ? 1 : 0 },
           data,
+          z: 1,
         },
       ],
-    });
+    }, { replaceMerge: ["series"] });
   }, [view, size, stroke, isDark]);
 
   return (
