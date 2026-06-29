@@ -704,10 +704,10 @@ export function CourseTable({
                 title={quickRatingReady ? (quickRatingActive ? "取消只看上学期课程" : `评价 ${quickRatingSemester} 上学期课程`) : quickRatingDisabledReason}
                 className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold leading-none transition-all ${
                   quickRatingReady
-                    ? "border-gray-200 bg-gray-100 text-gray-700 hover:border-gray-300 hover:bg-gray-200"
+                    ? "border-red-500 bg-red-500 text-white shadow-sm shadow-red-200 hover:bg-red-600 hover:border-red-600"
                     : "cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300"
                 } ${
-                  quickRatingActive ? "ring-2 ring-gray-200" : ""
+                  quickRatingActive ? "ring-2 ring-red-200" : ""
                 }`}
               >
                 <svg className="h-3.5 w-3.5 shrink-0 self-center" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">

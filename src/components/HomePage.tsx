@@ -995,6 +995,7 @@ export function HomePage() {
                   active={schedule.active}
                   cellCounts={scheduleCellCounts}
                   requiredCells={requiredCells}
+                  showExcludeRequired={sim.mode === "sim"}
                   requiredExcluded={requiredExcluded}
                   onToggleExcludeRequired={toggleExcludeRequired}
                 />
@@ -1058,6 +1059,7 @@ export function HomePage() {
                   active={schedule.active}
                   cellCounts={scheduleCellCounts}
                   requiredCells={requiredCells}
+                  showExcludeRequired={sim.mode === "sim"}
                   requiredExcluded={requiredExcluded}
                   onToggleExcludeRequired={toggleExcludeRequired}
                 />
@@ -1167,6 +1169,7 @@ export function HomePage() {
                     active={schedule.active}
                     cellCounts={scheduleCellCounts}
                     requiredCells={requiredCells}
+                    showExcludeRequired={sim.mode === "sim"}
                     requiredExcluded={requiredExcluded}
                     onToggleExcludeRequired={toggleExcludeRequired}
                   />
