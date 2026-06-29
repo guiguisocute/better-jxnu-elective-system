@@ -11,6 +11,7 @@ import { STUDENT_IMPORT_ENABLED } from "../../lib/featureFlags";
 import { PlanSelector } from "../PlanSelector";
 import { CreditRing, CreditRingLegend, FutureRequiredToggle } from "./CreditRing";
 import { SimScheduleGrid } from "./SimScheduleGrid";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const JWC_URL =
   "https://jwc.jxnu.edu.cn/MyControl/All_Display.aspx?UserControl=xfz_bysh.ascx&Action=Personal";
@@ -124,6 +125,7 @@ export function OnboardingModal({
   const [preview, setPreview] = useState<{ rec: StudentRecord; sug: ImportSuggestion } | null>(null);
   // 方案识别纠错：内联下拉编辑（不跳转、不清空已查数据）。
   const [editingPlan, setEditingPlan] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
   // 可编辑覆盖：已修学分 / 本学期已选选修（落地「学籍预警·手动修正」，改后即按此值导入）。
   const [edit, setEdit] = useState<{ totalEarned: number; electiveThisSem: number } | null>(null);
   // 导入页内的转专业暂存（apply 时随 importInputs 一起写入；抵扣计算在进入引导后由 useCreditPlan 处理）。
@@ -239,8 +241,8 @@ export function OnboardingModal({
   };
 
   // 一键清空引导填写的全部信息：重置当前方案的已修记录 + 清空方案选择 + 清空导入预览。
-  const handleClearAll = () => {
-    if (!window.confirm("清空本次引导填写的所有信息（培养方案、在读学期、已修学分、已修限选、核对必修）？")) return;
+  const handleClearAll = () => setClearConfirm(true);
+  const confirmClearAll = () => {
     if (selectedPlan) importInputs(selectedPlan, {});
     onSelectPlan("");
     setPreview(null);
@@ -250,6 +252,7 @@ export function OnboardingModal({
     setImportSid("");
     setEditingPlan(false);
     setImportErr(null);
+    setClearConfirm(false);
   };
 
   const takenSet = useMemo(() => new Set(takenMajorElectives), [takenMajorElectives]);
@@ -1133,6 +1136,17 @@ export function OnboardingModal({
           </div>
         )}
       </div>
+
+      {/* 清空引导确认窗（替代 window.confirm） */}
+      <ConfirmDialog
+        open={clearConfirm}
+        title="清空已填信息？"
+        message="将清空本次引导填写的全部信息（培养方案、在读学期、已修学分、已修限选、核对必修）。"
+        confirmText="清空"
+        cancelText="取消"
+        onConfirm={confirmClearAll}
+        onCancel={() => setClearConfirm(false)}
+      />
     </div>
   );
 }

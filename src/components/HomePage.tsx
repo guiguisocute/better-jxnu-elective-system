@@ -288,9 +288,7 @@ export function HomePage() {
       const b = await decodeBundle(code);
       clearCodeFromUrl();
       if (!b) return;
-      if (window.confirm(`检测到分享方案「${b.plan}」（待选 ${b.cart.length} 门），导入吗？`)) {
-        handleApplyBundle(b);
-      }
+      setBundlePrompt(b);
     })();
   }, [handleApplyBundle]);
 
@@ -308,6 +306,10 @@ export function HomePage() {
   const askCartConfirm = useCallback((title: string, message: string): Promise<boolean> => {
     return new Promise<boolean>((resolve) => setCartConfirm({ title, message, resolve }));
   }, []);
+  // 详情页未开模拟选课时点「加入待选清单」→ 弹「是否开启模拟选课」。
+  const [enableSimPrompt, setEnableSimPrompt] = useState(false);
+  // 分享码自动恢复确认（替代 window.confirm）。
+  const [bundlePrompt, setBundlePrompt] = useState<PlanBundle | null>(null);
   // 上限提示核心：返回 Promise<false> = 用户拒绝继续，Promise<true> = 放行。仅对"加车"动作生效。
   // 三道软上限按顺序问：公选课 2 / 任意选修 2 / 加入后总学分 > 毕业要求。任一拒绝即终止。
   const confirmCartLimit = useCallback(
@@ -1106,6 +1108,7 @@ export function HomePage() {
               simMode={sim.mode === "sim"}
               inCart={cart.has(mobileCourse.id)}
               onToggleCart={() => handleToggleCart(mobileCourse.id)}
+              onRequestEnableSim={() => setEnableSimPrompt(true)}
             />
           ) : mobileSection ? (
             <FormalSectionDetail
@@ -1117,6 +1120,7 @@ export function HomePage() {
               cartStatus={cartStatusOf(mobileSection)}
               onToggleCart={() => handleToggleCartSection(mobileSection)}
               onSwitchChosenSection={() => chosenSections.choose(mobileSection.id, `${mobileSection.className}|${mobileSection.teacherId}`)}
+              onRequestEnableSim={() => setEnableSimPrompt(true)}
             />
           ) : null}
         </div>
@@ -1292,6 +1296,7 @@ export function HomePage() {
               simMode={sim.mode === "sim"}
               inCart={cart.has(selected.id)}
               onToggleCart={() => handleToggleCart(selected.id)}
+              onRequestEnableSim={() => setEnableSimPrompt(true)}
             />
           ) : selectedSection ? (
             <FormalSectionDetail
@@ -1303,6 +1308,7 @@ export function HomePage() {
               cartStatus={cartStatusOf(selectedSection)}
               onToggleCart={() => handleToggleCartSection(selectedSection)}
               onSwitchChosenSection={() => chosenSections.choose(selectedSection.id, `${selectedSection.className}|${selectedSection.teacherId}`)}
+              onRequestEnableSim={() => setEnableSimPrompt(true)}
             />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 px-8">
@@ -1435,6 +1441,28 @@ export function HomePage() {
           cartConfirm?.resolve(false);
           setCartConfirm(null);
         }}
+      />
+
+      {/* 详情页未开模拟选课时点「加入待选清单」→ 询问是否开启模拟选课。 */}
+      <ConfirmDialog
+        open={enableSimPrompt}
+        title="模拟选课模式未开启"
+        message="开启模拟选课后即可把课程加入待选清单，并模拟下学期课表与毕业学分核算。现在开启吗？"
+        confirmText="开启模拟选课"
+        cancelText="暂不"
+        onConfirm={() => { setEnableSimPrompt(false); enterSim(); }}
+        onCancel={() => setEnableSimPrompt(false)}
+      />
+
+      {/* 分享码自动恢复确认（替代 window.confirm）。 */}
+      <ConfirmDialog
+        open={!!bundlePrompt}
+        title="检测到分享方案"
+        message={bundlePrompt ? `导入方案「${bundlePrompt.plan}」（待选 ${bundlePrompt.cart.length} 门）？这会覆盖当前模拟选课数据。` : ""}
+        confirmText="导入"
+        cancelText="取消"
+        onConfirm={() => { if (bundlePrompt) handleApplyBundle(bundlePrompt); setBundlePrompt(null); }}
+        onCancel={() => setBundlePrompt(null)}
       />
     </div>
   );

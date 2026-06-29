@@ -109,6 +109,7 @@ export function SimPanel({
   const [shareCode, setShareCode] = useState<string>("");
   const [pasteCode, setPasteCode] = useState<string>("");
   const [shareBusy, setShareBusy] = useState(false);
+  const [pasteConfirm, setPasteConfirm] = useState<PlanBundle | null>(null);
   const notify = (msg: string) => {
     setNotice(msg);
     clearTimeout(noticeTimer.current);
@@ -161,13 +162,14 @@ export function SimPanel({
       notify("分享码无效或已损坏");
       return;
     }
-    const cartCount = bundle.cart.length;
-    if (!window.confirm(
-      `将导入方案「${bundle.plan}」（待选 ${cartCount} 门），覆盖当前数据。继续吗？`,
-    )) return;
-    onApplyBundle(bundle);
+    setPasteConfirm(bundle);
+  };
+  const confirmApplyPaste = () => {
+    if (!pasteConfirm) return;
+    onApplyBundle(pasteConfirm);
     setPasteCode("");
     setShareOpen(false);
+    setPasteConfirm(null);
     notify("方案已恢复");
   };
   const [vp, setVp] = useState(() => ({
@@ -852,6 +854,17 @@ export function SimPanel({
           setPendingCancel(null);
         }}
         onCancel={() => setPendingCancel(null)}
+      />
+
+      {/* 分享码导入确认窗（替代 window.confirm） */}
+      <ConfirmDialog
+        open={pasteConfirm !== null}
+        title="导入分享方案？"
+        message={pasteConfirm ? `将导入方案「${pasteConfirm.plan}」（待选 ${pasteConfirm.cart.length} 门），覆盖当前模拟选课数据。继续吗？` : ""}
+        confirmText="导入"
+        cancelText="取消"
+        onConfirm={confirmApplyPaste}
+        onCancel={() => setPasteConfirm(null)}
       />
     </>
   );

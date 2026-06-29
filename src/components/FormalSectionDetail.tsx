@@ -31,13 +31,15 @@ interface Props {
   onToggleCart?: () => void;
   /** other 状态下，把 chosenSections[cid] 切换到当前 section。 */
   onSwitchChosenSection?: () => void;
+  /** 未开模拟选课时点灰色「加入待选清单」的回调（上层弹「是否开启模拟选课」）。 */
+  onRequestEnableSim?: () => void;
 }
 
 // 正选/补退选详情页：以 section 为中心，course 命中时补齐 desc/plans/prereq/学位课。
 // 任课教师永远只显示该 section 的一位，区别于 CourseDetail 的多教师视图。
 export function FormalSectionDetail({
   section, course, onClose, scheduleFilter,
-  simMode = false, cartStatus = "none", onToggleCart, onSwitchChosenSection,
+  simMode = false, cartStatus = "none", onToggleCart, onSwitchChosenSection, onRequestEnableSim,
 }: Props) {
   const { getAvg, applyOptimistic, refresh } = useRatings(section.id);
   const [rating, setRating] = useState(0);
@@ -204,7 +206,20 @@ export function FormalSectionDetail({
                 none  → 红色"+ 加入待选清单"
                 exact → emerald"已加入待选清单 · 点此移出"
                 other → amber 提示「同课其他班级已在清单」+「切到本班级」+ 次要"移出"
-              判断在 HomePage 完成（cart × chosenSections[cid] vs 本 section key）。 */}
+              判断在 HomePage 完成（cart × chosenSections[cid] vs 本 section key）。
+              未开模拟选课时显示灰色按钮，点击弹「是否开启」。 */}
+          {!simMode && (
+            <button
+              onClick={onRequestEnableSim}
+              title="模拟选课模式未开启，点击开启"
+              className="group w-full h-11 rounded-full font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors duration-200 active:scale-[0.98] bg-gray-100 text-gray-400 border border-gray-200 hover:bg-gray-200 hover:text-gray-500"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6" />
+              </svg>
+              <span>加入待选清单</span>
+            </button>
+          )}
           {simMode && cartStatus === "exact" && (
             <button
               onClick={onToggleCart}

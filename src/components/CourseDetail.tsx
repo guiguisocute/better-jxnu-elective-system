@@ -17,9 +17,11 @@ interface Props {
   simMode?: boolean;
   inCart?: boolean;
   onToggleCart?: () => void;
+  /** 未开模拟选课时点灰色「加入待选清单」的回调（上层弹「是否开启模拟选课」）。 */
+  onRequestEnableSim?: () => void;
 }
 
-export function CourseDetail({ course, onClose, simMode = false, inCart = false, onToggleCart }: Props) {
+export function CourseDetail({ course, onClose, simMode = false, inCart = false, onToggleCart, onRequestEnableSim }: Props) {
   const { getAvg, applyOptimistic, refresh } = useRatings(course.id);
   const [ratingTarget, setRatingTarget] = useState<{ teacherId: string; name: string; rating: number } | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -137,7 +139,19 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
             </p>
           )}
 
-          {/* 模拟选课：加入待选清单主操作 */}
+          {/* 模拟选课：加入待选清单主操作。未开模拟选课时显示灰色按钮，点击弹「是否开启」。 */}
+          {!simMode && (
+            <button
+              onClick={onRequestEnableSim}
+              title="模拟选课模式未开启，点击开启"
+              className="group w-full h-11 rounded-full font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors duration-200 active:scale-[0.98] bg-gray-100 text-gray-400 border border-gray-200 hover:bg-gray-200 hover:text-gray-500"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6" />
+              </svg>
+              <span>加入待选清单</span>
+            </button>
+          )}
           {simMode && (
             <button
               onClick={onToggleCart}
