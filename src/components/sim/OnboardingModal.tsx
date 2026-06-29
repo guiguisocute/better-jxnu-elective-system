@@ -131,6 +131,8 @@ export function OnboardingModal({
   // 导入页内的转专业暂存（apply 时随 importInputs 一起写入；抵扣计算在进入引导后由 useCreditPlan 处理）。
   const [editTransfer, setEditTransfer] = useState(false);
   const [editOriginalPlan, setEditOriginalPlan] = useState("");
+  const graduationOverflow = view.totalOverflow ?? 0;
+  const graduationOver = graduationOverflow > 0;
 
   // 第1步「从分享码开始」：粘贴码 → 解码 → 恢复整套方案。
   const [shareOpen, setShareOpen] = useState(false);
@@ -665,8 +667,13 @@ export function OnboardingModal({
                     </div>
                   ))}
                   <div className="pt-1.5 border-t border-gray-100 flex items-baseline justify-between">
-                    <span className="text-gray-500 text-[13px] font-semibold">毕业还差</span>
-                    <span className="font-black text-gray-800 text-[22px] leading-none">{view.totalRemaining ?? "?"}<span className="text-[12px] text-gray-400 font-medium"> 分</span></span>
+                    <span className="text-gray-500 text-[13px] font-semibold">
+                      {graduationOver ? "毕业超出" : "毕业还差"}
+                    </span>
+                    <span className={`font-black text-[22px] leading-none ${graduationOver ? "text-emerald-600" : "text-gray-800"}`}>
+                      {graduationOver ? graduationOverflow : view.totalRemaining ?? "?"}
+                      <span className="text-[12px] text-gray-400 font-medium"> 分</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -748,49 +755,52 @@ export function OnboardingModal({
                           key={c.cid}
                           onClick={onClick}
                           title={tip}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors ${boxCls}`}
+                          className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors overflow-hidden ${boxCls}`}
                         >
-                          <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${tickCls}`}>
+                          <span className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 ${tickCls}`}>
                             {active && <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                           </span>
-                          <span className={`min-w-0 text-[13px] truncate ${nameCls}`}>{c.name}</span>
-                          <span className="flex items-center gap-1 shrink-0">
-                            <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
-                              title="复制课程号"
-                              className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
-                                copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
-                              }`}
-                            >
-                              {copiedCid === c.cid ? (
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                              ) : (
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
-                              )}
-                            </button>
-                          </span>
-                          {/* 大学英语Ⅲ/Ⅳ：可用「大学英语特色课」1:1 抵扣 —— 显式说明 */}
-                          {/大学英语/.test(c.name) && /(Ⅲ|Ⅳ|III|IV|三|四)/.test(c.name) && (
-                            <span className="text-[10px] text-indigo-500 shrink-0" title="一门大学英语特色课可 1:1 抵扣一门大学英语Ⅲ/Ⅳ">（或大学英语特色课）</span>
-                          )}
-                          <span className="flex-1" />
-                          {isUnmatched && (
-                            <span className={`text-[9px] font-semibold rounded px-1 py-0.5 shrink-0 ${
-                              active ? "text-amber-700 bg-amber-100" : "text-amber-700 bg-amber-50 border border-amber-200"
-                            }`}>
-                              {active ? "转专业·已抵" : "转专业·缺口（勾选=已学分认证）"}
+                          <span className="min-w-0 flex-1 flex flex-col gap-1">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className={`min-w-0 flex-1 text-[13px] truncate ${nameCls}`}>{c.name}</span>
+                              <span className="text-[11px] font-bold text-gray-600 shrink-0">{c.credits}分</span>
                             </span>
-                          )}
-                          {isMatched && (
-                            <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 rounded px-1 py-0.5 shrink-0">转专业·已学分认证</span>
-                          )}
-                          {isReading && !isTransferEarly && (
-                            <span className="text-[9px] font-semibold text-sky-600 bg-sky-100 rounded px-1 py-0.5 shrink-0">本学期·仅理论</span>
-                          )}
-                          <span className="text-[10px] text-gray-400 font-mono shrink-0">{c.semester}</span>
-                          <span className="text-[11px] font-bold text-gray-600 shrink-0">{c.credits}分</span>
+                            <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                              <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                                title="复制课程号"
+                                className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                                  copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
+                                }`}
+                              >
+                                {copiedCid === c.cid ? (
+                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                ) : (
+                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                                )}
+                              </button>
+                              {/* 大学英语Ⅲ/Ⅳ：可用「大学英语特色课」1:1 抵扣 —— 显式说明 */}
+                              {/大学英语/.test(c.name) && /(Ⅲ|Ⅳ|III|IV|三|四)/.test(c.name) && (
+                                <span className="max-w-full text-[10px] text-indigo-500 whitespace-nowrap" title="一门大学英语特色课可 1:1 抵扣一门大学英语Ⅲ/Ⅳ">（或大学英语特色课）</span>
+                              )}
+                              {isUnmatched && (
+                                <span className={`text-[9px] font-semibold rounded px-1 py-0.5 ${
+                                  active ? "text-amber-700 bg-amber-100" : "text-amber-700 bg-amber-50 border border-amber-200"
+                                }`}>
+                                  {active ? "转专业·已抵" : "转专业·缺口（勾选=已学分认证）"}
+                                </span>
+                              )}
+                              {isMatched && (
+                                <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 rounded px-1 py-0.5">转专业·已学分认证</span>
+                              )}
+                              {isReading && !isTransferEarly && (
+                                <span className="text-[9px] font-semibold text-sky-600 bg-sky-100 rounded px-1 py-0.5">本学期·仅理论</span>
+                              )}
+                              <span className="text-[10px] text-gray-400 font-mono">{c.semester}</span>
+                            </span>
+                          </span>
                         </button>
                       );
                     })
