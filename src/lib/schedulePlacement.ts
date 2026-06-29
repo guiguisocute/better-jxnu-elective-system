@@ -216,7 +216,9 @@ export function buildPlacement(
 /**
  * 校对：把一门导入课程对应到正式开课数据里的同一个班级，返回它的 optionKey（"班级名|教号"）。
  * 优先取 preferredSem（规划学期）的开课，缺则取最近学期。匹配优先级：
- *   教师名 + 时段都吻合 > 时段签名吻合 > 教师名吻合。都不中返回 null（让排班退回默认第一个班）。
+ *   教学班名(className)完全吻合 > 教师名 + 时段都吻合 > 时段签名吻合 > 教师名吻合。
+ * className 最权威：同教师/同时段的「合班」只能靠它区分；且当导入快照缺时段时（仅有教学班名+教师），
+ * 退回教师名会错配到同教师的第一个班（如把「合班吴郁琴.2班」错配成 .1班）。都不中返回 null。
  */
 export function matchImportedSection(
   formalSections: FormalSection[],
@@ -228,8 +230,21 @@ export function matchImportedSection(
   if (all.length === 0) return null;
   const sems = [...new Set(all.map((s) => s.semester))];
   const sem = preferredSem && sems.includes(preferredSem) ? preferredSem : [...sems].sort().at(-1)!;
-  const inSem = all.filter((s) => s.semester === sem && parseSchedule(s.schedule).length > 0);
-  if (inSem.length === 0) return null;
+  // 教学班名匹配不要求 section 有可解析时段（合班课的某些班时段可能缺失）；
+  // 其余按时段/教师匹配的仍要求有时段，避免落到空时段班。
+  const inSem = all.filter((s) => s.semester === sem);
+  const inSemTimed = inSem.filter((s) => parseSchedule(s.schedule).length > 0);
+
+  // 1) 教学班名完全吻合（最权威）。
+  const wantClasses = new Set(
+    items.map((x) => x.className?.trim()).filter((v): v is string => !!v),
+  );
+  if (wantClasses.size > 0) {
+    const byClass = inSem.find((s) => !!s.className && wantClasses.has(s.className.trim()));
+    if (byClass) return optionKey(byClass);
+  }
+
+  if (inSemTimed.length === 0) return null;
 
   const wantTeachers = new Set(
     (uniqueText(items.map((x) => x.teacher)) ?? "").split(" / ").map((t) => t.trim()).filter(Boolean),
@@ -239,11 +254,12 @@ export function matchImportedSection(
     wantTeachers.size > 0 && !!s.teacher && s.teacher.split(" / ").some((t) => wantTeachers.has(t.trim()));
   const sigEq = (s: FormalSection) => slotSignature(parseSchedule(s.schedule)) === wantSig;
 
-  const both = inSem.find((s) => teacherEq(s) && sigEq(s));
+  // 2) 教师 + 时段，3) 时段，4) 教师。
+  const both = inSemTimed.find((s) => teacherEq(s) && sigEq(s));
   if (both) return optionKey(both);
-  const bySig = inSem.find(sigEq);
+  const bySig = inSemTimed.find(sigEq);
   if (bySig) return optionKey(bySig);
-  const byTeacher = inSem.find(teacherEq);
+  const byTeacher = inSemTimed.find(teacherEq);
   if (byTeacher) return optionKey(byTeacher);
   return null;
 }

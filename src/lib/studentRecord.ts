@@ -9,6 +9,8 @@ export interface StudentScheduleItem {
   courseId: string;
   courseName: string;
   teacher?: string;
+  /** 教学班名（如「合班吴郁琴.2班」），与 formal_sections.className 同口径；校对真实班级最权威。 */
+  className?: string;
   classroom?: string;
   schedule?: string;
   credits?: number;
@@ -108,6 +110,7 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
       courseId: str(o.courseId ?? o.kch ?? o.课程号),
       courseName: str(o.courseName ?? o.kcmc ?? o.课程名称),
       teacher: str(o.teacher ?? o.js ?? o.教师) || undefined,
+      className: str(o.className ?? o.teachingClass ?? o.教学班) || undefined,
       classroom: str(o.classroom ?? o.js ?? o.教室) || undefined,
       schedule: str(o.schedule ?? o.sksj ?? o.上课时间) || undefined,
       credits: o.credits != null ? num(o.credits) : undefined,

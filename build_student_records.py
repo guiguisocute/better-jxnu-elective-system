@@ -487,6 +487,9 @@ def main():
                 "courseId": cno,
                 "courseName": str(item.get("courseName") or "").strip(),
                 "teacher": str(item.get("teacher") or "").strip() or None,
+                # 教学班名（如「合班吴郁琴.2班」）：与 formal_sections.className 同口径，
+                # 是校对真实班级的最权威依据（同教师/同时段的合班只能靠它区分）。
+                "className": str(item.get("teachingClass") or "").strip() or None,
                 "classroom": str(item.get("location") or "").strip() or None,
                 "schedule": fmt_schedule(item) or None,
                 "credits": credit_of.get(cno),
