@@ -25,7 +25,7 @@
 
 </div>
 
-## ✨ 功能
+## 功能
 
 - **三阶段课程视图** — 预选 / 正选 / 补退选一键切换，支持多学期浏览
 - **多维筛选** — 课程类型 / 学分 / 开课单位 / 标签 / 教师 / 教室，包含与排除双模式
@@ -34,10 +34,10 @@
 - **模拟选课 & 毕业核算** — 待选清单、周课表排班、必修/选修学分实时清算（ECharts 环图）
 - **学号一键导入** — 去标识化拉取已修档案，自动回填学期/学分/已修限选并校对本学期课表
 - **方案分享码** — 无需后端，压缩编码即可分享整套模拟选课方案
-- **教师评分** — 半星步长、五星展示、匿名打分，挑课不靠运气
+- **教师评分** — 匿名打分，挑课不靠运气
 - **响应式布局** — 桌面端三栏 / 移动端单栏自适应，支持浅色 / 深色主题
 
-## 🚀 开发
+## 开发
 
 ```bash
 npm install
@@ -46,9 +46,9 @@ npm run build      # tsc -b 类型检查 + Vite 构建
 npm run lint       # ESLint 检查
 ```
 
-## 🗂️ 数据更新
+## 数据更新
 
-课程数据由 build-time Python 流水线生成（分层、幂等、无状态）：
+课程数据由 build-time Python 流水线生成：
 
 ```bash
 python build_data.py   # 由 data/master_raw + data/semesters/<sem>/raw 生成 public/*.json
@@ -56,10 +56,10 @@ python build_data.py   # 由 data/master_raw + data/semesters/<sem>/raw 生成 p
 
 完整的每学期更新 SOP 与字段优先级表见 [`data/ARCHITECTURE.md`](data/ARCHITECTURE.md)。
 
-## ☁️ 部署
+## 部署
 
 前端托管于 **Cloudflare Pages**（从 `main` 分支自动部署）；教师评分与学号档案存于 **Cloudflare D1**，通过 Pages Functions（`functions/api/`）读写。
 
-## 🧱 技术栈
+## 技术栈
 
 React 19 · TypeScript 6 · Vite 8 · Tailwind CSS 4 · React Router 7 · Apache ECharts 6 · ESLint 10 · Cloudflare Pages Functions + D1 · Python 数据流水线

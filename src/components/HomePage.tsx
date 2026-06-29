@@ -857,7 +857,11 @@ export function HomePage() {
                 disabled={!quickRatingReady}
                 title={quickRatingReady ? (quickRatingActive ? "取消只看上学期课程" : `评价 ${quickRatingSemester} 上学期课程`) : quickRatingDisabledReason}
                 className={`md:hidden shrink-0 h-8 rounded-lg px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
-                  quickRatingReady ? "bg-white/20 text-white hover:bg-white/30" : "bg-white/10 text-white/45 cursor-not-allowed"
+                  !quickRatingReady
+                    ? "bg-white/10 text-white/45 cursor-not-allowed"
+                    : quickRatingActive
+                    ? "bg-white text-red-600"
+                    : "bg-white/20 text-white hover:bg-white/30"
                 }`}
               >
                 <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
@@ -1217,7 +1221,8 @@ export function HomePage() {
             dataSource={dataSource}
             onChangeDataSource={(v) => {
               setDataSource(v);
-              if (v !== "formal") setQuickRatingActive(false);
+              // 任意点击数据源 tab（含已选中的红色「正选」）都退出快速评价，回到正常列表。
+              setQuickRatingActive(false);
             }}
             formalGroups={paginatedFormalGroups}
             defaultExpandFormal={shouldAutoExpandFormal}
