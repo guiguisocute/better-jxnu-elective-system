@@ -1,0 +1,11 @@
+[Unit]
+Description=JXNU 开课安排安全增量同步 (scrape Public_Kkap -> build -> push)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/better-jxnu-elective-system
+ExecStart=%h/better-jxnu-elective-system/deploy/sync-schedule.sh
+# git push 走 deploy key；如仓库用 SSH remote，确保 ~/.ssh/id_ed25519 可用
+Environment=GIT_SSH_COMMAND=ssh -i %h/.ssh/id_ed25519 -o IdentitiesOnly=yes

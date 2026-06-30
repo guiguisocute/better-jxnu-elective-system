@@ -1,0 +1,10 @@
+[Unit]
+Description=每 2 小时同步一次 JXNU 开课安排（选课季可调密）
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=2h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
