@@ -27,7 +27,7 @@
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now kkap-realtime.service
-loginctl enable-linger "$USER"
+sudo loginctl enable-linger "$USER"
 curl http://127.0.0.1:8787/healthz
 ```
 
@@ -41,7 +41,19 @@ curl http://127.0.0.1:8787/healthz
 
 ## 域名与反代
 
-Caddy 配置见 `deploy/Caddyfile.getxk`。需要开放 VPS 的 TCP 80/443。
+Caddy 配置见 `deploy/Caddyfile.getxk`。Debian VPS 首次部署：
+
+```bash
+sudo apt-get install -y caddy
+sudo install -o root -g root -m 0644 Caddyfile /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 443/udp
+sudo systemctl restart caddy
+```
+
+TCP 80/443 用于 HTTP/HTTPS 和自动签发证书，UDP 443 用于 HTTP/3。
 
 在 Cloudflare 为 `jxnu-publish.asia` 新增记录：
 
@@ -49,7 +61,7 @@ Caddy 配置见 `deploy/Caddyfile.getxk`。需要开放 VPS 的 TCP 80/443。
 Type: A
 Name: getxk
 IPv4: 38.76.188.214
-Proxy: Proxied（橙云）
+Proxy: 首次签发证书时 DNS only（灰云）；验证 HTTPS 后可切换 Proxied（橙云）
 TTL: Auto
 ```
 
