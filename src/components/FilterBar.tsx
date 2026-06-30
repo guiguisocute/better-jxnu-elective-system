@@ -107,6 +107,13 @@ export function FilterBar({
         )}
       </FilterSection>
 
+      {showRemainingFilter && (
+        <RemainingToggle
+          active={filters.remaining === "available"}
+          onClick={() => updateFilter("remaining", filters.remaining === "available" ? "all" : "available")}
+        />
+      )}
+
       <FilterSection
         label="课程类型"
         activeCount={filters.type.length + filters.typeExclude.length}
@@ -183,31 +190,6 @@ export function FilterBar({
               >{t}</FilterBtn>
             ))}
           </div>
-        </FilterSection>
-      )}
-
-      {showRemainingFilter && (
-        <FilterSection
-          label="余量"
-          activeCount={filters.remaining !== "all" ? 1 : 0}
-          onClear={() => updateFilter("remaining", "all")}
-        >
-          <div className="flex flex-wrap gap-1.5">
-            {([
-              ["all", "全部"],
-              ["available", "有余量"],
-              ["ample", "余量充足"],
-            ] as const).map(([value, label]) => (
-              <FilterBtn
-                key={value}
-                state={filters.remaining === value ? "include" : "none"}
-                onClick={() => updateFilter("remaining", value)}
-              >{label}</FilterBtn>
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
-            按实时已选人数算余量；人数未发布的班级在「有余量」下保留、「充足」下隐藏。
-          </p>
         </FilterSection>
       )}
 
@@ -399,6 +381,29 @@ function HideTakenToggle({ enabled, active, onClick }: { enabled: boolean; activ
       }`}
     >
       <span className={labelCls}>隐藏已修课程</span>
+      <span className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${trackCls}`}>
+        <span
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-brand-fg shadow-sm transition-transform duration-200 ease-out ${
+            active ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+function RemainingToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
+  const trackCls = active ? "bg-brand" : "bg-gray-300";
+  const labelCls = active ? "text-red-600 font-semibold" : "text-gray-600";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title="按实时人数隐藏已确认满员的班级；人数或容量未知的班级仍会保留"
+      className="w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs transition-colors select-none min-h-[36px] hover:bg-gray-50"
+    >
+      <span className={labelCls}>仅看有余量</span>
       <span className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${trackCls}`}>
         <span
           className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-brand-fg shadow-sm transition-transform duration-200 ease-out ${

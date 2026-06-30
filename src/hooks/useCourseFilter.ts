@@ -30,6 +30,8 @@ function loadSaved(): { filters: Filters; page: number; sortAsc: boolean } {
       const filters: Filters = { ...EMPTY_FILTERS, ...saved.filters };
       // 归一化已废弃的 planFilter "exclude" 历史值 → "none"。
       if ((filters.planFilter as string) === "exclude") filters.planFilter = "none";
+      // 旧版「余量充足」三态已收敛为一个「仅看有余量」开关。
+      if ((filters.remaining as string) === "ample") filters.remaining = "available";
       return {
         filters,
         page: saved.page ?? 1,
@@ -50,6 +52,7 @@ export function useCourseFilter(
 
   const [sortAsc, setSortAsc] = useState(saved.sortAsc);
   const [ratingSortAsc, setRatingSortAsc] = useState<boolean | null>(null);
+  const [enrollmentSortAsc, setEnrollmentSortAsc] = useState<boolean | null>(null);
   const [page, setPage] = useState(saved.page);
   const [pageSize] = useState(50);
 
@@ -268,6 +271,8 @@ export function useCourseFilter(
     setSortAsc,
     ratingSortAsc,
     setRatingSortAsc,
+    enrollmentSortAsc,
+    setEnrollmentSortAsc,
     hasActiveFilters,
   };
 }

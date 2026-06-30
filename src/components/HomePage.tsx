@@ -573,15 +573,12 @@ export function HomePage() {
     let result = schedule.active
       ? contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter))
       : contentFilteredSections;
-    const mode = filter.filters.remaining;
-    if (mode !== "all") {
+    if (filter.filters.remaining === "available") {
       result = result.filter((s) => {
         const enrolled = liveEnrollment.getEnrollment(s);
-        // 人数或容量未知 → 无法判定余量。"available" 保留（不误杀），"ample" 要求确凿充足故剔除。
-        if (enrolled == null || s.capacity == null) return mode === "available";
-        const rem = s.capacity - enrolled;
-        if (mode === "available") return rem > 0;
-        return rem > 5 && rem / s.capacity > 0.2; // ample：与徽章绿色档对齐
+        // 人数或容量未知 → 无法判定，保留以免误杀；已确认满员的班级隐藏。
+        if (enrolled == null || s.capacity == null) return true;
+        return s.capacity - enrolled > 0;
       });
     }
     return result;
@@ -599,8 +596,8 @@ export function HomePage() {
     return counts;
   }, [contentFilteredSections]);
 
-  // 正选/补退选的排序：复用预选的 sortAsc / ratingSortAsc 状态，行为一致。
-  // 评分排序优先级高于学分；ratingSortAsc === null 时退回学分排序。
+  // 正选/补退选排序：已选/容量按「余量 = 容量 - 已选」排；评分与学分沿用原口径。
+  // 实时快照更新会替换 getEnrollment，触发这里重新分组和排序。
   // 评分用 section 教师的具体分（getTeacherAvg），与列表显示口径一致 —— 不能用课程平均（getCourseAvg），
   // 否则同课不同老师的几行排序会完全一样、且与单元格显示的星数对不上。
   // 同课程号折叠：按 s.id 分组 → 组内排序 → 组间排序。
@@ -620,6 +617,15 @@ export function HomePage() {
 
   const formalGroupsAll = useMemo<FormalGroup[]>(() => {
     const cmpSections = (a: FormalSection, b: FormalSection) => {
+      if (filter.enrollmentSortAsc !== null) {
+        const aEnrolled = liveEnrollment.getEnrollment(a);
+        const bEnrolled = liveEnrollment.getEnrollment(b);
+        const aRemaining = aEnrolled == null || a.capacity == null ? null : a.capacity - aEnrolled;
+        const bRemaining = bEnrolled == null || b.capacity == null ? null : b.capacity - bEnrolled;
+        if (aRemaining === null) return bRemaining === null ? 0 : 1;
+        if (bRemaining === null) return -1;
+        if (aRemaining !== bRemaining) return filter.enrollmentSortAsc ? aRemaining - bRemaining : bRemaining - aRemaining;
+      }
       if (filter.ratingSortAsc !== null) {
         const aAvg = getTeacherAvg(a.id, a.teacherId)?.avg ?? -1;
         const bAvg = getTeacherAvg(b.id, b.teacherId)?.avg ?? -1;
@@ -642,6 +648,7 @@ export function HomePage() {
     }
     const sortSections = (arr: FormalSection[]) =>
       [...arr].sort((a, b) => {
+        if (filter.enrollmentSortAsc !== null) return cmpSections(a, b) || a.className.localeCompare(b.className);
         if (filter.ratingSortAsc !== null) {
           const aAvg = getTeacherAvg(a.id, a.teacherId)?.avg ?? -1;
           const bAvg = getTeacherAvg(b.id, b.teacherId)?.avg ?? -1;
@@ -654,17 +661,33 @@ export function HomePage() {
       groups.push({ id, course: coursesById.get(id), sections: sortSections(arr) });
     }
     const groupKey = (g: FormalGroup): number => {
+      if (filter.enrollmentSortAsc !== null) {
+        const known = g.sections
+          .map((s) => {
+            const enrolled = liveEnrollment.getEnrollment(s);
+            return enrolled == null || s.capacity == null ? null : s.capacity - enrolled;
+          })
+          .filter((value): value is number => value !== null);
+        if (known.length === 0) return Number.NaN;
+        return filter.enrollmentSortAsc ? Math.min(...known) : Math.max(...known);
+      }
       if (filter.ratingSortAsc !== null) {
         return Math.max(...g.sections.map((s) => getTeacherAvg(s.id, s.teacherId)?.avg ?? -1));
       }
       return g.sections[0]?.credits ?? 0;
     };
     return groups.sort((a, b) => {
-      const cmp = groupKey(a) - groupKey(b);
-      const asc = filter.ratingSortAsc !== null ? filter.ratingSortAsc : filter.sortAsc;
+      const aKey = groupKey(a);
+      const bKey = groupKey(b);
+      if (Number.isNaN(aKey)) return Number.isNaN(bKey) ? 0 : 1;
+      if (Number.isNaN(bKey)) return -1;
+      const cmp = aKey - bKey;
+      const asc = filter.enrollmentSortAsc !== null
+        ? filter.enrollmentSortAsc
+        : filter.ratingSortAsc !== null ? filter.ratingSortAsc : filter.sortAsc;
       return asc ? cmp : -cmp;
     });
-  }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, getTeacherAvg, coursesById, foldGroups]);
+  }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, filter.enrollmentSortAsc, getTeacherAvg, liveEnrollment.getEnrollment, coursesById, foldGroups]);
 
   // 正选/补退选独立分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
   // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。
@@ -1242,6 +1265,8 @@ export function HomePage() {
             setSortAsc={filter.setSortAsc}
             ratingSortAsc={filter.ratingSortAsc}
             setRatingSortAsc={filter.setRatingSortAsc}
+            enrollmentSortAsc={filter.enrollmentSortAsc}
+            setEnrollmentSortAsc={filter.setEnrollmentSortAsc}
             stickyTop={tableStickyTop}
             getCourseAvg={getCourseAvg}
             getTeacherAvg={getTeacherAvg}

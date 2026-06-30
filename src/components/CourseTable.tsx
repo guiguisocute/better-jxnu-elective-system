@@ -23,6 +23,8 @@ interface Props {
   setSortAsc: (v: boolean) => void;
   ratingSortAsc: boolean | null;
   setRatingSortAsc: (v: boolean | null) => void;
+  enrollmentSortAsc: boolean | null;
+  setEnrollmentSortAsc: (v: boolean | null) => void;
   stickyTop?: number;
   getCourseAvg?: (courseId: string) => number | null;
   /** 正选/补退选行用：按 (课程, 老师) 取该 section 教师的评分；预选行仍用 getCourseAvg（课程平均）。 */
@@ -672,6 +674,7 @@ const FormalGroupCard = memo(function FormalGroupCard({ group, expanded, onToggl
 
 export function CourseTable({
   courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc,
+  enrollmentSortAsc, setEnrollmentSortAsc,
   stickyTop = 0, getCourseAvg, getTeacherAvg, selectedPlan = "",
   getEnrollment, isEnrollmentChanged, liveEnrollmentStatus,
   dataSource, onChangeDataSource,
@@ -712,15 +715,23 @@ export function CourseTable({
   const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);
   const handleSort = () => {
     setRatingSortAsc(null);
+    setEnrollmentSortAsc(null);
     setSortAsc(!sortAsc);
   };
 
   const handleRatingSort = () => {
+    setEnrollmentSortAsc(null);
     if (ratingSortAsc === null) {
       setRatingSortAsc(false);
     } else {
       setRatingSortAsc(!ratingSortAsc);
     }
+  };
+
+  const handleEnrollmentSort = () => {
+    setRatingSortAsc(null);
+    // 首次点击默认余量从多到少；再次点击切为从少到多。
+    setEnrollmentSortAsc(enrollmentSortAsc === null ? false : !enrollmentSortAsc);
   };
 
   // 正选 + 补退选 共用 formal 列布局与数据源（暂用同一份 JSON）
@@ -856,6 +867,24 @@ export function CourseTable({
                             <span className={ratingSortAsc !== null ? "text-red-500" : "text-gray-400"}>{ratingSortAsc === null ? "↕" : ratingSortAsc ? "↑" : "↓"}</span>
                           </span>
                           <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
+                        </th>
+                      );
+                    }
+                    if (h === "已选/容量") {
+                      return (
+                        <th
+                          key={h}
+                          onClick={handleEnrollmentSort}
+                          className="px-3 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
+                          title="按剩余名额排序"
+                        >
+                          <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                            enrollmentSortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
+                          }`}>
+                            已选/容量
+                            <span className={enrollmentSortAsc !== null ? "text-red-500" : "text-gray-400"}>{enrollmentSortAsc === null ? "↕" : enrollmentSortAsc ? "↑" : "↓"}</span>
+                          </span>
+                          <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${enrollmentSortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
                         </th>
                       );
                     }
@@ -1088,23 +1117,55 @@ export function CourseTable({
               <p className="text-xs mt-1 text-gray-400">请调整筛选条件或切换学期</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {formalGroups.map((g) => {
-                if (g.sections.length === 1) {
-                  return <FormalSectionCard key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
-                }
-                const expanded = isGroupExpanded(g.id);
-                return (
-                  <FormalGroupCard
-                    key={`grp-${g.id}-${expanded ? "open" : "closed"}`}
-                    group={g}
-                    expanded={expanded}
-                    onToggle={toggleFormalGroup}
-                    rowProps={rowProps}
-                  />
-                );
-              })}
-            </div>
+            <>
+              <div className="flex items-center gap-2 pb-2.5 px-1 bg-page">
+                <span className="text-[11px] text-gray-400 shrink-0">排序</span>
+                <button
+                  type="button"
+                  onClick={handleSort}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                    ratingSortAsc === null && enrollmentSortAsc === null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  学分 <span className="text-[10px]">{sortAsc ? "↑" : "↓"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEnrollmentSort}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                    enrollmentSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  余量 <span className="text-[10px]">{enrollmentSortAsc === null ? "↕" : enrollmentSortAsc ? "↑" : "↓"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRatingSort}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                    ratingSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  评分 {ratingSortAsc !== null && <span className="text-[10px]">{ratingSortAsc ? "↑" : "↓"}</span>}
+                </button>
+              </div>
+              <div className="space-y-2">
+                {formalGroups.map((g) => {
+                  if (g.sections.length === 1) {
+                    return <FormalSectionCard key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
+                  }
+                  const expanded = isGroupExpanded(g.id);
+                  return (
+                    <FormalGroupCard
+                      key={`grp-${g.id}-${expanded ? "open" : "closed"}`}
+                      group={g}
+                      expanded={expanded}
+                      onToggle={toggleFormalGroup}
+                      rowProps={rowProps}
+                    />
+                  );
+                })}
+              </div>
+            </>
           )
         ) : courses.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-gray-400">

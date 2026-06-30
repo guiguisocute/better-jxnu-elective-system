@@ -112,11 +112,6 @@ export interface Filters {
   planFilter: "none" | "include";
   /** 隐藏已修课程（仅模拟选课开启时可用，依赖 useCreditPlan 派生的 takenCids）。 */
   hideTaken: boolean;
-  /**
-   * 余量筛选（仅正选/补退选 + 有实时人数时生效）。余量 = 容量 − 实时已选人数。
-   * - "all":       不筛（默认）
-   * - "available": 仅看有余量（隐藏已确认满员的班；人数/容量未知的保留）
-   * - "ample":     仅看余量充足（剩余 > 5 且 > 20%，与徽章绿色档对齐）
-   */
-  remaining: "all" | "available" | "ample";
+  /** 仅看有余量（正选/补退选 + 有实时人数时生效；未知人数/容量的班级保留）。 */
+  remaining: "all" | "available";
 }
