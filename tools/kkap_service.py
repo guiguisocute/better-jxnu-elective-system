@@ -156,7 +156,7 @@ def main() -> None:
         origin.strip()
         for origin in os.environ.get(
             "KKAP_ALLOWED_ORIGINS",
-            "https://test.better-jxnu-elective-system.pages.dev,http://localhost:5173,http://127.0.0.1:5173",
+            "https://xk.jxnu-publish.asia,https://test.better-jxnu-elective-system.pages.dev,http://localhost:5173,http://127.0.0.1:5173",
         ).split(",")
         if origin.strip()
     }

@@ -42,7 +42,7 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
   const labelClass = updated ? "text-emerald-600 font-semibold" : "text-gray-400";
   return (
     <div
-      className={`${compact ? "w-[112px]" : "w-[138px]"} shrink-0`}
+      className={`${compact ? "w-[128px]" : "w-[138px]"} shrink-0`}
       role="status"
       title={status.error ? `实时人数服务：${status.error}` : "实时人数与后端刷新节奏同步（约每 30 秒）"}
     >
@@ -51,7 +51,8 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
           <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
           实时人数
         </span>
-        {!compact && <span className={`tabular-nums ${labelClass}`}>{view.label}</span>}
+        {/* 紧凑(移动端)平时只留圆点省版面，但「已更新 N 条」这种绿色更新提示必须露出来让用户感知。 */}
+        {(!compact || updated) && <span className={`tabular-nums whitespace-nowrap ${labelClass}`}>{view.label}</span>}
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-gray-100">
         <div
