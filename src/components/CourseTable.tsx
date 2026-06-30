@@ -8,9 +8,12 @@ import { DataSourceSwitcher } from "./DataSourceSwitcher";
 import { SemesterSelector } from "./SemesterSelector";
 import { FeatureHints } from "./FeatureHints";
 import { QuickRatingPanel } from "./QuickRatingPanel";
+import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
+import { LiveEnrollmentIndicator } from "./LiveEnrollmentIndicator";
 import { isTestSemester } from "../lib/term";
 import { normalizePeriods, unselectedIncludeSlots, slotLabel } from "../lib/scheduleParse";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
+import type { LiveEnrollmentStatus } from "../lib/liveEnrollments";
 
 interface Props {
   courses: Course[];
@@ -24,6 +27,9 @@ interface Props {
   getCourseAvg?: (courseId: string) => number | null;
   /** 正选/补退选行用：按 (课程, 老师) 取该 section 教师的评分；预选行仍用 getCourseAvg（课程平均）。 */
   getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
+  /** 正选/补退选：读取 VPS 实时授课人数；容量仍来自静态 FormalSection。 */
+  getEnrollment?: (section: FormalSection) => number | null;
+  liveEnrollmentStatus?: LiveEnrollmentStatus;
   /** 选中的培养方案 key。空串表示未选 —— 此时不做高亮也不裁剪 tag。 */
   selectedPlan?: string;
   /** 数据源（预选 / 正选 / 补退选）。 */
@@ -214,7 +220,7 @@ function getCreditColor(credits: number): string {
 
 const FORMAL_HEADERS = [
   "课程号", "课程名称", "学分", "开课学院", "标签",
-  "任课教师", "上课时间", "班级名称", "教室代号", "容量", "评分",
+  "任课教师", "上课时间", "班级名称", "教室代号", "已选/容量", "评分",
 ];
 
 const DESKTOP_TOOLBAR_HEIGHT = 50;
@@ -227,6 +233,8 @@ interface RowShared {
   scheduleFilter?: ScheduleFilterMap;
   selectedSectionKey?: string | null;
   getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
+  getEnrollment?: (section: FormalSection) => number | null;
+  enrollmentStale?: boolean;
   onSelectSection?: (s: FormalSection) => void;
 }
 
@@ -332,7 +340,7 @@ const FormalSectionMoreCard = memo(function FormalSectionMoreCard({
   );
 });
 
-const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
+const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -393,7 +401,9 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
       <td className="px-3 py-3 text-xs text-gray-500 font-mono border-b border-gray-50 whitespace-nowrap">
         <span className="block truncate" title={s.classroom}>{s.classroom || "—"}</span>
       </td>
-      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50 whitespace-nowrap">{s.capacity ?? "—"}</td>
+      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50 whitespace-nowrap">
+        <EnrollmentCapacityBadge enrolled={getEnrollment?.(s) ?? null} capacity={s.capacity} stale={enrollmentStale} />
+      </td>
       <td className="px-3 py-3 border-b border-gray-50 whitespace-nowrap">
         {(() => {
           const avg = getTeacherAvg?.(s.id, s.teacherId)?.avg ?? null;
@@ -512,7 +522,7 @@ const FormalGroupFragment = memo(function FormalGroupFragment({ group, expanded,
 });
 
 // 一张「班级」卡（mobile）。
-const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }: RowShared & { s: FormalSection }) {
+const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, onSelectSection }: RowShared & { s: FormalSection }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -557,6 +567,9 @@ const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, cou
           </InfoRow>
         )}
         {s.classroom && <InfoRow icon={<RoomIcon />} label="教室">{s.classroom}</InfoRow>}
+        <InfoRow icon={<ClassIcon />} label="人数">
+          <EnrollmentCapacityBadge enrolled={getEnrollment?.(s) ?? null} capacity={s.capacity} stale={enrollmentStale} />
+        </InfoRow>
       </div>
       <div className="mt-2">
         <StarRating rating={getTeacherAvg?.(s.id, s.teacherId)?.avg ?? null} />
@@ -632,6 +645,7 @@ const FormalGroupCard = memo(function FormalGroupCard({ group, expanded, onToggl
 export function CourseTable({
   courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc,
   stickyTop = 0, getCourseAvg, getTeacherAvg, selectedPlan = "",
+  getEnrollment, liveEnrollmentStatus,
   dataSource, onChangeDataSource,
   formalGroups = [], defaultExpandFormal = false, formalAvailable = false, formalLoading = false,
   allSemesters = [], selectedSemester = "", onChangeSemester,
@@ -658,8 +672,11 @@ export function CourseTable({
     }), [defaultExpandFormal]);
   // 行/卡片共享 props 收敛为稳定对象 —— 配合 memo 让「切换一个组」只重渲染该组，不波及其余 50 组。
   const rowProps = useMemo(
-    () => ({ selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection }),
-    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, onSelectSection],
+    () => ({
+      selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg,
+      getEnrollment, enrollmentStale: liveEnrollmentStatus?.stale, onSelectSection,
+    }),
+    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, liveEnrollmentStatus?.stale, onSelectSection],
   );
   // formal 列表里所有班级（扁平），供空态判断（替代旧 formalSections）。
   const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);
@@ -733,14 +750,17 @@ export function CourseTable({
               <span className="truncate">此表数据仅供功能测试，{selectedSemester}开课安排暂未发布，请注意</span>
             </div>
           )}
-          {onChangeSemester && (
-            <SemesterSelector
-              value={selectedSemester}
-              onChange={onChangeSemester}
-              options={allSemesters}
-              isFormalView={isFormal}
-            />
-          )}
+          <div className="flex items-center gap-3">
+            {isFormal && liveEnrollmentStatus && <LiveEnrollmentIndicator status={liveEnrollmentStatus} />}
+            {onChangeSemester && (
+              <SemesterSelector
+                value={selectedSemester}
+                onChange={onChangeSemester}
+                options={allSemesters}
+                isFormalView={isFormal}
+              />
+            )}
+          </div>
         </div>
 
         {/* 快速评价：使用独立精简面板，避免回到完整选课表心智。 */}
@@ -755,7 +775,7 @@ export function CourseTable({
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               {/* 列宽（顺序）：课程号8 / 课程名称14 / 学分5 / 开课学院10 / 标签14 /
-                 任课教师8 / 上课时间10 / 班级名称12 / 教室代号7 / 容量5 / 评分7 (%)。
+                 任课教师8 / 上课时间10 / 班级名称12 / 教室代号7 / 已选容量5 / 评分7 (%)。
                  注意：<colgroup> 只能含 <col>，行内注释会产生空白文本节点告警，勿加。 */}
               <colgroup>
                 <col style={{ width: "8%" }} />
@@ -999,8 +1019,9 @@ export function CourseTable({
       {/* ===== 移动端 ===== */}
       <div className="md:hidden">
         {/* Mobile toolbar: 数据源切换 */}
-        <div className="flex items-center justify-between px-1 pt-1 pb-2.5 bg-page">
+        <div className="flex items-center justify-between gap-3 px-1 pt-1 pb-2.5 bg-page">
           <DataSourceSwitcher value={dataSource} onChange={onChangeDataSource} />
+          {isFormal && liveEnrollmentStatus && <LiveEnrollmentIndicator status={liveEnrollmentStatus} compact />}
         </div>
 
         {/* Mobile semester selector */}

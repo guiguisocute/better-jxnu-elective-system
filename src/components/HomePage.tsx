@@ -9,6 +9,7 @@ import { useChosenSections } from "../hooks/useChosenSections";
 import { useCreditPlan } from "../hooks/useCreditPlan";
 import { usePlanCourses } from "../hooks/usePlanCourses";
 import { useScheduleFilter } from "../hooks/useScheduleFilter";
+import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
 import { sectionMatchesSchedule, parseSchedule } from "../lib/scheduleParse";
 import { buildPlacement } from "../lib/schedulePlacement";
 import { termToCalLabel, enrollYear } from "../lib/term";
@@ -16,6 +17,7 @@ import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
 import { isPassed } from "../lib/studentRecord";
+import { LIVE_ENROLLMENT_SEMESTER } from "../lib/liveEnrollments";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { ScheduleFilter } from "./ScheduleFilter";
@@ -646,6 +648,11 @@ export function HomePage() {
   }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, getTeacherAvg, coursesById, foldGroups]);
 
   const isFormalMode = dataSource !== "pre";
+  const liveEnrollment = useLiveEnrollments(
+    formal.sections,
+    selectedSemester,
+    isFormalMode && selectedSemester === LIVE_ENROLLMENT_SEMESTER,
+  );
 
   // 正选/补退选独立分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
   // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。
@@ -1121,6 +1128,8 @@ export function HomePage() {
               onToggleCart={() => handleToggleCartSection(mobileSection)}
               onSwitchChosenSection={() => chosenSections.choose(mobileSection.id, `${mobileSection.className}|${mobileSection.teacherId}`)}
               onRequestEnableSim={() => setEnableSimPrompt(true)}
+              enrolled={liveEnrollment.getEnrollment(mobileSection)}
+              enrollmentStale={liveEnrollment.status.stale}
             />
           ) : null}
         </div>
@@ -1221,6 +1230,8 @@ export function HomePage() {
             stickyTop={tableStickyTop}
             getCourseAvg={getCourseAvg}
             getTeacherAvg={getTeacherAvg}
+            getEnrollment={liveEnrollment.getEnrollment}
+            liveEnrollmentStatus={liveEnrollment.status}
             selectedPlan={filter.filters.plan}
             dataSource={dataSource}
             onChangeDataSource={(v) => {
@@ -1309,6 +1320,8 @@ export function HomePage() {
               onToggleCart={() => handleToggleCartSection(selectedSection)}
               onSwitchChosenSection={() => chosenSections.choose(selectedSection.id, `${selectedSection.className}|${selectedSection.teacherId}`)}
               onRequestEnableSim={() => setEnableSimPrompt(true)}
+              enrolled={liveEnrollment.getEnrollment(selectedSection)}
+              enrollmentStale={liveEnrollment.status.stale}
             />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 px-8">

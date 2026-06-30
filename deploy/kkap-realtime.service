@@ -1,0 +1,17 @@
+[Unit]
+Description=JXNU public enrollment snapshot service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/apps/jxnu-kkap
+EnvironmentFile=%h/apps/jxnu-kkap/kkap.env
+ExecStart=/usr/bin/python3 %h/apps/jxnu-kkap/kkap_service.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

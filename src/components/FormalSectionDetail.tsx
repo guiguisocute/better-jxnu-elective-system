@@ -9,6 +9,7 @@ import { StarRating } from "./StarRating";
 import { StarRatingInput } from "./StarRatingInput";
 import { ConfirmModal } from "./ConfirmModal";
 import { CopyIdButton } from "./CopyIdButton";
+import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
 import { useRatings } from "../hooks/useRatings";
 import { getVoterId } from "../lib/voter";
 import { checkMyRating, deleteMyRating, removeOptimistic } from "../lib/ratingsStore";
@@ -33,6 +34,9 @@ interface Props {
   onSwitchChosenSection?: () => void;
   /** 未开模拟选课时点灰色「加入待选清单」的回调（上层弹「是否开启模拟选课」）。 */
   onRequestEnableSim?: () => void;
+  /** VPS 实时授课人数；null 表示尚未匹配或服务不可用。 */
+  enrolled?: number | null;
+  enrollmentStale?: boolean;
 }
 
 // 正选/补退选详情页：以 section 为中心，course 命中时补齐 desc/plans/prereq/学位课。
@@ -40,6 +44,7 @@ interface Props {
 export function FormalSectionDetail({
   section, course, onClose, scheduleFilter,
   simMode = false, cartStatus = "none", onToggleCart, onSwitchChosenSection, onRequestEnableSim,
+  enrolled = null, enrollmentStale = false,
 }: Props) {
   const { getAvg, applyOptimistic, refresh } = useRatings(section.id);
   const [rating, setRating] = useState(0);
@@ -176,8 +181,10 @@ export function FormalSectionDetail({
                 <dd className="text-gray-800 break-words">{section.className || "—"}</dd>
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">教室代号</dt>
                 <dd className="text-gray-800 break-words font-mono text-[12px]">{section.classroom || "—"}</dd>
-                <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">容量</dt>
-                <dd className="text-gray-800 tabular-nums">{section.capacity == null ? "—" : section.capacity}</dd>
+                <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">已选/容量</dt>
+                <dd className="text-gray-800 tabular-nums">
+                  <EnrollmentCapacityBadge enrolled={enrolled} capacity={section.capacity} stale={enrollmentStale} />
+                </dd>
               </dl>
 
               {/* 上课时间：只读周课表网格（占用浅红 / 冲突深红），整张表比 dl 宽，单列一块 */}
