@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Course, FormalSection } from "../types";
-import { parseSchedule, unselectedIncludeSlots } from "../lib/scheduleParse";
+import { parseSchedule, unselectedIncludeSlotsFromSchedule } from "../lib/scheduleParse";
+import { sectionOptionKey } from "../lib/schedulePlacement";
 import { formatSemesterLabel } from "../lib/term";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
 import { SectionScheduleGrid } from "./SectionScheduleGrid";
@@ -16,6 +17,8 @@ import { checkMyRating, deleteMyRating, removeOptimistic } from "../lib/ratingsS
 
 interface Props {
   section: FormalSection;
+  /** 同课程、同学期的 section；详情页按 bjh 合并同一教学班的多教师时段。 */
+  relatedSections?: FormalSection[];
   course?: Course;
   onClose: () => void;
   /** 课表时段筛选状态，用于把未选中的上课时段标红。 */
@@ -39,10 +42,15 @@ interface Props {
   enrollmentStale?: boolean;
 }
 
+function joinUniqueSegments(values: string[]): string {
+  const segments = values.flatMap((value) => value.split(" / ").map((part) => part.trim()).filter(Boolean));
+  return [...new Set(segments)].join(" / ");
+}
+
 // 正选/补退选详情页：以 section 为中心，course 命中时补齐 desc/plans/prereq/学位课。
-// 任课教师永远只显示该 section 的一位，区别于 CourseDetail 的多教师视图。
+// 评分仍针对当前 section 的教师；班级课表/教室则按 bjh 合并，避免理论与实验拆教师时漏时段。
 export function FormalSectionDetail({
-  section, course, onClose, scheduleFilter,
+  section, relatedSections = [], course, onClose, scheduleFilter,
   simMode = false, cartStatus = "none", onToggleCart, onSwitchChosenSection, onRequestEnableSim,
   enrolled = null, enrollmentStale = false,
 }: Props) {
@@ -56,6 +64,17 @@ export function FormalSectionDetail({
   const teacherId = section.teacherId;
   const teacherName = section.teacher;
   const hasTeacherId = Boolean(teacherId);
+
+  const logicalKey = sectionOptionKey(section);
+  const classSections = relatedSections.filter(
+    (candidate) =>
+      candidate.id === section.id &&
+      candidate.semester === section.semester &&
+      sectionOptionKey(candidate) === logicalKey,
+  );
+  if (classSections.length === 0) classSections.push(section);
+  const classSchedule = joinUniqueSegments(classSections.map((candidate) => candidate.schedule));
+  const classClassroom = joinUniqueSegments(classSections.map((candidate) => candidate.classroom));
 
   // 培养方案归属：来自 course；按年级分组倒序，与 CourseDetail 同口径
   const plans = course?.plans ?? [];
@@ -75,8 +94,10 @@ export function FormalSectionDetail({
   const courseSemester = course?.semester;
 
   // 上课时间画成周课表网格；warnSlots 仅用于判断是否显示底部冲突说明。
-  const meets = parseSchedule(section.schedule);
-  const warnSlots = scheduleFilter ? unselectedIncludeSlots(section, scheduleFilter) : [];
+  const meets = parseSchedule(classSchedule);
+  const warnSlots = scheduleFilter
+    ? unselectedIncludeSlotsFromSchedule(classSchedule, scheduleFilter)
+    : [];
 
   useEffect(() => {
     if (!hasTeacherId) return;
@@ -185,7 +206,7 @@ export function FormalSectionDetail({
                   )}
                 </dd>
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">教室代号</dt>
-                <dd className="text-gray-800 break-words font-mono text-[12px]">{section.classroom || "—"}</dd>
+                <dd className="text-gray-800 break-words font-mono text-[12px]">{classClassroom || "—"}</dd>
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">已选/容量</dt>
                 <dd className="text-gray-800 tabular-nums">
                   <EnrollmentCapacityBadge enrolled={enrolled} capacity={section.capacity} stale={enrollmentStale} />
@@ -196,9 +217,9 @@ export function FormalSectionDetail({
               <div className="mt-3">
                 <div className="text-[11px] text-gray-500 uppercase tracking-wider mb-1.5">上课时间</div>
                 {meets.length === 0 ? (
-                  <div className="text-[13px] text-gray-800 break-words">{section.schedule || "—"}</div>
+                  <div className="text-[13px] text-gray-800 break-words">{classSchedule || "—"}</div>
                 ) : (
-                  <SectionScheduleGrid schedule={section.schedule} filter={scheduleFilter} />
+                  <SectionScheduleGrid schedule={classSchedule} filter={scheduleFilter} />
                 )}
               </div>
 

@@ -1162,6 +1162,7 @@ export function HomePage() {
           ) : mobileSection ? (
             <FormalSectionDetail
               section={mobileSection}
+              relatedSections={formal.sections}
               course={courses.find((c) => c.id === mobileSection.id)}
               onClose={closeMobileCourse}
               scheduleFilter={schedule.filter}
@@ -1358,6 +1359,7 @@ export function HomePage() {
           ) : selectedSection ? (
             <FormalSectionDetail
               section={selectedSection}
+              relatedSections={formal.sections}
               course={courses.find((c) => c.id === selectedSection.id)}
               onClose={() => { setSelectedSection(null); setSelectedSectionKey(null); }}
               scheduleFilter={schedule.filter}
