@@ -74,3 +74,34 @@ curl -H 'Origin: https://test.better-jxnu-elective-system.pages.dev' \
 ```
 
 正式站启用前，再把正式 Pages 域名加入 `KKAP_ALLOWED_ORIGINS`；测试阶段不要加入。
+
+---
+
+## 开课安排安全增量同步（方案A · sync-schedule）
+
+无登录抓 `Public_Kkap.aspx` → 复用旧 enrichment → `build_data.py` → 校验 → 仅在有变化时 `git push`（触发 CF Pages 部署）。VPS 全自动，不再手动「油猴 + 构建 + 提交」。
+
+**为什么安全**
+- base 是 Public_Kkap 的**当前全量快照**，全替换、不累加陈旧行（根治旧版「无脑加超集」）。
+- 教号(UserNum)等 enrichment 从上一份已提交的 `formal_schedule.json` 按 `(课程号,班级号,教师)` **复用**，只有全新教学班才缺（教号走姓名兜底，实测仅个位数差异）。
+- 三道闸：抓取行数 `< --min-rows(6000)` 拒绝输出；`git pull --ff-only` 分叉就放弃（不强推，保你手动改动）；产物 `formal_sections < 7000` 回滚不推。
+
+**一次性部署（VPS）**
+```bash
+# 1) 仓库已加 Deploy Key(写)，用 SSH remote 克隆到家目录
+git clone git@github.com:guiguisocute/better-jxnu-elective-system.git ~/better-jxnu-elective-system
+cd ~/better-jxnu-elective-system
+git config user.email "vps@jxnu-publish.asia" && git config user.name "jxnu-vps"
+
+# 2) 装 timer（每 2 小时一次；选课季可改 OnUnitActiveSec）
+mkdir -p ~/.config/systemd/user
+cp deploy/kkap-schedule.service deploy/kkap-schedule.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now kkap-schedule.timer
+
+# 3) 手动验证一次
+./deploy/sync-schedule.sh
+systemctl --user list-timers | grep kkap-schedule
+```
+
+**真容量到位后**：`build_data.py` 顶部 `TRUST_OPENCLASS_CAPACITY=False` 改回（或换成真容量源），重建即恢复容量显示。
