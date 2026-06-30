@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useDeferredValue } from "react";
 import type { Course, Filters } from "../types";
 import { displayTags, isInPlan, isAnyElective } from "../lib/planMatch";
 
@@ -49,6 +49,9 @@ export function useCourseFilter(
 ) {
   const saved = useMemo(() => loadSaved(), []);
   const [filters, setFilters] = useState<Filters>(saved.filters);
+  // 重活（对 6000+ 课程/9000+ section 的过滤+排序）用 deferred 值，避免每次按键阻塞输入框 →
+  // 解决「筛选/搜索滞留、要刷新才恢复」。输入框/筛选按钮仍绑 filters（即时响应）。
+  const deferredFilters = useDeferredValue(filters);
 
   const [sortAsc, setSortAsc] = useState(saved.sortAsc);
   const [ratingSortAsc, setRatingSortAsc] = useState<boolean | null>(null);
@@ -160,61 +163,62 @@ export function useCourseFilter(
   }, []);
 
   const filtered = useMemo(() => {
+    const f = deferredFilters;
     let result = courses;
-    const search = filters.search.toLowerCase();
+    const search = f.search.toLowerCase();
 
     if (search) {
       result = result.filter((c) => c._search.includes(search));
     }
-    if (filters.credits.length > 0) {
-      result = result.filter((c) => filters.credits.includes(c.credits));
+    if (f.credits.length > 0) {
+      result = result.filter((c) => f.credits.includes(c.credits));
     }
-    if (filters.creditsExclude.length > 0) {
-      result = result.filter((c) => !filters.creditsExclude.includes(c.credits));
+    if (f.creditsExclude.length > 0) {
+      result = result.filter((c) => !f.creditsExclude.includes(c.credits));
     }
-    if (filters.dept.length > 0) {
-      result = result.filter((c) => filters.dept.includes(c.dept));
+    if (f.dept.length > 0) {
+      result = result.filter((c) => f.dept.includes(c.dept));
     }
-    if (filters.deptExclude.length > 0) {
-      result = result.filter((c) => !filters.deptExclude.includes(c.dept));
+    if (f.deptExclude.length > 0) {
+      result = result.filter((c) => !f.deptExclude.includes(c.dept));
     }
     // 选中培养方案时，tag/type 过滤必须基于「该课程在本方案下的有效 tag」，
     // 否则筛"专业限选"会撞到别的专业的限选课。
-    const tagsOf = filters.plan
-      ? (c: Course) => displayTags(c, filters.plan)
+    const tagsOf = f.plan
+      ? (c: Course) => displayTags(c, f.plan)
       : (c: Course) => c.tags;
 
     // 「任意选修」是虚拟类型：复用 planMatch.isAnyElective —— 与表格 tag 注入逻辑保持一致。
     const matchesType = (c: Course, t: string): boolean => {
-      if (t === "任意选修") return isAnyElective(c, filters.plan);
+      if (t === "任意选修") return isAnyElective(c, f.plan);
       return tagsOf(c).includes(t);
     };
 
-    if (filters.type.length > 0) {
-      result = result.filter((c) => filters.type.some((t) => matchesType(c, t)));
+    if (f.type.length > 0) {
+      result = result.filter((c) => f.type.some((t) => matchesType(c, t)));
     }
-    if (filters.typeExclude.length > 0) {
-      result = result.filter((c) => !filters.typeExclude.some((t) => matchesType(c, t)));
+    if (f.typeExclude.length > 0) {
+      result = result.filter((c) => !f.typeExclude.some((t) => matchesType(c, t)));
     }
-    if (filters.tag.length > 0) {
+    if (f.tag.length > 0) {
       result = result.filter((c) => {
         const tags = tagsOf(c);
-        return filters.tag.some((t) => tags.includes(t));
+        return f.tag.some((t) => tags.includes(t));
       });
     }
-    if (filters.tagExclude.length > 0) {
+    if (f.tagExclude.length > 0) {
       result = result.filter((c) => {
         const tags = tagsOf(c);
-        return !filters.tagExclude.some((t) => tags.includes(t));
+        return !f.tagExclude.some((t) => tags.includes(t));
       });
     }
     // 培养方案默认仅软过滤（通过 tagsOf 影响 tag/type 过滤 + CourseTable 高亮）。
     // planFilter === "include"（胶囊开关开）→ 硬过滤为只看本方案的课程。
-    if (filters.plan && filters.planFilter === "include") {
-      result = result.filter((c) => isInPlan(c, filters.plan));
+    if (f.plan && f.planFilter === "include") {
+      result = result.filter((c) => isInPlan(c, f.plan));
     }
     // 隐藏已修课程（仅 sim 模式 + 选了培养方案时才会被 HomePage 传入非空 takenCids）。
-    if (filters.hideTaken && takenCids && takenCids.size > 0) {
+    if (f.hideTaken && takenCids && takenCids.size > 0) {
       result = result.filter((c) => !takenCids.has(c.id));
     }
 
@@ -229,7 +233,7 @@ export function useCourseFilter(
     });
 
     return result;
-  }, [courses, filters, sortAsc, ratingSortAsc, getCourseAvg, takenCids]);
+  }, [courses, deferredFilters, sortAsc, ratingSortAsc, getCourseAvg, takenCids]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -253,6 +257,8 @@ export function useCourseFilter(
 
   return {
     filters,
+    // 形参列表里给 HomePage 的正选/补退选过滤也用 deferred 值，和预选同口径不阻塞输入。
+    deferredFilters,
     updateFilter,
     cycleCredit,
     cycleDept,

@@ -178,7 +178,12 @@ export function FormalSectionDetail({
             <div className="mx-4 mb-3 px-3.5 py-3 bg-white rounded-lg ring-1 ring-red-200">
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[13px]">
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">班级名称</dt>
-                <dd className="text-gray-800 break-words">{section.className || "—"}</dd>
+                <dd className="text-gray-800 break-words">
+                  {section.className || "—"}
+                  {section.bjh && (
+                    <span className="ml-1 font-mono text-[12px] text-gray-400">（{section.bjh}）</span>
+                  )}
+                </dd>
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">教室代号</dt>
                 <dd className="text-gray-800 break-words font-mono text-[12px]">{section.classroom || "—"}</dd>
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">已选/容量</dt>

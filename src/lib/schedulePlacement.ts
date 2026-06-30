@@ -174,23 +174,33 @@ export function buildPlacement(
           (o.className && wantClasses.has(o.className.trim())) ||
           (realSlots.length > 0 && teacherEq(o) && slotSignature(o.slots) === realSig),
       );
-      // 用户手动换的班优先；否则用确认到的真实班。
-      const active = userChosen ?? realInFormal;
-      if (active) return place(options, sem, inSemCount, active);
+      // 用户手动换的班：按选班语义精确显示该班单独时段。
+      if (userChosen) return place(options, sem, inSemCount, userChosen);
 
-      // 正式开课数据里找不到该生真实班级（如「白鹿班」未进开课安排）→ 合成「真实课表」班置顶，
-      // 正式开课的其他班仍作为可切换备选列出。规划学期的真实课表无 preview 提示。
+      // 未手动换班 → 真实课表为准，用导入时段的【并集】落格。这样「同课程号 + 同教学班名」拆成
+      // 多个教学班（理论+实验 / 合上，如编译原理2班 游珍周二 + 漆志群周四67/89+周五45）能整段显示，
+      // 不会只取到匹配上的那一个班而漏掉周五45。教师/教室同样取并集。
       if (realSlots.length > 0) {
-        const real: PlacedOption = {
-          key: `${[...wantClasses][0] ?? "真实课表"}|`,
+        const realActive: PlacedOption = {
+          key: realInFormal?.key ?? `${[...wantClasses][0] ?? "真实课表"}|`,
           slots: realSlots,
           teacher: uniqueText(items.map((x) => x.teacher)),
           classroom: uniqueText(items.map((x) => x.classroom)),
-          className: [...wantClasses][0],
+          className: realInFormal?.className ?? [...wantClasses][0],
+          section: realInFormal?.section,
         };
-        return place([real, ...options], sem ?? activeImportedSchedule?.semester ?? planLabel, inSemCount + 1, real);
+        // 备选 = 「不同教学班名」的开课（真正的换班对象）；同班名的多教学班已并入 realActive。
+        const alts = options.filter((o) => !o.className || !wantClasses.has(o.className.trim()));
+        return place(
+          [realActive, ...alts],
+          sem ?? activeImportedSchedule?.semester ?? planLabel,
+          alts.length + 1,
+          realActive,
+        );
       }
-      return resolveFormal(cid); // 真实快照无可解析时段 → 退回正式默认班。
+      // 真实快照无可解析时段 → 用确认到的真实班，否则退回正式默认班。
+      if (realInFormal) return place(options, sem, inSemCount, realInFormal);
+      return resolveFormal(cid);
     }
 
     // 正式开课数据完全没有这门课（规划学期尚未发布）→ 用导入课表时段占位，避免从周课表消失。
@@ -283,8 +293,10 @@ export function matchImportedSection(
     items.map((x) => x.className?.trim()).filter((v): v is string => !!v),
   );
   if (wantClasses.size > 0) {
-    const byClass = inSem.find((s) => !!s.className && wantClasses.has(s.className.trim()));
-    if (byClass) return optionKey(byClass);
+    const byClass = inSem.filter((s) => !!s.className && wantClasses.has(s.className.trim()));
+    if (byClass.length === 1) return optionKey(byClass[0]);
+    // 同教学班名拆成多个教学班（理论+实验 / 合上）→ 不锁单班，返回 null 让排课用真实时段并集整段落格。
+    if (byClass.length > 1) return null;
   }
 
   if (inSemTimed.length === 0) return null;

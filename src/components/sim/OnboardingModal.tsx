@@ -1211,9 +1211,6 @@ function ElectiveAuditTable({ courses, term, electiveBlock }: {
       </button>
       {open && (
         <div className="px-3.5 pb-3 space-y-3">
-          <p className="text-[10px] text-gray-400 leading-relaxed">
-            网站「选修已修」是按公式整体算的（教务总分 − 非本学期必修 + 本学期选修），并非逐门相加；下表把档案里的选修课全列出来，方便你核对漏没漏、性质对不对。
-          </p>
           {groups.map((g) => (
             <div key={g.label}>
               <div className="flex items-baseline justify-between mb-1">

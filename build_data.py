@@ -632,6 +632,7 @@ def build_sections_from_openclass(
             "teacherId": teacher_id,
             "schedule": "",          # openclass 无星期/节次 —— 周课表网格暂空
             "className": row["className"],
+            "bjh": "",               # openclass 无班级号
             "classroom": "",         # openclass 无教室号
             "capacity": row["capacity"],
             "semester": sem_label,
@@ -676,7 +677,7 @@ def build_sections_for_semester(
         grouped[key].append(s)
 
     sections = []
-    for (cid, _cls, teacher), entries in grouped.items():
+    for (cid, bjh, teacher), entries in grouped.items():
         first = entries[0]
         # 同一班的多个上课时段：按 (周几, 起始节次) 稳定排序 + 去重，保证顺序一致、不重复。
         sched = []
@@ -732,6 +733,7 @@ def build_sections_for_semester(
             "teacherId": teacher_id,
             "schedule": " / ".join(sched),
             "className": class_name,
+            "bjh": (bjh or "").strip(),  # 班级号（教学班号）—— 详情页展示「班级名(班级号)」；同 bjh = 同教学班
             "classroom": " / ".join(rooms),
             "capacity": capacity,
             "semester": sem_label,

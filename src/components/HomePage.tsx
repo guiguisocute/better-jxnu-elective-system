@@ -524,7 +524,7 @@ export function HomePage() {
   // 课表格子里的数字基于它统计 —— 数字随内容筛选变化，却不被你点选的时段格子反向影响（issue #2 · 方案①）。
   const contentFilteredSections = useMemo(() => {
     if (!selectedSemester) return [];
-    const f = filter.filters;
+    const f = filter.deferredFilters;
     const search = f.search.toLowerCase();
     // 选中培养方案时，type/tag 过滤改用「该课在本方案下的有效 tag」，与预选口径一致。
     const tagsOf = (s: FormalSection): string[] => {
@@ -566,14 +566,14 @@ export function HomePage() {
       if (f.hideTaken && sim.mode === "sim" && credit.takenCids.has(s.id)) return false;
       return true;
     });
-  }, [formal.sections, selectedSemester, filter.filters, coursesById, sim.mode, credit.takenCids, quickRatingActive, quickRatingSectionKeys]);
+  }, [formal.sections, selectedSemester, filter.deferredFilters, coursesById, sim.mode, credit.takenCids, quickRatingActive, quickRatingSectionKeys]);
 
   // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）+ 余量筛选。
   const visibleFormalSections = useMemo(() => {
     let result = schedule.active
       ? contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter))
       : contentFilteredSections;
-    if (filter.filters.remaining === "available") {
+    if (filter.deferredFilters.remaining === "available") {
       result = result.filter((s) => {
         const enrolled = liveEnrollment.getEnrollment(s);
         // 人数或容量未知 → 无法判定，保留以免误杀；已确认满员的班级隐藏。
@@ -582,7 +582,7 @@ export function HomePage() {
       });
     }
     return result;
-  }, [contentFilteredSections, schedule.active, schedule.filter, filter.filters.remaining, liveEnrollment.getEnrollment]);
+  }, [contentFilteredSections, schedule.active, schedule.filter, filter.deferredFilters.remaining, liveEnrollment.getEnrollment]);
 
   // 课表每格班级数：基于「内容筛选后」的班级统计（issue #2 · 方案① —— 随内容筛选变，不随已选时段格子变）。
   const scheduleCellCounts = useMemo(() => {

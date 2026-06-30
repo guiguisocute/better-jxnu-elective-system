@@ -19,6 +19,7 @@ export interface FormalSection {
   teacherId: string;      // 教号
   schedule: string;       // "星期x-第x节"，多时段以 " / " 分隔
   className: string;      // 班级名称
+  bjh?: string;           // 班级号（教学班号，如 "20240032"）；同 bjh = 同教学班。openclass 兜底无此号
   classroom: string;      // 教室代号
   capacity: number | null;// 容量（按课程号+班级名称从 openclass 精确回填；未匹配则 null）
   semester: string;       // 学期 key，例 "2026-09" / "2025-03"（YYYY-MM，秋=09 / 春=03）
