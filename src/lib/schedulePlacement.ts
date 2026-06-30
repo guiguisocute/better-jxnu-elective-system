@@ -99,9 +99,10 @@ export function buildPlacement(
   const activeImportedSchedule = importedApplies ? importedSchedule : null;
   const importedByCid = importedGroups(activeImportedSchedule);
 
-  const resolveFormal = (cid: string): Resolved => {
+  // 某课在「规划学期（缺则最近学期）」的全部可落格班级（有时段的）。不在此处选 active。
+  const formalOptions = (cid: string): { options: PlacedOption[]; sem?: string; inSemCount: number } => {
     const all = formalSections.filter((s) => s.id === cid);
-    if (all.length === 0) return { status: "none", noneReason: "unpublished", slots: [], options: [] };
+    if (all.length === 0) return { options: [], inSemCount: 0 };
     const sems = [...new Set(all.map((s) => s.semester))];
     const sem = planLabel && sems.includes(planLabel) ? planLabel : [...sems].sort().at(-1)!;
     const inSem = all.filter((s) => s.semester === sem);
@@ -115,10 +116,11 @@ export function buildPlacement(
         section: s,
       }))
       .filter((o) => o.slots.length > 0);
-    if (options.length === 0) return { status: "none", noneReason: "unpublished", slots: [], options: [] };
-    const active = options.find((o) => o.key === chosen[cid]) ?? options[0];
-    // 选中的班级（学号导入校对出的默认班 / 用户手动换的班）置顶：选班列表一眼可见，
-    // 且班级很多触发折叠时不会被藏在 12 个之后。默认班 == options[0] 时顺序不变。
+    return { options, sem, inSemCount: inSem.length };
+  };
+
+  // 选中的班级置顶：选班列表一眼可见，且班级很多触发折叠时不会被藏在 12 个之后。
+  const place = (options: PlacedOption[], sem: string | undefined, inSemCount: number, active: PlacedOption): Resolved => {
     const ordered = [active, ...options.filter((o) => o !== active)];
     return {
       status: "placed",
@@ -126,10 +128,17 @@ export function buildPlacement(
       teacher: active.teacher,
       classroom: active.classroom,
       srcSem: sem,
-      altCount: inSem.length,
+      altCount: inSemCount,
       options: ordered,
       activeKey: active.key,
     };
+  };
+
+  const resolveFormal = (cid: string): Resolved => {
+    const { options, sem, inSemCount } = formalOptions(cid);
+    if (options.length === 0) return { status: "none", noneReason: "unpublished", slots: [], options: [] };
+    const active = options.find((o) => o.key === chosen[cid]) ?? options[0];
+    return place(options, sem, inSemCount, active);
   };
 
   const resolve = (cid: string, allowFormalFallback: boolean): Resolved => {
@@ -143,17 +152,51 @@ export function buildPlacement(
       return resolveFormal(cid);
     }
 
-    // 学号导入：所有班级时段都已在正式开课数据里。导入时已按真实课表「校对」出对应班级写入 chosen，
-    // 这里直接用正式开课数据排班（chosen 命中即为自动选上的真实班级），不再注入「真实课表」虚拟班。
-    const formal = resolveFormal(cid);
-    if (formal.options.length > 0) return formal;
+    // 学号导入：真实课表为权威。真实班级能在正式开课数据里「确认到」才用它（带容量/同课选班）；
+    // 确认 = 教学班名吻合 或 时段签名吻合。绝不靠纯教师名兜底——同教师他班时段不同会错排（如「白鹿班」
+    // 文学概论张锦真实在 W3410 周三45，却被错配成同师「公费师范生班」W2509 周五67）。
+    const realSlots = importedSlots(items);
+    const { options, sem, inSemCount } = formalOptions(cid);
+    const userChosen = chosen[cid] ? options.find((o) => o.key === chosen[cid]) : undefined;
 
-    // 校对兜底：正式开课数据里没有这门课的可解析时段（例如规划学期尚未发布该课），
-    // 退回用导入课表的时段占位，避免课程从周课表里消失。
-    const slots = importedSlots(items);
+    if (options.length > 0) {
+      const wantClasses = new Set(items.map((x) => x.className?.trim()).filter((v): v is string => !!v));
+      const wantTeachers = new Set(
+        (uniqueText(items.map((x) => x.teacher)) ?? "").split(" / ").map((t) => t.trim()).filter(Boolean),
+      );
+      const realSig = slotSignature(realSlots);
+      const teacherEq = (o: PlacedOption) =>
+        wantTeachers.size > 0 && !!o.teacher && o.teacher.split(" / ").some((t) => wantTeachers.has(t.trim()));
+      // 确认到真实班级：教学班名吻合，或「同教师 + 同时段」。不靠纯时段——同时段的他班（如语言学概论
+      // 王勤 1 班与白鹿班邱莹班同在周五45）会被错认；也不靠纯教师——同教师他班时段不同会错排。
+      const realInFormal = options.find(
+        (o) =>
+          (o.className && wantClasses.has(o.className.trim())) ||
+          (realSlots.length > 0 && teacherEq(o) && slotSignature(o.slots) === realSig),
+      );
+      // 用户手动换的班优先；否则用确认到的真实班。
+      const active = userChosen ?? realInFormal;
+      if (active) return place(options, sem, inSemCount, active);
+
+      // 正式开课数据里找不到该生真实班级（如「白鹿班」未进开课安排）→ 合成「真实课表」班置顶，
+      // 正式开课的其他班仍作为可切换备选列出。规划学期的真实课表无 preview 提示。
+      if (realSlots.length > 0) {
+        const real: PlacedOption = {
+          key: `${[...wantClasses][0] ?? "真实课表"}|`,
+          slots: realSlots,
+          teacher: uniqueText(items.map((x) => x.teacher)),
+          classroom: uniqueText(items.map((x) => x.classroom)),
+          className: [...wantClasses][0],
+        };
+        return place([real, ...options], sem ?? activeImportedSchedule?.semester ?? planLabel, inSemCount + 1, real);
+      }
+      return resolveFormal(cid); // 真实快照无可解析时段 → 退回正式默认班。
+    }
+
+    // 正式开课数据完全没有这门课（规划学期尚未发布）→ 用导入课表时段占位，避免从周课表消失。
     const teacher = uniqueText(items.map((x) => x.teacher));
     const classroom = uniqueText(items.map((x) => x.classroom));
-    if (slots.length === 0) {
+    if (realSlots.length === 0) {
       return {
         status: "none",
         noneReason: "student-record",
@@ -166,7 +209,7 @@ export function buildPlacement(
     }
     return {
       status: "placed",
-      slots,
+      slots: realSlots,
       teacher,
       classroom,
       srcSem: activeImportedSchedule?.semester || planLabel || undefined,
@@ -254,13 +297,16 @@ export function matchImportedSection(
     wantTeachers.size > 0 && !!s.teacher && s.teacher.split(" / ").some((t) => wantTeachers.has(t.trim()));
   const sigEq = (s: FormalSection) => slotSignature(parseSchedule(s.schedule)) === wantSig;
 
-  // 2) 教师 + 时段，3) 时段，4) 教师。
+  // 2) 教师 + 时段（同师同时段才算同班）。
   const both = inSemTimed.find((s) => teacherEq(s) && sigEq(s));
   if (both) return optionKey(both);
-  const bySig = inSemTimed.find(sigEq);
-  if (bySig) return optionKey(bySig);
-  const byTeacher = inSemTimed.find(teacherEq);
-  if (byTeacher) return optionKey(byTeacher);
+  // 3) 纯教师名兜底——仅当导入快照本身无可解析时段（只有教学班名+教师）时启用。
+  //    不做纯时段匹配：同时段的他班（白鹿班语言学概论邱莹 vs 1 班王勤同在周五45）会被错认。
+  //    有时段却时段不吻合 = 同教师的另一个班，也不能错配（白鹿班即此情形）。
+  if (!wantSig) {
+    const byTeacher = inSemTimed.find(teacherEq);
+    if (byTeacher) return optionKey(byTeacher);
+  }
   return null;
 }
 

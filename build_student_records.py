@@ -289,7 +289,14 @@ def main():
     print("载入 master/courses.json …")
     master = load_json(MASTER_COURSES_FILE)
     credit_of = {str(c.get("id", "")): c.get("credits") for c in master if c.get("id")}
-    print(f"  master 课程: {len(credit_of)} 条")
+    # 大学英语特色课的全局标记（master tags）。学生可能选了不在本专业「特色课菜单」里的特色课
+    # （如批判性阅读Ⅰ：方案只列第4学期那几门，第3学期选的就不在 plan_courses 里），此时
+    # 方案 nature 缺失 → 前端「特色课 1:1 抵大英Ⅲ/Ⅳ」漏算 → 大英Ⅳ不自动勾选。靠全局 tag 兜底。
+    english_feature_cids = {
+        str(c.get("id", "")) for c in master
+        if c.get("id") and "大学英语特色课" in (c.get("tags") or [])
+    }
+    print(f"  master 课程: {len(credit_of)} 条；大学英语特色课(全局标记): {len(english_feature_cids)} 门")
 
     print("载入 plan_courses + major_requirements 用作 planKey 集合 …")
     pc = load_json(MASTER_PLANS_FILE)
@@ -437,7 +444,8 @@ def main():
                 "credits": credits,
                 "semester": info["semester"] or None,
                 "planTermIndex": pti,
-                "nature": nature_of.get(cno),
+                # 方案 nature 优先；方案没列但全局标记是特色课的，兜底为「大学英语特色课」。
+                "nature": nature_of.get(cno) or ("大学英语特色课" if cno in english_feature_cids else None),
                 "teacher": info["teacher"] or None,
                 "teachingClass": info["teachingClass"] or None,
             })
