@@ -1426,6 +1426,7 @@ export function HomePage() {
           electiveThisSem={credit.stored.electiveThisSem}
           takenMajorElectives={credit.stored.takenMajorElectives}
           excludedRequired={credit.stored.excludedRequired}
+          importedDetailCourses={credit.stored.importedDetailCourses ?? []}
           setTotalEarned={credit.setTotalEarned}
           setElectiveThisSem={credit.setElectiveThisSem}
           toggleMajorElective={credit.toggleMajorElective}

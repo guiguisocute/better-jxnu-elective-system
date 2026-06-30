@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
 import type { Course, FormalSection, MajorRequirement, PlanCourse } from "../../types";
-import type { CreditPlanView } from "../../lib/creditPlan";
+import type { CreditPlanView, CreditBlock } from "../../lib/creditPlan";
 import { REQUIRED_NATURES } from "../../lib/creditPlan";
 import { termIndexOf, effectiveTermIndex, termToCalLabel, enrollYear } from "../../lib/term";
 import { buildPlacement, matchImportedSection, previewSemsOf } from "../../lib/schedulePlacement";
-import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentRecord, type ImportSuggestion, type StudentScheduleSnapshot, type StudentScheduleItem } from "../../lib/studentRecord";
+import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentRecord, type ImportSuggestion, type StudentScheduleSnapshot, type StudentScheduleItem, type StudentDetailCourse } from "../../lib/studentRecord";
 import { decodeBundle, type PlanBundle } from "../../lib/planShare";
 import type { StoredInputs } from "../../hooks/useCreditPlan";
 import { STUDENT_IMPORT_ENABLED } from "../../lib/featureFlags";
@@ -35,6 +35,8 @@ interface Props {
   electiveThisSem: number;
   takenMajorElectives: string[];
   excludedRequired: string[];
+  /** 学号导入的真实已修明细（用于「核对必修」页的选修明细折叠表）。无导入时为空。 */
+  importedDetailCourses: StudentDetailCourse[];
   setTotalEarned: (v: number) => void;
   setElectiveThisSem: (v: number) => void;
   toggleMajorElective: (cid: string) => void;
@@ -98,7 +100,7 @@ function majorHint(planKey?: string, className?: string): string {
 export function OnboardingModal({
   selectedPlan, allPlans, onSelectPlan, requirement, view, planCourses, cartCourses, formalSections, importedSchedule,
   chosen, onChooseSection, onRemoveCart,
-  term, totalEarned, electiveThisSem, takenMajorElectives, excludedRequired,
+  term, totalEarned, electiveThisSem, takenMajorElectives, excludedRequired, importedDetailCourses,
   setTotalEarned, setElectiveThisSem, toggleMajorElective, toggleExcludedRequired, importInputs, coursesOf,
   toggleTransferOffset, transferOffsetCids,
   transferMode, originalPlan, setTransferMode, setOriginalPlan, transferEarlyCids,
@@ -638,6 +640,7 @@ export function OnboardingModal({
 
           {/* Step 4 — 核对必修 + 环图 */}
           {step === 4 && (
+           <div className="space-y-4">
             <div className="min-h-[320px] grid sm:grid-cols-[180px_1fr] gap-5">
               <div className="flex flex-col items-center">
                 <CreditRing view={view} size={130} stroke={13} />
@@ -893,6 +896,8 @@ export function OnboardingModal({
                 </div>
               </div>
             </div>
+            <ElectiveAuditTable courses={importedDetailCourses} term={term} electiveBlock={view.blocks.find((b) => b.key === "elective")} />
+           </div>
           )}
 
           {/* Step 5 — 下学期必修排课表 */}
@@ -1157,6 +1162,79 @@ export function OnboardingModal({
         onConfirm={confirmClearAll}
         onCancel={() => setClearConfirm(false)}
       />
+    </div>
+  );
+}
+
+// 选修课明细折叠表（核对步骤用）：把学号导入档案里的选修课逐门列出，默认折叠，
+// 避免「选修已修是个公式算出来的数字」让学生一头雾水。只在有导入明细时出现。
+const ELECTIVE_LABEL = (nature: string | null | undefined): string => nature || "公选课 / 任选";
+
+function ElectiveAuditTable({ courses, term, electiveBlock }: {
+  courses: StudentDetailCourse[];
+  term: number;
+  electiveBlock?: CreditBlock;
+}) {
+  const [open, setOpen] = useState(false);
+  const groups = useMemo(() => {
+    const passed = courses.filter(
+      (c) => isPassed(c) && !REQUIRED_NATURES.includes(c.nature ?? "") && (c.planTermIndex ?? 0) <= term,
+    );
+    const m = new Map<string, StudentDetailCourse[]>();
+    for (const c of passed) {
+      const k = ELECTIVE_LABEL(c.nature);
+      m.set(k, [...(m.get(k) ?? []), c]);
+    }
+    const order = ["专业限选", "专业任选", "教师教育选修", "大学英语特色课", "公选课 / 任选"];
+    return [...m.keys()]
+      .sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
+      .map((k) => {
+        const rows = (m.get(k) ?? []).slice().sort((a, b) => (a.planTermIndex ?? 0) - (b.planTermIndex ?? 0));
+        return { label: k, rows, sum: rows.reduce((s, c) => s + (c.credits ?? 0), 0) };
+      });
+  }, [courses, term]);
+
+  const total = groups.reduce((s, g) => s + g.sum, 0);
+  const count = groups.reduce((s, g) => s + g.rows.length, 0);
+  if (count === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/50">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left">
+        <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform shrink-0 ${open ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" /></svg>
+        <span className="text-[12px] font-bold text-gray-700 shrink-0">选修课明细</span>
+        <span className="text-[11px] text-gray-400 truncate">共 {count} 门 · {total} 学分{open ? "" : "，点击展开逐门核对"}</span>
+        <span className="flex-1" />
+        {electiveBlock?.required != null && (
+          <span className="text-[11px] font-mono text-gray-500 shrink-0">选修 {electiveBlock.earned}/{electiveBlock.required}</span>
+        )}
+      </button>
+      {open && (
+        <div className="px-3.5 pb-3 space-y-3">
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            网站「选修已修」是按公式整体算的（教务总分 − 非本学期必修 + 本学期选修），并非逐门相加；下表把档案里的选修课全列出来，方便你核对漏没漏、性质对不对。
+          </p>
+          {groups.map((g) => (
+            <div key={g.label}>
+              <div className="flex items-baseline justify-between mb-1">
+                <span className="text-[11px] font-semibold text-gray-600">{g.label}</span>
+                <span className="text-[10px] text-gray-400 font-mono">{g.rows.length} 门 / {g.sum} 分</span>
+              </div>
+              <div className="rounded-lg border border-gray-100 overflow-hidden">
+                {g.rows.map((c, i) => (
+                  <div key={c.courseId ?? i} className={`flex items-center gap-2 px-2.5 py-1.5 text-[12px] ${i % 2 ? "bg-white" : "bg-gray-50/60"}`}>
+                    <span className="font-mono text-[10px] text-gray-400 shrink-0 w-14">{c.courseId}</span>
+                    <span className="min-w-0 truncate text-gray-700" title={c.courseName}>{c.courseName}</span>
+                    <span className="flex-1" />
+                    <span className="text-[10px] text-gray-400 font-mono shrink-0">{c.semester ?? "—"}</span>
+                    <span className="text-[11px] font-bold text-gray-600 shrink-0 w-9 text-right">{c.credits ?? 0}分</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
