@@ -733,7 +733,7 @@ def build_sections_for_semester(
             "teacherId": teacher_id,
             "schedule": " / ".join(sched),
             "className": class_name,
-            "bjh": (bjh or "").strip(),  # 班级号（教学班号）—— 详情页展示「班级名(班级号)」；同 bjh = 同教学班
+            "bjh": (bjh or "").strip().replace("$", "B"),  # 班级号（教学班号）—— 详情页展示「班级名(班级号)」；同 bjh = 同教学班。源数据用 $ 占位，统一清洗为 B（nnnnBn）
             "classroom": " / ".join(rooms),
             "capacity": capacity,
             "semester": sem_label,
