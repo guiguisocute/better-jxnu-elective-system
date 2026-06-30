@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JXNU 开课安排完整导出 v3
 // @namespace    https://jwc.jxnu.edu.cn/
-// @version      3.3
+// @version      3.4
 // @description  抓开课安排 + 课程详情 + 任课教师（GM_xhr 跨协议跟随重定向）
 // @match        https://jwc.jxnu.edu.cn/MyControl/Public_Kkap.aspx*
 // @grant        GM_xmlhttpRequest
@@ -19,6 +19,11 @@
 //  2) 每行入库后清掉内存里的大字段（课程信息/任课老师简介），导出时从 IDB 读，省内存。
 //  3) 进度刷新限频到 150ms 一次，减少 DOM 重排。
 //  4) 导出后 revokeObjectURL 释放 blob。
+// v3.4 增量对账：修复「只做超集、不清旧错误数据」。
+//  旧版每次只 put，从不 delete。课程被撤销、上课时间改动（节次变了 → 算出新 key）、
+//  拆班/并班等，旧记录都会作为孤儿永远留在 IDB 里，导出永远是历史并集。
+//  现在「开始」时先对账：当前页面对它覆盖的 (单位名称 × 学期) 范围是权威来源，
+//  删除该范围内已不在当前页面的孤儿行，再增量抓取。其它单位/学期的累积数据不受影响。
 
 (function () {
   'use strict';
@@ -79,6 +84,29 @@
   async function countDone() {
     const all = await getAllRows();
     return all.filter((r) => r._done).length;
+  }
+
+  // 增量对账：当前页面对它覆盖的 (单位名称 × 学期) 范围是权威来源。
+  // 删除 IDB 中落在这些范围、但已不在当前页面里的孤儿行——
+  // 课程被撤销、上课时间改动（节次变了算出新 key）、拆班/并班等历史残留，
+  // 避免重复抓取只做「超集」而一直累积过时/错误的数据。
+  // 仅删除 _key 不在当前页面的行；命中当前页面的 _done 行保留，断点续传照旧 skip。
+  async function reconcile(rows) {
+    const scopeKey = (r) => JSON.stringify([r.单位名称 || '', r.学期 || '']);
+    const liveKeys = new Set(rows.map((r) => r._key));
+    const scope = new Set(rows.map(scopeKey));
+    const all = await getAllRows();
+    const stale = all.filter((r) => scope.has(scopeKey(r)) && !liveKeys.has(r._key));
+    if (!stale.length) return 0;
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('rows', 'readwrite');
+      const store = tx.objectStore('rows');
+      stale.forEach((r) => store.delete(r._key));
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    return stale.length;
   }
 
   // ---- 提取表格基础数据 ----
@@ -292,6 +320,10 @@
     if (!rows.length) { log('无数据：检查是否在开课安排页、表格 id 是否 gvContent', '#f44'); return; }
     running = true;
     paused = false;
+    // 增量对账：先清掉当前 (单位×学期) 范围里已不在页面的孤儿行（撤销/改时间/拆并班的旧残留），
+    // 再增量抓取，避免导出只做历史超集。
+    const removed = await reconcile(rows);
+    if (removed) log('🧹 对账：清除 ' + removed + ' 条过时/已撤销记录', '#ff0');
     log('▶ 开始 ' + rows.length + ' 行 (并发 ' + CONCURRENCY + ')');
     const t0 = Date.now();
     let lastUI = 0;

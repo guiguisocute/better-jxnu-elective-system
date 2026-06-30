@@ -45,6 +45,10 @@ PUBLIC_PLAN_COURSES_FILE = os.path.join(PUBLIC_DIR, "plan_courses.json")
 # 课程性质归一化（公共必修 → 公共必修课，与 catalog 一致）
 NATURE_NORMALIZE = {"公共必修": "公共必修课"}
 
+# 容量数据开关：openclass_status 的「每班容量」是预选阶段的不可信值，正选第一阶段会上 xk 实际抓。
+# 关闭后所有 section.capacity 置 null，前端只显示实时已选人数（容量待补充）。真容量到位后改回 True。
+TRUST_OPENCLASS_CAPACITY = False
+
 # 学期级 raw 文件名（stage-based 稳定命名）
 RAW_STAGES = (
     "preselect_catalog",
@@ -634,7 +638,7 @@ def build_sections_from_openclass(
             "className": row["className"],
             "bjh": "",               # openclass 无班级号
             "classroom": "",         # openclass 无教室号
-            "capacity": row["capacity"],
+            "capacity": row["capacity"] if TRUST_OPENCLASS_CAPACITY else None,
             "semester": sem_label,
             "desc": "",
         }
@@ -735,7 +739,7 @@ def build_sections_for_semester(
             "className": class_name,
             "bjh": (bjh or "").strip().replace("$", "B"),  # 班级号（教学班号）—— 详情页展示「班级名(班级号)」；同 bjh = 同教学班。源数据用 $ 占位，统一清洗为 B（nnnnBn）
             "classroom": " / ".join(rooms),
-            "capacity": capacity,
+            "capacity": capacity if TRUST_OPENCLASS_CAPACITY else None,
             "semester": sem_label,
             "desc": sec_desc,
         }
