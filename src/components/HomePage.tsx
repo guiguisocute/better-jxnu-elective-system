@@ -11,7 +11,7 @@ import { usePlanCourses } from "../hooks/usePlanCourses";
 import { useScheduleFilter } from "../hooks/useScheduleFilter";
 import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
 import { sectionMatchesSchedule, parseSchedule } from "../lib/scheduleParse";
-import { buildPlacement } from "../lib/schedulePlacement";
+import { buildPlacement, sectionOptionKey } from "../lib/schedulePlacement";
 import { termToCalLabel, enrollYear } from "../lib/term";
 import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
@@ -376,8 +376,8 @@ export function HomePage() {
 
   // section 版加车：在 cart.toggle 之外，加车成功时同步把 chosenSections[cid] 设到当前班级。
   // 这样购物车「该课用的哪个班」被显式记录，section 详情页才能区分 exact/other 三态。
-  // 同课 section key 形如 "班级名|教号"，与 useChosenSections / schedulePlacement 同口径。
-  const sectionKeyOf = (s: FormalSection) => `${s.className}|${s.teacherId}`;
+  // 有班级号时按 bjh 选中整个教学班：同班被拆成多教师记录时仍共享一个课表选项。
+  const sectionKeyOf = sectionOptionKey;
   const handleToggleCartSection = useCallback(
     async (s: FormalSection) => {
       const had = cart.has(s.id);
@@ -397,9 +397,14 @@ export function HomePage() {
       if (!cart.has(s.id)) return "none";
       const key = sectionKeyOf(s);
       const chosen = chosenSections.chosen[s.id];
-      return chosen === key ? "exact" : "other";
+      if (chosen === key) return "exact";
+      // 兼容旧版已持久化的「班级名|教号」：先找回旧 section，再按 bjh 判断是否同班。
+      const legacySection = formal.sections.find(
+        (x) => x.id === s.id && `${x.className}|${x.teacherId}` === chosen,
+      );
+      return legacySection && sectionOptionKey(legacySection) === key ? "exact" : "other";
     },
-    [cart, chosenSections.chosen],
+    [cart, chosenSections.chosen, formal.sections],
   );
 
   // 学期下拉：三种数据源 (pre / formal / addDrop) 各存各的，互不污染。
@@ -1163,7 +1168,7 @@ export function HomePage() {
               simMode={sim.mode === "sim"}
               cartStatus={cartStatusOf(mobileSection)}
               onToggleCart={() => handleToggleCartSection(mobileSection)}
-              onSwitchChosenSection={() => chosenSections.choose(mobileSection.id, `${mobileSection.className}|${mobileSection.teacherId}`)}
+              onSwitchChosenSection={() => chosenSections.choose(mobileSection.id, sectionOptionKey(mobileSection))}
               onRequestEnableSim={() => setEnableSimPrompt(true)}
               enrolled={liveEnrollment.getEnrollment(mobileSection)}
               enrollmentStale={liveEnrollment.status.stale}
@@ -1359,7 +1364,7 @@ export function HomePage() {
               simMode={sim.mode === "sim"}
               cartStatus={cartStatusOf(selectedSection)}
               onToggleCart={() => handleToggleCartSection(selectedSection)}
-              onSwitchChosenSection={() => chosenSections.choose(selectedSection.id, `${selectedSection.className}|${selectedSection.teacherId}`)}
+              onSwitchChosenSection={() => chosenSections.choose(selectedSection.id, sectionOptionKey(selectedSection))}
               onRequestEnableSim={() => setEnableSimPrompt(true)}
               enrolled={liveEnrollment.getEnrollment(selectedSection)}
               enrollmentStale={liveEnrollment.status.stale}

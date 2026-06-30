@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 
-// 模拟选课周课表「选班」：记录每门课用户选定的班级（section）key（"班级名|教号"）。
+// 模拟选课周课表「选班」：记录每门课用户选定的逻辑班级 key（有 bjh 时按班级号，否则班级名+教号）。
 // 仅覆盖默认（表格顺序第一个命中）；localStorage 持久化，key 按 cid。
 const KEY = "jxnu.sim.chosenSections";
 

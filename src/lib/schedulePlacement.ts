@@ -11,9 +11,11 @@ import type { StudentScheduleItem, StudentScheduleSnapshot } from "./studentReco
 export type PlacedKind = "required" | "cart" | "imported";
 export type PlacedStatus = "placed" | "none";
 
-/** 一门课的一个可选班级（section）。key = "班级名|教号"。 */
+/** 一门课的一个可选班级；同班级号的多教师 section 会合并成一项。 */
 export interface PlacedOption {
   key: string;
+  /** 旧版按「班级名|教号」存下的 key，仅用于兼容已有 localStorage/分享码。 */
+  legacyKeys?: string[];
   slots: MeetSlot[];
   teacher?: string;
   classroom?: string;
@@ -47,7 +49,20 @@ export interface PlacedCourse {
 
 type Resolved = Pick<PlacedCourse, "status" | "noneReason" | "slots" | "teacher" | "classroom" | "srcSem" | "altCount" | "options" | "activeKey">;
 
-const optionKey = (s: FormalSection) => `${s.className}|${s.teacherId}`;
+/**
+ * 模拟课表的逻辑选班 key。正式数据可能把同一班级拆成多个教师 section，
+ * 而 bjh 才是教学班标识；无 bjh 的 openclass 数据仍退回旧的「班级名|教号」。
+ */
+export function sectionOptionKey(s: FormalSection): string {
+  const bjh = s.bjh?.trim();
+  return bjh ? `bjh:${bjh}` : `${s.className}|${s.teacherId}`;
+}
+
+const legacySectionOptionKey = (s: FormalSection) => `${s.className}|${s.teacherId}`;
+
+function optionMatchesKey(option: PlacedOption, key: string | undefined): boolean {
+  return !!key && (option.key === key || option.legacyKeys?.includes(key) === true);
+}
 
 function slotSignature(slots: MeetSlot[]): string {
   return slots.map((m) => `${m.day},${m.slot}`).sort().join("|");
@@ -67,6 +82,20 @@ function importedGroups(snapshot: StudentScheduleSnapshot | null): Map<string, S
 function uniqueText(values: Array<string | undefined>): string | undefined {
   const out = [...new Set(values.map((v) => v?.trim()).filter((v): v is string => !!v))];
   return out.length > 0 ? out.join(" / ") : undefined;
+}
+
+function mergedSlots(sections: FormalSection[]): MeetSlot[] {
+  const out: MeetSlot[] = [];
+  const seen = new Set<string>();
+  for (const section of sections) {
+    for (const slot of parseSchedule(section.schedule)) {
+      const key = `${slot.day},${slot.slot}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(slot);
+    }
+  }
+  return out;
 }
 
 function importedSlots(items: StudentScheduleItem[]): MeetSlot[] {
@@ -106,17 +135,25 @@ export function buildPlacement(
     const sems = [...new Set(all.map((s) => s.semester))];
     const sem = planLabel && sems.includes(planLabel) ? planLabel : [...sems].sort().at(-1)!;
     const inSem = all.filter((s) => s.semester === sem);
-    const options: PlacedOption[] = inSem
-      .map((s) => ({
-        key: optionKey(s),
-        slots: parseSchedule(s.schedule),
-        teacher: s.teacher,
-        classroom: s.classroom,
-        className: s.className,
-        section: s,
+    const groups = new Map<string, FormalSection[]>();
+    for (const section of inSem) {
+      const key = sectionOptionKey(section);
+      const rows = groups.get(key) ?? [];
+      rows.push(section);
+      groups.set(key, rows);
+    }
+    const options: PlacedOption[] = [...groups]
+      .map(([key, rows]) => ({
+        key,
+        legacyKeys: [...new Set(rows.map(legacySectionOptionKey))],
+        slots: mergedSlots(rows),
+        teacher: uniqueText(rows.map((s) => s.teacher)),
+        classroom: uniqueText(rows.map((s) => s.classroom)),
+        className: rows[0].className,
+        section: rows[0],
       }))
       .filter((o) => o.slots.length > 0);
-    return { options, sem, inSemCount: inSem.length };
+    return { options, sem, inSemCount: options.length };
   };
 
   // 选中的班级置顶：选班列表一眼可见，且班级很多触发折叠时不会被藏在 12 个之后。
@@ -137,7 +174,7 @@ export function buildPlacement(
   const resolveFormal = (cid: string): Resolved => {
     const { options, sem, inSemCount } = formalOptions(cid);
     if (options.length === 0) return { status: "none", noneReason: "unpublished", slots: [], options: [] };
-    const active = options.find((o) => o.key === chosen[cid]) ?? options[0];
+    const active = options.find((o) => optionMatchesKey(o, chosen[cid])) ?? options[0];
     return place(options, sem, inSemCount, active);
   };
 
@@ -157,7 +194,7 @@ export function buildPlacement(
     // 文学概论张锦真实在 W3410 周三45，却被错配成同师「公费师范生班」W2509 周五67）。
     const realSlots = importedSlots(items);
     const { options, sem, inSemCount } = formalOptions(cid);
-    const userChosen = chosen[cid] ? options.find((o) => o.key === chosen[cid]) : undefined;
+    const userChosen = options.find((o) => optionMatchesKey(o, chosen[cid]));
 
     if (options.length > 0) {
       const wantClasses = new Set(items.map((x) => x.className?.trim()).filter((v): v is string => !!v));
@@ -267,7 +304,7 @@ export function buildPlacement(
 }
 
 /**
- * 校对：把一门导入课程对应到正式开课数据里的同一个班级，返回它的 optionKey（"班级名|教号"）。
+ * 校对：把一门导入课程对应到正式开课数据里的同一个班级，返回它的逻辑 optionKey。
  * 优先取 preferredSem（规划学期）的开课，缺则取最近学期。匹配优先级：
  *   教学班名(className)完全吻合 > 教师名 + 时段都吻合 > 时段签名吻合 > 教师名吻合。
  * className 最权威：同教师/同时段的「合班」只能靠它区分；且当导入快照缺时段时（仅有教学班名+教师），
@@ -294,9 +331,10 @@ export function matchImportedSection(
   );
   if (wantClasses.size > 0) {
     const byClass = inSem.filter((s) => !!s.className && wantClasses.has(s.className.trim()));
-    if (byClass.length === 1) return optionKey(byClass[0]);
-    // 同教学班名拆成多个教学班（理论+实验 / 合上）→ 不锁单班，返回 null 让排课用真实时段并集整段落格。
-    if (byClass.length > 1) return null;
+    const byClassKeys = [...new Set(byClass.map(sectionOptionKey))];
+    if (byClassKeys.length === 1) return byClassKeys[0];
+    // 同名但班级号不同才是多个真正的可选班，此时不猜测。
+    if (byClassKeys.length > 1) return null;
   }
 
   if (inSemTimed.length === 0) return null;
@@ -311,13 +349,13 @@ export function matchImportedSection(
 
   // 2) 教师 + 时段（同师同时段才算同班）。
   const both = inSemTimed.find((s) => teacherEq(s) && sigEq(s));
-  if (both) return optionKey(both);
+  if (both) return sectionOptionKey(both);
   // 3) 纯教师名兜底——仅当导入快照本身无可解析时段（只有教学班名+教师）时启用。
   //    不做纯时段匹配：同时段的他班（白鹿班语言学概论邱莹 vs 1 班王勤同在周五45）会被错认。
   //    有时段却时段不吻合 = 同教师的另一个班，也不能错配（白鹿班即此情形）。
   if (!wantSig) {
     const byTeacher = inSemTimed.find(teacherEq);
-    if (byTeacher) return optionKey(byTeacher);
+    if (byTeacher) return sectionOptionKey(byTeacher);
   }
   return null;
 }
