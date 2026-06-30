@@ -31,6 +31,14 @@ loginctl enable-linger "$USER"
 curl http://127.0.0.1:8787/healthz
 ```
 
+如果当前账号不能执行 `loginctl enable-linger`，使用仓库内 `run-kkap.sh` 配合用户 crontab：
+
+```bash
+@reboot /home/guiguisocute/apps/jxnu-kkap/run-kkap.sh # jxnu-kkap
+```
+
+`run-kkap.sh` 使用 `flock` 保证只运行一个实例；首次部署时用 `nohup setsid` 启动同一脚本。
+
 ## 域名与反代
 
 Caddy 配置见 `deploy/Caddyfile.getxk`。需要开放 VPS 的 TCP 80/443。
