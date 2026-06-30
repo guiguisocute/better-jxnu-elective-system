@@ -3,9 +3,11 @@ interface Props {
   capacity: number | null;
   stale?: boolean;
   className?: string;
+  /** 本次刷新该班级人数有变化 → 闪一下（一次性动画，靠父级 key 重挂触发重播）。 */
+  flash?: boolean;
 }
 
-export function EnrollmentCapacityBadge({ enrolled, capacity, stale = false, className = "" }: Props) {
+export function EnrollmentCapacityBadge({ enrolled, capacity, stale = false, className = "", flash = false }: Props) {
   const hasEnrollment = enrolled !== null;
   const hasCapacity = capacity !== null && capacity >= 0;
   let label = "实时人数待获取";
@@ -33,7 +35,7 @@ export function EnrollmentCapacityBadge({ enrolled, capacity, stale = false, cla
     <span
       title={label}
       aria-label={`${enrolled ?? "未知"} 人已选，容量 ${capacity ?? "未知"}；${label}`}
-      className={`inline-flex min-w-[52px] items-center justify-center rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums ring-1 ring-inset ${tone} ${className}`}
+      className={`inline-flex min-w-[52px] items-center justify-center rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums ring-1 ring-inset ${tone} ${flash ? "enroll-flash" : ""} ${className}`}
     >
       {enrolled ?? "-"}<span className="mx-0.5 font-normal opacity-60">/</span>{capacity ?? "-"}
     </span>

@@ -29,6 +29,8 @@ interface Props {
   getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
   /** 正选/补退选：读取 VPS 实时授课人数；容量仍来自静态 FormalSection。 */
   getEnrollment?: (section: FormalSection) => number | null;
+  /** 本次刷新该班级人数是否变化（驱动已选/容量徽章闪烁）。 */
+  isEnrollmentChanged?: (section: FormalSection) => boolean;
   liveEnrollmentStatus?: LiveEnrollmentStatus;
   /** 选中的培养方案 key。空串表示未选 —— 此时不做高亮也不裁剪 tag。 */
   selectedPlan?: string;
@@ -235,6 +237,10 @@ interface RowShared {
   getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
   getEnrollment?: (section: FormalSection) => number | null;
   enrollmentStale?: boolean;
+  /** 该班级本次刷新人数是否有变化（驱动徽章闪烁）。 */
+  isEnrollmentChanged?: (section: FormalSection) => boolean;
+  /** 最近一次更新时刻；作为徽章 key 的一部分，变化时重挂触发闪烁动画。 */
+  enrollmentChangedAt?: number | null;
   onSelectSection?: (s: FormalSection) => void;
 }
 
@@ -340,7 +346,7 @@ const FormalSectionMoreCard = memo(function FormalSectionMoreCard({
   );
 });
 
-const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
+const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -402,7 +408,18 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
         <span className="block truncate" title={s.classroom}>{s.classroom || "—"}</span>
       </td>
       <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50 whitespace-nowrap">
-        <EnrollmentCapacityBadge enrolled={getEnrollment?.(s) ?? null} capacity={s.capacity} stale={enrollmentStale} />
+        {(() => {
+          const changed = isEnrollmentChanged?.(s) ?? false;
+          return (
+            <EnrollmentCapacityBadge
+              key={changed ? `f${enrollmentChangedAt}` : "s"}
+              enrolled={getEnrollment?.(s) ?? null}
+              capacity={s.capacity}
+              stale={enrollmentStale}
+              flash={changed}
+            />
+          );
+        })()}
       </td>
       <td className="px-3 py-3 border-b border-gray-50 whitespace-nowrap">
         {(() => {
@@ -522,7 +539,7 @@ const FormalGroupFragment = memo(function FormalGroupFragment({ group, expanded,
 });
 
 // 一张「班级」卡（mobile）。
-const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, onSelectSection }: RowShared & { s: FormalSection }) {
+const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -568,7 +585,18 @@ const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, cou
         )}
         {s.classroom && <InfoRow icon={<RoomIcon />} label="教室">{s.classroom}</InfoRow>}
         <InfoRow icon={<ClassIcon />} label="人数">
-          <EnrollmentCapacityBadge enrolled={getEnrollment?.(s) ?? null} capacity={s.capacity} stale={enrollmentStale} />
+          {(() => {
+            const changed = isEnrollmentChanged?.(s) ?? false;
+            return (
+              <EnrollmentCapacityBadge
+                key={changed ? `f${enrollmentChangedAt}` : "s"}
+                enrolled={getEnrollment?.(s) ?? null}
+                capacity={s.capacity}
+                stale={enrollmentStale}
+                flash={changed}
+              />
+            );
+          })()}
         </InfoRow>
       </div>
       <div className="mt-2">
@@ -645,7 +673,7 @@ const FormalGroupCard = memo(function FormalGroupCard({ group, expanded, onToggl
 export function CourseTable({
   courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc,
   stickyTop = 0, getCourseAvg, getTeacherAvg, selectedPlan = "",
-  getEnrollment, liveEnrollmentStatus,
+  getEnrollment, isEnrollmentChanged, liveEnrollmentStatus,
   dataSource, onChangeDataSource,
   formalGroups = [], defaultExpandFormal = false, formalAvailable = false, formalLoading = false,
   allSemesters = [], selectedSemester = "", onChangeSemester,
@@ -674,9 +702,11 @@ export function CourseTable({
   const rowProps = useMemo(
     () => ({
       selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg,
-      getEnrollment, enrollmentStale: liveEnrollmentStatus?.stale, onSelectSection,
+      getEnrollment, enrollmentStale: liveEnrollmentStatus?.stale,
+      isEnrollmentChanged, enrollmentChangedAt: liveEnrollmentStatus?.lastUpdateAt ?? null,
+      onSelectSection,
     }),
-    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, liveEnrollmentStatus?.stale, onSelectSection],
+    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection],
   );
   // formal 列表里所有班级（扁平），供空态判断（替代旧 formalSections）。
   const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);

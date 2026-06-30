@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormalSection } from "../types";
 import {
   buildEnrollmentResolver,
-  countEnrollmentChanges,
+  enrollmentChangedKeys,
   enrollmentCountMap,
   LIVE_ENROLLMENT_API,
   parseLiveEnrollmentSnapshot,
@@ -25,6 +25,8 @@ export function useLiveEnrollments(
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<{ count: number; at: number } | null>(null);
+  // 最近一次刷新中「人数有变化」的条目键集合 —— 驱动对应徽章闪烁。
+  const [changedKeys, setChangedKeys] = useState<Set<string>>(() => new Set());
   const inFlight = useRef(false);
   const lastFetchedAt = useRef<string | null>(null);
   // 上一份快照的「班级→人数」映射，用于和新一份做差，得出「更新 N 条」。
@@ -75,7 +77,9 @@ export function useLiveEnrollments(
           if (parsed.fetchedAt !== lastFetchedAt.current) {
             const nextCounts = enrollmentCountMap(parsed.items);
             if (prevCounts.current.size > 0) {
-              setLastUpdate({ count: countEnrollmentChanges(prevCounts.current, nextCounts), at: Date.now() });
+              const keys = enrollmentChangedKeys(prevCounts.current, nextCounts);
+              setChangedKeys(keys);
+              setLastUpdate({ count: keys.size, at: Date.now() });
             }
             prevCounts.current = nextCounts;
           }
@@ -136,8 +140,17 @@ export function useLiveEnrollments(
     [snapshot?.items, semesterSections],
   );
   const getEnrollment = useCallback(
-    (section: FormalSection) => snapshot?.semester === section.semester ? resolver(section) : null,
+    (section: FormalSection) => snapshot?.semester === section.semester ? resolver(section).value : null,
     [resolver, snapshot?.semester],
+  );
+  // 该 section 命中的实时条目是否在最近一次刷新里变了人数 → 徽章闪烁。
+  const isEnrollmentChanged = useCallback(
+    (section: FormalSection) => {
+      if (snapshot?.semester !== section.semester || changedKeys.size === 0) return false;
+      const key = resolver(section).key;
+      return key != null && changedKeys.has(key);
+    },
+    [resolver, snapshot?.semester, changedKeys],
   );
 
   const status: LiveEnrollmentStatus = {
@@ -152,5 +165,5 @@ export function useLiveEnrollments(
     lastUpdateCount: lastUpdate?.count ?? 0,
     lastUpdateAt: lastUpdate?.at ?? null,
   };
-  return { getEnrollment, status };
+  return { getEnrollment, isEnrollmentChanged, status };
 }

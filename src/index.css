@@ -348,6 +348,14 @@ body {
 }
 .sim-tab-in { animation: simTabIn 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
 
+/* 实时人数刷新：已选/容量徽章「人数有变化」时闪一下（琥珀高亮 + 轻微放大，一次性） */
+@keyframes enrollFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); transform: scale(1); }
+  18%  { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.55); background-color: rgba(254, 243, 199, 0.9); transform: scale(1.12); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); transform: scale(1); }
+}
+.enroll-flash { animation: enrollFlash 1.25s cubic-bezier(0.16, 1, 0.3, 1); }
+
 /* 周课表「时段冲突」格：浅红斜条纹（替代纯红，降低刺眼度） */
 .sim-cell-conflict {
   background-image: repeating-linear-gradient(

@@ -1246,6 +1246,7 @@ export function HomePage() {
             getCourseAvg={getCourseAvg}
             getTeacherAvg={getTeacherAvg}
             getEnrollment={liveEnrollment.getEnrollment}
+            isEnrollmentChanged={liveEnrollment.isEnrollmentChanged}
             liveEnrollmentStatus={liveEnrollment.status}
             selectedPlan={filter.filters.plan}
             dataSource={dataSource}

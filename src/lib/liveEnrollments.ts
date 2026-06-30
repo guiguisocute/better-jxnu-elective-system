@@ -42,11 +42,11 @@ export function enrollmentCountMap(items: LiveEnrollmentItem[]): Map<string, num
   return map;
 }
 
-/** 新旧两份映射间「人数有变化或新增」的条数。 */
-export function countEnrollmentChanges(prev: Map<string, number>, next: Map<string, number>): number {
-  let changed = 0;
-  for (const [key, value] of next) if (prev.get(key) !== value) changed += 1;
-  return changed;
+/** 新旧两份映射间「人数有变化或新增」的条目键集合。 */
+export function enrollmentChangedKeys(prev: Map<string, number>, next: Map<string, number>): Set<string> {
+  const keys = new Set<string>();
+  for (const [key, value] of next) if (prev.get(key) !== value) keys.add(key);
+  return keys;
 }
 
 const NAMED_ENTITIES: Record<string, string> = {
@@ -80,10 +80,16 @@ function increment(map: Map<string, number>, key: string) {
   map.set(key, (map.get(key) ?? 0) + 1);
 }
 
+/** 一个 section 命中实时人数的结果：value=已选人数，key=命中的实时条目键（用于判断它是否刚变化）。 */
+export interface EnrollmentMatch {
+  value: number | null;
+  key: string | null;
+}
+
 export function buildEnrollmentResolver(
   items: LiveEnrollmentItem[],
   sections: FormalSection[],
-): (section: FormalSection) => number | null {
+): (section: FormalSection) => EnrollmentMatch {
   const liveFull = new Map<string, LiveEnrollmentItem[]>();
   const liveClass = new Map<string, LiveEnrollmentItem[]>();
   for (const item of items) {
@@ -103,15 +109,18 @@ export function buildEnrollmentResolver(
   return (section: FormalSection) => {
     const full = fullKey(section.name, section.className, section.teacher);
     const exact = liveFull.get(full);
-    if (exact?.length === 1 && staticFullCount.get(full) === 1) return exact[0][3];
+    if (exact?.length === 1 && staticFullCount.get(full) === 1) return { value: exact[0][3], key: full };
 
     // Public_Kkap and the formal schedule occasionally disagree only on the
     // teacher (late staffing changes).  Use course+class only when it is unique
     // on both sides; ambiguous rows deliberately stay unmatched.
     const fallback = classKey(section.name, section.className);
     const byClass = liveClass.get(fallback);
-    if (byClass?.length === 1 && staticClassCount.get(fallback) === 1) return byClass[0][3];
-    return null;
+    if (byClass?.length === 1 && staticClassCount.get(fallback) === 1) {
+      const it = byClass[0];
+      return { value: it[3], key: fullKey(it[0], it[1], it[2]) };
+    }
+    return { value: null, key: null };
   };
 }
 
