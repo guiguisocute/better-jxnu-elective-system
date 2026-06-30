@@ -24,9 +24,29 @@ export interface LiveEnrollmentStatus {
   refreshing: boolean;
   stale: boolean;
   error: string | null;
+  /** 后端快照构建时间（数据真值时刻），用于进度条锚点。 */
   fetchedAt: string | null;
+  /** 后端下次刷新时刻（权威），倒计时严格对齐它，不随前端轮询重置。 */
   nextRefreshAt: string | null;
   refreshIntervalMs: number;
+  /** 最近一次拿到「新快照」时变化的班级条数（与上一份比）。 */
+  lastUpdateCount: number;
+  /** 最近一次更新的本地时刻（毫秒）；null = 尚未发生过更新。 */
+  lastUpdateAt: number | null;
+}
+
+/** 一份快照的「课程班级 → 已选人数」映射，用于和下一份做差。 */
+export function enrollmentCountMap(items: LiveEnrollmentItem[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const item of items) map.set(fullKey(item[0], item[1], item[2]), item[3]);
+  return map;
+}
+
+/** 新旧两份映射间「人数有变化或新增」的条数。 */
+export function countEnrollmentChanges(prev: Map<string, number>, next: Map<string, number>): number {
+  let changed = 0;
+  for (const [key, value] of next) if (prev.get(key) !== value) changed += 1;
+  return changed;
 }
 
 const NAMED_ENTITIES: Record<string, string> = {

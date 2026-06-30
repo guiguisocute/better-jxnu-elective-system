@@ -27,6 +27,8 @@ interface Props {
   simMode: boolean;
   /** 当前数据源 —— 上课区域筛选仅在正选/补退选生效，预选时整段隐藏。 */
   dataSource: DataSource;
+  /** 是否显示「余量」筛选（仅正选/补退选 + 当前学期有实时人数时为 true）。 */
+  showRemainingFilter?: boolean;
   /** 同课程号折叠开关（仅正选/补退选显示）。默认开启；关闭回退扁平模式。 */
   foldGroups?: boolean;
   onToggleFoldGroups?: () => void;
@@ -36,6 +38,7 @@ export function FilterBar({
   filters, updateFilter, cycleCredit, cycleDept, cycleType, cycleTag, cycleArea, cyclePlanFilter,
   clearAll, hasActiveFilters,
   allDepts, allCredits, allPlans, courseTypes, subTags, simMode, dataSource,
+  showRemainingFilter = false,
   foldGroups = true, onToggleFoldGroups,
 }: Props) {
   // 「任意选修」在 plan 为空时禁用，点击时短暂显示内联提示
@@ -180,6 +183,31 @@ export function FilterBar({
               >{t}</FilterBtn>
             ))}
           </div>
+        </FilterSection>
+      )}
+
+      {showRemainingFilter && (
+        <FilterSection
+          label="余量"
+          activeCount={filters.remaining !== "all" ? 1 : 0}
+          onClear={() => updateFilter("remaining", "all")}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              ["all", "全部"],
+              ["available", "有余量"],
+              ["ample", "余量充足"],
+            ] as const).map(([value, label]) => (
+              <FilterBtn
+                key={value}
+                state={filters.remaining === value ? "include" : "none"}
+                onClick={() => updateFilter("remaining", value)}
+              >{label}</FilterBtn>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
+            按实时已选人数算余量；人数未发布的班级在「有余量」下保留、「充足」下隐藏。
+          </p>
         </FilterSection>
       )}
 

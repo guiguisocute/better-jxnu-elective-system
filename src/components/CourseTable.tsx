@@ -774,21 +774,22 @@ export function CourseTable({
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              {/* 列宽（顺序）：课程号8 / 课程名称14 / 学分5 / 开课学院10 / 标签14 /
-                 任课教师8 / 上课时间10 / 班级名称12 / 教室代号7 / 已选容量5 / 评分7 (%)。
-                 注意：<colgroup> 只能含 <col>，行内注释会产生空白文本节点告警，勿加。 */}
+              {/* 列宽（顺序）：课程号8 / 课程名称13 / 学分5 / 开课学院9 / 标签12 /
+                 任课教师8 / 上课时间10 / 班级名称11 / 教室代号7 / 已选容量9 / 评分8 (%)。
+                 已选/容量原来只有 5%，装不下「120/106」徽章(min-w 52px) → 溢出挤压评分列；
+                 加宽到 9% 让徽章与评分各自归位。注意：<colgroup> 只能含 <col>，勿加行内注释。 */}
               <colgroup>
                 <col style={{ width: "8%" }} />
-                <col style={{ width: "14%" }} />
+                <col style={{ width: "13%" }} />
                 <col style={{ width: "5%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "14%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "12%" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "10%" }} />
-                <col style={{ width: "12%" }} />
+                <col style={{ width: "11%" }} />
                 <col style={{ width: "7%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "7%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "8%" }} />
               </colgroup>
               <thead className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
                 <tr>

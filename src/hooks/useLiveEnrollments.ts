@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormalSection } from "../types";
 import {
   buildEnrollmentResolver,
+  countEnrollmentChanges,
+  enrollmentCountMap,
   LIVE_ENROLLMENT_API,
   parseLiveEnrollmentSnapshot,
 } from "../lib/liveEnrollments";
@@ -9,6 +11,9 @@ import type { LiveEnrollmentSnapshot, LiveEnrollmentStatus } from "../lib/liveEn
 
 const DEFAULT_INTERVAL = 30_000;
 const STALE_AFTER = 90_000;
+const MIN_POLL = 5_000;
+// 后端 nextRefreshAt 之后再等这点缓冲才去取（给后端抓取/落盘留时间），避免拿到旧快照。
+const POLL_BUFFER = 4_000;
 
 export function useLiveEnrollments(
   sections: FormalSection[],
@@ -19,15 +24,16 @@ export function useLiveEnrollments(
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
-  const [nextPollAt, setNextPollAt] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<{ count: number; at: number } | null>(null);
   const inFlight = useRef(false);
   const lastFetchedAt = useRef<string | null>(null);
+  // 上一份快照的「班级→人数」映射，用于和新一份做差，得出「更新 N 条」。
+  const prevCounts = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!enabled) {
       setRefreshing(false);
       setStale(false);
-      setNextPollAt(null);
       return;
     }
 
@@ -65,11 +71,24 @@ export function useLiveEnrollments(
           throw new Error(`snapshot semester is ${parsed.semester}`);
         }
         if (!cancelled) {
+          // 后端每周期都会刷新 fetchedAt；只有它变了才算「拿到新快照」→ 做差并触发「更新 N 条」。
+          if (parsed.fetchedAt !== lastFetchedAt.current) {
+            const nextCounts = enrollmentCountMap(parsed.items);
+            if (prevCounts.current.size > 0) {
+              setLastUpdate({ count: countEnrollmentChanges(prevCounts.current, nextCounts), at: Date.now() });
+            }
+            prevCounts.current = nextCounts;
+          }
           setSnapshot(parsed);
           lastFetchedAt.current = parsed.fetchedAt;
           setError(null);
           setStale(Date.now() - Date.parse(parsed.fetchedAt) > STALE_AFTER);
-          nextDelay = parsed.refreshIntervalMs;
+          // 严格对齐后端 nextRefreshAt：在它之后留点缓冲再轮询，倒计时不随前端轮询重置。
+          const untilBackend = Date.parse(parsed.nextRefreshAt) - Date.now();
+          nextDelay = Math.min(
+            parsed.refreshIntervalMs + 10_000,
+            Math.max(MIN_POLL, untilBackend + POLL_BUFFER),
+          );
         }
       } catch (reason) {
         if (!cancelled) {
@@ -84,7 +103,6 @@ export function useLiveEnrollments(
         inFlight.current = false;
         if (!cancelled) {
           setRefreshing(false);
-          setNextPollAt(new Date(Date.now() + nextDelay).toISOString());
           schedule(nextDelay);
         }
       }
@@ -128,8 +146,11 @@ export function useLiveEnrollments(
     stale,
     error,
     fetchedAt: snapshot?.fetchedAt ?? null,
-    nextRefreshAt: nextPollAt,
+    // 用后端权威的 nextRefreshAt（而非前端轮询时刻），倒计时才不会一轮询就重置。
+    nextRefreshAt: snapshot?.nextRefreshAt ?? null,
     refreshIntervalMs: snapshot?.refreshIntervalMs ?? DEFAULT_INTERVAL,
+    lastUpdateCount: lastUpdate?.count ?? 0,
+    lastUpdateAt: lastUpdate?.at ?? null,
   };
   return { getEnrollment, status };
 }

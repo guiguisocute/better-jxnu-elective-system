@@ -512,6 +512,14 @@ export function HomePage() {
     }
   }, [dataSource, quickRatingActive, quickRatingSemester, selectedSemester]);
 
+  // 实时人数：放在内容筛选之前，让「余量筛选」拿得到 getEnrollment（余量 = 容量 − 实时已选）。
+  const isFormalMode = dataSource !== "pre";
+  const liveEnrollment = useLiveEnrollments(
+    formal.sections,
+    selectedSemester,
+    isFormalMode && selectedSemester === LIVE_ENROLLMENT_SEMESTER,
+  );
+
   // 「内容筛选」后的班级集合：搜索/学院/方案/学分/类型/教学区/隐藏已修，但【不含】课表时段筛选。
   // 课表格子里的数字基于它统计 —— 数字随内容筛选变化，却不被你点选的时段格子反向影响（issue #2 · 方案①）。
   const contentFilteredSections = useMemo(() => {
@@ -560,13 +568,24 @@ export function HomePage() {
     });
   }, [formal.sections, selectedSemester, filter.filters, coursesById, sim.mode, credit.takenCids, quickRatingActive, quickRatingSectionKeys]);
 
-  // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）。
-  const visibleFormalSections = useMemo(
-    () => schedule.active
+  // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）+ 余量筛选。
+  const visibleFormalSections = useMemo(() => {
+    let result = schedule.active
       ? contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter))
-      : contentFilteredSections,
-    [contentFilteredSections, schedule.active, schedule.filter],
-  );
+      : contentFilteredSections;
+    const mode = filter.filters.remaining;
+    if (mode !== "all") {
+      result = result.filter((s) => {
+        const enrolled = liveEnrollment.getEnrollment(s);
+        // 人数或容量未知 → 无法判定余量。"available" 保留（不误杀），"ample" 要求确凿充足故剔除。
+        if (enrolled == null || s.capacity == null) return mode === "available";
+        const rem = s.capacity - enrolled;
+        if (mode === "available") return rem > 0;
+        return rem > 5 && rem / s.capacity > 0.2; // ample：与徽章绿色档对齐
+      });
+    }
+    return result;
+  }, [contentFilteredSections, schedule.active, schedule.filter, filter.filters.remaining, liveEnrollment.getEnrollment]);
 
   // 课表每格班级数：基于「内容筛选后」的班级统计（issue #2 · 方案① —— 随内容筛选变，不随已选时段格子变）。
   const scheduleCellCounts = useMemo(() => {
@@ -646,13 +665,6 @@ export function HomePage() {
       return asc ? cmp : -cmp;
     });
   }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, getTeacherAvg, coursesById, foldGroups]);
-
-  const isFormalMode = dataSource !== "pre";
-  const liveEnrollment = useLiveEnrollments(
-    formal.sections,
-    selectedSemester,
-    isFormalMode && selectedSemester === LIVE_ENROLLMENT_SEMESTER,
-  );
 
   // 正选/补退选独立分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
   // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。
@@ -1031,6 +1043,7 @@ export function HomePage() {
               subTags={subTags}
               simMode={sim.mode === "sim"}
               dataSource={dataSource}
+              showRemainingFilter={liveEnrollment.status.enabled}
               foldGroups={foldGroups}
               onToggleFoldGroups={toggleFoldGroups}
             />
@@ -1095,6 +1108,7 @@ export function HomePage() {
               subTags={subTags}
               simMode={sim.mode === "sim"}
               dataSource={dataSource}
+              showRemainingFilter={liveEnrollment.status.enabled}
               foldGroups={foldGroups}
               onToggleFoldGroups={toggleFoldGroups}
             />
@@ -1209,6 +1223,7 @@ export function HomePage() {
                 subTags={subTags}
                 simMode={sim.mode === "sim"}
                 dataSource={dataSource}
+                showRemainingFilter={liveEnrollment.status.enabled}
                 foldGroups={foldGroups}
                 onToggleFoldGroups={toggleFoldGroups}
               />

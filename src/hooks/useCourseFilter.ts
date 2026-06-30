@@ -19,6 +19,7 @@ const EMPTY_FILTERS: Filters = {
   plan: "",
   planFilter: "none",
   hideTaken: false,
+  remaining: "all",
 };
 
 function loadSaved(): { filters: Filters; page: number; sortAsc: boolean } {
@@ -244,7 +245,8 @@ export function useCourseFilter(
     filters.area.length > 0 ||
     filters.areaExclude.length > 0 ||
     filters.plan !== "" ||
-    filters.hideTaken;
+    filters.hideTaken ||
+    filters.remaining !== "all";
 
   return {
     filters,
