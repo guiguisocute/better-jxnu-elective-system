@@ -90,6 +90,7 @@ better-jxnu-elective-system/
 | `addDrop_schedule.json` | 补退选 | 开课安排公告 | 补退选开始前夕 | 课程范围比 formal_schedule 更小、时间跨度更长 |
 | `addDrop_actual.json` | 补退选 | 选课系统 | 补退选进行中 | 暂可空。 |
 | `openclass_status.json` | 正选(兜底/补充) | 选课开班界面（`tools/crawl_courses.py` + `tools/cas_login.py` 爬取） | 开班阶段 | 真实开班：课程号/老师(必修带教号)/容量/班级名称/选课人数；**无星期/节次/教室**。没有正式课表时生成 formal sections；正式课表到位后，仍补充 master 课程/教师，并按 `(课程号, 班级名称)` 精确回填容量。 |
+| `xk_capacity.json` | 正选/补退选 | xk 选课系统（真实学生账号登录，`tools/crawl_capacity.py` + `tools/cas_login.py` 爬取） | 该阶段开放期间 | 逐课程号 GET `Step{N}/ChangeClass.aspx?kch=...`（N 随选课阶段变化，见下方备注），解析每教学班 `{bjh, className, teacher, enrolled, remaining}`。按 `(课程号, 班级名称)` 精确回填容量 = enrolled+remaining，始终视为可信来源（不受 `TRUST_OPENCLASS_CAPACITY` 开关影响）。该账号培养方案外的课程会返回空班级列表或 `blocked`。**Step 前缀会随选课阶段变化**（如 2026-09 学期：预选 Step1 → 正选第一阶段疑似 Step2 → 正选第二阶段 Step3），开抓前用 `--probe` 核对 `Default_config.aspx` 的「配置名称」，阶段变了要同步改 `tools/crawl_capacity.py` 里的 Step 前缀。 |
 
 **注**：当前 `data/raw/course_schedule.json` 实际是 `formal_schedule` 角色。迁移时按学期归类。
 
@@ -114,7 +115,7 @@ better-jxnu-elective-system/
 | 师课绑定（teachers per course） | formal_schedule（actual）> preselect_catalog（candidates） | catalog 列的是候选；schedule 是真实授课 |
 | 师课绑定（per section） | **仅** formal_schedule / addDrop_schedule | section 是单 teacher 粒度 |
 | 班级/教室/上课时间 | **仅** formal_schedule / addDrop_schedule | |
-| 教学班容量 | openclass_status 按 `(课程号, 班级名称)` 精确连接 | 同键容量不唯一或班级名为空时不回填 |
+| 教学班容量 | xk_capacity（真实登录实抓）> openclass_status（`TRUST_OPENCLASS_CAPACITY` 开关控制，默认关） | 两者都按 `(课程号, 班级名称)` 精确连接；同键容量不唯一或班级名为空时不回填 |
 | 毕业学分要求 / 按性质汇总 | **仅** training_plan 顶层 | |
 | 教师姓名/性别/教号/单位 | preselect_catalog `教师[]` + formal_schedule `任课老师` | 累积进 master/teachers.json |
 | 教师邮箱/职称/教学简介 | formal_schedule `任课老师`（最新有效非空值） | 过滤格式错误邮箱及“未定”等占位职称 |
@@ -245,6 +246,11 @@ npm run dev   # 抽查 预选/正选/补退选 三个 tab
 ---
 
 ## 8. 迁移历史
+
+**2026-07-01** 2026-09 正选真实容量到位（xk 实抓）：
+- 新增 raw stage `xk_capacity`（`tools/crawl_capacity.py` 真实学生账号登录 xk 选课系统爬取）；`data/semesters/2026-09/raw/xk_capacity.json` = 逐课程号 `Step3/ChangeClass.aspx`（当时选课阶段为「正选第二阶段」，Step 前缀需随阶段核对）实抓，1418 门课程号，1410 门可见（1 门 blocked，7 门空班级列表），覆盖 2026-09 全部 1420 个课程号中的绝大多数。
+- `build_data.py`：新增 `build_xk_capacity_lookup`，按 `(课程号, 班级名称)` 提取 `enrolled+remaining` 为容量，始终可信（不受 `TRUST_OPENCLASS_CAPACITY` 影响）；`build_public` 里 `capacity_lookup = {**oc_lookup, **xk_lookup}`，xk 覆盖 openclass。
+- 产物：2026-09 的 4356 个 formal section 里 4340 个拿到真实容量（此前全部为 null）。
 
 **2026-06-28** 2026-09 真实正式课表到位：
 - 新增 `data/semesters/2026-09/raw/formal_schedule.json`（8453 条时段记录，聚合为 4340 个教学班 / 1415 个课程号），含真实教师、星期、节次与教室。

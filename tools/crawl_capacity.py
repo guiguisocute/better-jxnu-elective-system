@@ -3,7 +3,9 @@
 """
 xk.jxnu.edu.cn 正选实时容量爬虫
   CAS 登录 xk 选课系统 -> 遍历某学期所有课程号(kch)
-  -> GET /Step2/ChangeClass.aspx?kch={kch}&action=change  (该课所有教学班 容量/余量)
+  -> GET /Step{N}/ChangeClass.aspx?kch={kch}&action=change  (该课所有教学班 容量/余量)
+     Step 段与选课阶段对应（预选=Step1，正选/补退选=Step3 等），随 Default_config.aspx
+     的「配置名称」变化——开抓前先用 --probe 核对，阶段变了要改 STEP_PREFIX。
   -> 解析每个教学班的 {bjh, 班级名称, 教师, 授课人数, 剩余容量}
   -> 输出 UTF-8 JSON: data/semesters/<sem>/raw/xk_capacity.json
 
@@ -161,9 +163,9 @@ def crawl(username, password, sem, out_path, probe=None, delay=0.25):
               "config": cfg, "courses": []}
     n_blocked = n_ok = 0
     for i, kch in enumerate(kchs, 1):
-        url = f"{XK}/Step2/ChangeClass.aspx?kch={kch}&action=change"
+        url = f"{XK}/Step3/ChangeClass.aspx?kch={kch}&action=change"
         try:
-            h = decode(raw_get(op, url, referer=f"{XK}/Step2/"))
+            h = decode(raw_get(op, url, referer=f"{XK}/Step3/"))
         except Exception as e:
             log(f"    [x] {kch} 取页失败: {e}")
             continue
