@@ -1,9 +1,9 @@
 [Unit]
-Description=每 2 小时同步一次 JXNU 开课安排（选课季可调密）
+Description=每小时同步一次 JXNU 开课安排 + 实时容量（选课季）
 
 [Timer]
 OnBootSec=10min
-OnUnitActiveSec=2h
+OnUnitActiveSec=1h
 Persistent=true
 
 [Install]

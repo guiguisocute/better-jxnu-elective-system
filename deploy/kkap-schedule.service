@@ -1,5 +1,5 @@
 [Unit]
-Description=JXNU 开课安排安全增量同步 (scrape Public_Kkap -> build -> push)
+Description=JXNU 开课安排+实时容量安全增量同步 (scrape Public_Kkap + xk capacity -> build -> push)
 After=network-online.target
 Wants=network-online.target
 

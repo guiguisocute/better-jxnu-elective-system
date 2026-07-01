@@ -5,7 +5,8 @@ xk.jxnu.edu.cn 正选实时容量爬虫
   CAS 登录 xk 选课系统 -> 遍历某学期所有课程号(kch)
   -> GET /Step{N}/ChangeClass.aspx?kch={kch}&action=change  (该课所有教学班 容量/余量)
      Step 段与选课阶段对应（预选=Step1，正选/补退选=Step3 等），随 Default_config.aspx
-     的「配置名称」变化——开抓前先用 --probe 核对，阶段变了要改 STEP_PREFIX。
+     的「配置名称」变化——开抓前先用 --probe 核对，阶段变了要用 --step 传新前缀
+     （或设 XK_STEP 环境变量）。
   -> 解析每个教学班的 {bjh, 班级名称, 教师, 授课人数, 剩余容量}
   -> 输出 UTF-8 JSON: data/semesters/<sem>/raw/xk_capacity.json
 
@@ -14,6 +15,7 @@ xk.jxnu.edu.cn 正选实时容量爬虫
 用法:
   python tools/crawl_capacity.py -u 202225303068 -p 'xxx' --sem 2026-09
   探针(只测登录+阶段+前N门):  ... --probe 3
+  免手填账号密码(定时任务用): 设环境变量 XK_USERNAME / XK_PASSWORD 后不传 -u/-p
 """
 import argparse
 import base64
@@ -147,7 +149,10 @@ def load_kch_list(sem):
     return out
 
 
-def crawl(username, password, sem, out_path, probe=None, delay=0.25):
+def crawl(username, password, sem, out_path, probe=None, delay=0.25, step="Step3"):
+    if not username or not password:
+        log("[x] 缺少账号/密码：传 -u/-p 或设 XK_USERNAME / XK_PASSWORD 环境变量")
+        sys.exit(1)
     op, ok = login(username, password)
     log(f"[i] 登录 ASP.NET_SessionId 下发: {ok}")
     cfg = get_config(op)
@@ -157,15 +162,15 @@ def crawl(username, password, sem, out_path, probe=None, delay=0.25):
     kchs = list(kch_map.keys())
     if probe:
         kchs = kchs[:probe]
-    log(f"[i] 待查课程号 {len(kchs)} 门 (probe={probe})")
+    log(f"[i] 待查课程号 {len(kchs)} 门 (probe={probe}, step={step})")
 
     result = {"semester": sem, "fetched_at": time.strftime("%Y-%m-%d %H:%M:%S"),
               "config": cfg, "courses": []}
     n_blocked = n_ok = 0
     for i, kch in enumerate(kchs, 1):
-        url = f"{XK}/Step3/ChangeClass.aspx?kch={kch}&action=change"
+        url = f"{XK}/{step}/ChangeClass.aspx?kch={kch}&action=change"
         try:
-            h = decode(raw_get(op, url, referer=f"{XK}/Step3/"))
+            h = decode(raw_get(op, url, referer=f"{XK}/{step}/"))
         except Exception as e:
             log(f"    [x] {kch} 取页失败: {e}")
             continue
@@ -196,13 +201,15 @@ def crawl(username, password, sem, out_path, probe=None, delay=0.25):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="xk 正选实时容量爬虫")
-    ap.add_argument("--username", "-u", required=True)
-    ap.add_argument("--password", "-p", required=True)
+    ap.add_argument("--username", "-u", default=os.environ.get("XK_USERNAME"))
+    ap.add_argument("--password", "-p", default=os.environ.get("XK_PASSWORD"))
     ap.add_argument("--sem", default="2026-09")
     ap.add_argument("--out", "-o", default=None)
     ap.add_argument("--probe", type=int, default=None,
                     help="只测前 N 门(并打印 cell 结构), 用于探阶段/列序")
     ap.add_argument("--delay", type=float, default=0.25)
+    ap.add_argument("--step", default=os.environ.get("XK_STEP", "Step3"),
+                    help="ChangeClass.aspx 的 Step 前缀，随选课阶段变化，见文件头注释")
     args = ap.parse_args()
     out = args.out or f"{REPO}/data/semesters/{args.sem}/raw/xk_capacity.json"
-    crawl(args.username, args.password, args.sem, out, args.probe, args.delay)
+    crawl(args.username, args.password, args.sem, out, args.probe, args.delay, args.step)

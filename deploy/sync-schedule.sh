@@ -1,33 +1,67 @@
 #!/usr/bin/env bash
-# 方案A · 开课安排安全增量同步（VPS 定时跑）。
-#   抓 Public_Kkap(无登录) → 复用旧 enrichment → build_data → 校验 → 仅在有变化时 commit+push。
-# 安全闸：抓取行数过少 / 产物异常 一律回滚不推；git pull --ff-only 避免分叉覆盖你的手动改动。
+# 开课安排 + 实时容量 安全增量同步（VPS 定时跑）。
+#   抓 Public_Kkap(无登录) → 复用旧 enrichment → xk 实抓容量(真账号登录) → build_data → 校验 → 仅在有变化时 commit+push。
+# 安全闸：抓取行数过少 / 产物异常 / 容量可见课程数过少 一律不采用当次结果；git pull --ff-only 避免分叉覆盖手动改动。
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO"
-RAW="data/semesters/2026-09/raw/formal_schedule.json"
+SEM="2026-09"
+RAW="data/semesters/$SEM/raw/formal_schedule.json"
+CAPACITY_RAW="data/semesters/$SEM/raw/xk_capacity.json"
 MIN_SECTIONS=7000
+MIN_CAPACITY_VISIBLE=300
 
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
+
+# 凭据（XK_USERNAME/XK_PASSWORD，供下面容量爬取用）：VPS 上放在仓库外的
+# ~/apps/jxnu-kkap/sync.env（模板见 deploy/sync.env.example），不随仓库一起同步/提交。
+SYNC_ENV="$HOME/apps/jxnu-kkap/sync.env"
+if [ -f "$SYNC_ENV" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$SYNC_ENV"
+  set +a
+fi
 
 # 0) 同步远端（快进；若分叉则放弃本次，等人工处理，绝不强推）
 git pull --ff-only origin main || { log "git pull 非快进，跳过本次同步"; exit 0; }
 
-# 1) 抓取 + 复用旧 enrichment（脚本内含 --min-rows 安全闸，抓太少会自己 abort）
+# 1) 开课安排：抓取 + 复用旧 enrichment（脚本内含 --min-rows 安全闸，抓太少会自己 abort）
 python3 tools/kkap_schedule_export.py --merge-from "$RAW" --min-rows 6000 -o "$RAW.tmp"
 mv -f "$RAW.tmp" "$RAW"
 
-# 2) 重建产物
+# 2) 实时容量：真账号登录 xk 实抓（教学班容量，不是已选人数——已选人数走单独的 kkap-realtime 服务）。
+#    没配凭据 / 登录或抓取失败 / 可见课程数过少（选课阶段变了导致 Step 前缀失配等）→ 丢弃这次结果，
+#    保留仓库里上一份，不影响本次开课安排那部分的 push。
+if [ -n "${XK_USERNAME:-}" ] && [ -n "${XK_PASSWORD:-}" ]; then
+  if python3 tools/crawl_capacity.py --sem "$SEM" -o "$CAPACITY_RAW.tmp"; then
+    VISIBLE=$(python3 -c "import json;print(json.load(open('$CAPACITY_RAW.tmp',encoding='utf-8'))['summary']['visible'])" 2>/dev/null || echo 0)
+    if [ "$VISIBLE" -ge "$MIN_CAPACITY_VISIBLE" ]; then
+      mv -f "$CAPACITY_RAW.tmp" "$CAPACITY_RAW"
+      log "[容量] 可见 $VISIBLE 门，已更新"
+    else
+      log "[容量][跳过] 可见仅 $VISIBLE (<$MIN_CAPACITY_VISIBLE)，可能选课阶段变了（检查 XK_STEP），保留旧数据"
+      rm -f "$CAPACITY_RAW.tmp"
+    fi
+  else
+    log "[容量][跳过] 爬取失败（登录/网络），保留旧数据"
+    rm -f "$CAPACITY_RAW.tmp"
+  fi
+else
+  log "[容量][跳过] 未配置 XK_USERNAME/XK_PASSWORD（见 $SYNC_ENV）"
+fi
+
+# 3) 重建产物
 python3 build_data.py >/dev/null
 
-# 3) 没变化就收工
+# 4) 没变化就收工
 if git diff --quiet -- public/ data/; then
   log "无变化，结束"
   exit 0
 fi
 
-# 4) 产物合理性闸：section 数太少 = 异常 → 全部回滚，不推
+# 5) 产物合理性闸：section 数太少 = 异常 → 全部回滚，不推
 N=$(python3 -c "import json;print(len(json.load(open('public/formal_sections.json',encoding='utf-8'))))")
 if [ "$N" -lt "$MIN_SECTIONS" ]; then
   log "[ABORT] formal_sections 仅 $N (<$MIN_SECTIONS)，回滚不推"
@@ -35,8 +69,8 @@ if [ "$N" -lt "$MIN_SECTIONS" ]; then
   exit 1
 fi
 
-# 5) 提交并推送（触发 Cloudflare Pages 部署）
-git add public/ "$RAW" data/master/
-git commit -q -m "data: 自动同步开课安排 (kkap $(date -u +%FT%TZ)); sections=$N"
+# 6) 提交并推送（触发 Cloudflare Pages 部署）
+git add public/ "$RAW" "$CAPACITY_RAW" data/master/
+git commit -q -m "data: 自动同步开课安排+实时容量 (kkap $(date -u +%FT%TZ)); sections=$N"
 git push origin main
 log "[已推送] formal_sections=$N"
