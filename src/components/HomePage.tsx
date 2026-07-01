@@ -573,12 +573,16 @@ export function HomePage() {
     });
   }, [formal.sections, selectedSemester, filter.deferredFilters, coursesById, sim.mode, credit.takenCids, quickRatingActive, quickRatingSectionKeys]);
 
+  // 「仅看有余量」实际生效时才需要跟着实时人数重算；未开启时不能把 getEnrollment 放进依赖 ——
+  // 否则每次实时轮询（哪怕只是刷新已选人数）都会强制重新过滤全量班级列表，白白扫一遍几千行。
+  // 单个班级行的已选人数徽章仍通过 rowProps.getEnrollment 独立更新，不受这里影响。
+  const remainingFilterActive = filter.deferredFilters.remaining === "available";
   // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）+ 余量筛选。
   const visibleFormalSections = useMemo(() => {
     let result = schedule.active
       ? contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter))
       : contentFilteredSections;
-    if (filter.deferredFilters.remaining === "available") {
+    if (remainingFilterActive) {
       result = result.filter((s) => {
         const enrolled = liveEnrollment.getEnrollment(s);
         // 人数或容量未知 → 无法判定，保留以免误杀；已确认满员的班级隐藏。
@@ -587,7 +591,8 @@ export function HomePage() {
       });
     }
     return result;
-  }, [contentFilteredSections, schedule.active, schedule.filter, filter.deferredFilters.remaining, liveEnrollment.getEnrollment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentFilteredSections, schedule.active, schedule.filter, remainingFilterActive, remainingFilterActive ? liveEnrollment.getEnrollment : null]);
 
   // 课表每格班级数：基于「内容筛选后」的班级统计（issue #2 · 方案① —— 随内容筛选变，不随已选时段格子变）。
   const scheduleCellCounts = useMemo(() => {
@@ -602,7 +607,7 @@ export function HomePage() {
   }, [contentFilteredSections]);
 
   // 正选/补退选排序：已选/容量按「余量 = 容量 - 已选」排；评分与学分沿用原口径。
-  // 实时快照更新会替换 getEnrollment，触发这里重新分组和排序。
+  // 仅当「按余量排序」实际启用时，实时快照更新才会触发这里重新分组和排序（见下方依赖数组）。
   // 评分用 section 教师的具体分（getTeacherAvg），与列表显示口径一致 —— 不能用课程平均（getCourseAvg），
   // 否则同课不同老师的几行排序会完全一样、且与单元格显示的星数对不上。
   // 同课程号折叠：按 s.id 分组 → 组内排序 → 组间排序。
@@ -692,7 +697,10 @@ export function HomePage() {
         : filter.ratingSortAsc !== null ? filter.ratingSortAsc : filter.sortAsc;
       return asc ? cmp : -cmp;
     });
-  }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, filter.enrollmentSortAsc, getTeacherAvg, liveEnrollment.getEnrollment, coursesById, foldGroups]);
+    // 按余量排序时才需要跟着实时人数重排；否则不把 getEnrollment 放进依赖，
+    // 理由同上（避免每次轮询都重新分组+排序全量班级）。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, filter.enrollmentSortAsc, getTeacherAvg, filter.enrollmentSortAsc !== null ? liveEnrollment.getEnrollment : null, coursesById, foldGroups]);
 
   // 正选/补退选独立分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
   // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。

@@ -9,11 +9,17 @@ import {
 } from "../lib/liveEnrollments";
 import type { LiveEnrollmentSnapshot, LiveEnrollmentStatus } from "../lib/liveEnrollments";
 
-const DEFAULT_INTERVAL = 30_000;
+// 固定客户端轮询节奏——不再对齐后端回传的 nextRefreshAt。之前那套「按后端时间表 + 5s 下限」
+// 的调度，一旦客户端/服务端时钟有偏差（或后端 nextRefreshAt 略滞后于当前时间），
+// untilBackend 会长期算出负值/接近 0，导致每次都撞 5s 下限、退化成准秒级轮询——
+// 长时间停留后把整棵组件树反复拖入重渲染，是"筛选筛不掉、要 F5"这个 bug 的根因。
+// 改成固定 30s 间隔，不依赖后端时钟，行为可预测。
+const REFRESH_INTERVAL_MS = 30_000;
 const STALE_AFTER = 90_000;
-const MIN_POLL = 5_000;
-// 后端 nextRefreshAt 之后再等这点缓冲才去取（给后端抓取/落盘留时间），避免拿到旧快照。
-const POLL_BUFFER = 4_000;
+const REQUEST_TIMEOUT_MS = 12_000;
+// 切回前台时：离上次真正发起请求太近就不重复拉，只需恢复固定节奏的下一次调度，
+// 避免反复切换标签页时把请求越攒越密。
+const VISIBILITY_REFRESH_MIN_GAP_MS = 10_000;
 
 export function useLiveEnrollments(
   sections: FormalSection[],
@@ -27,6 +33,8 @@ export function useLiveEnrollments(
   const [lastUpdate, setLastUpdate] = useState<{ count: number; at: number } | null>(null);
   // 最近一次刷新中「人数有变化」的条目键集合 —— 驱动对应徽章闪烁。
   const [changedKeys, setChangedKeys] = useState<Set<string>>(() => new Set());
+  // 客户端本地"上一次轮询完成"时刻——下一次固定发生在它 + REFRESH_INTERVAL_MS，供倒计时展示。
+  const [lastPolledAt, setLastPolledAt] = useState<number | null>(null);
   const inFlight = useRef(false);
   const lastFetchedAt = useRef<string | null>(null);
   // 上一份快照的「班级→人数」映射，用于和新一份做差，得出「更新 N 条」。
@@ -42,21 +50,20 @@ export function useLiveEnrollments(
     let cancelled = false;
     let timer: number | undefined;
     let controller: AbortController | null = null;
+    let lastFetchStartedAt = 0;
 
-    const schedule = (delay: number) => {
+    const scheduleNext = () => {
       window.clearTimeout(timer);
-      if (!cancelled && document.visibilityState === "visible") {
-        timer = window.setTimeout(refresh, delay);
-      }
+      if (!cancelled) timer = window.setTimeout(refresh, REFRESH_INTERVAL_MS);
     };
 
     const refresh = async () => {
       if (cancelled || inFlight.current) return;
       inFlight.current = true;
+      lastFetchStartedAt = Date.now();
       setRefreshing(true);
       controller = new AbortController();
-      const timeout = window.setTimeout(() => controller?.abort(), 12_000);
-      let nextDelay = DEFAULT_INTERVAL;
+      const timeout = window.setTimeout(() => controller?.abort(), REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch(LIVE_ENROLLMENT_API, {
           cache: "no-cache",
@@ -87,12 +94,6 @@ export function useLiveEnrollments(
           lastFetchedAt.current = parsed.fetchedAt;
           setError(null);
           setStale(Date.now() - Date.parse(parsed.fetchedAt) > STALE_AFTER);
-          // 严格对齐后端 nextRefreshAt：在它之后留点缓冲再轮询，倒计时不随前端轮询重置。
-          const untilBackend = Date.parse(parsed.nextRefreshAt) - Date.now();
-          nextDelay = Math.min(
-            parsed.refreshIntervalMs + 10_000,
-            Math.max(MIN_POLL, untilBackend + POLL_BUFFER),
-          );
         }
       } catch (reason) {
         if (!cancelled) {
@@ -107,7 +108,8 @@ export function useLiveEnrollments(
         inFlight.current = false;
         if (!cancelled) {
           setRefreshing(false);
-          schedule(nextDelay);
+          setLastPolledAt(Date.now());
+          scheduleNext();
         }
       }
     };
@@ -117,7 +119,12 @@ export function useLiveEnrollments(
         window.clearTimeout(timer);
         return;
       }
-      void refresh();
+      // 回到前台：刚拉过不久就不重复拉，只恢复固定节奏的下一次调度；否则立即拉一次。
+      if (Date.now() - lastFetchStartedAt >= VISIBILITY_REFRESH_MIN_GAP_MS) {
+        void refresh();
+      } else {
+        scheduleNext();
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
@@ -159,9 +166,9 @@ export function useLiveEnrollments(
     stale,
     error,
     fetchedAt: snapshot?.fetchedAt ?? null,
-    // 用后端权威的 nextRefreshAt（而非前端轮询时刻），倒计时才不会一轮询就重置。
-    nextRefreshAt: snapshot?.nextRefreshAt ?? null,
-    refreshIntervalMs: snapshot?.refreshIntervalMs ?? DEFAULT_INTERVAL,
+    // 固定客户端节奏：下一次 = 上一次轮询完成 + REFRESH_INTERVAL_MS，不再依赖后端回传的时间戳。
+    nextRefreshAt: lastPolledAt != null ? new Date(lastPolledAt + REFRESH_INTERVAL_MS).toISOString() : null,
+    refreshIntervalMs: REFRESH_INTERVAL_MS,
     lastUpdateCount: lastUpdate?.count ?? 0,
     lastUpdateAt: lastUpdate?.at ?? null,
   };

@@ -9,7 +9,7 @@
   -> 解析每页全部表单信息 -> 输出 UTF-8 JSON
 
 用法:
-  python tools/crawl_courses.py -u 202426201063 -p 'xxx' -o tools/courses.json
+  python tools/crawl_courses.py -u 202xxxxxxxxx -p 'xxx' -o tools/courses.json
   调试少量:  ... --limit-colleges 2
 
 关键坑(给后续维护者):
