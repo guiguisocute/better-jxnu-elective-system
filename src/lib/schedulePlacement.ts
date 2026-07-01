@@ -11,10 +11,10 @@ import type { StudentScheduleItem, StudentScheduleSnapshot } from "./studentReco
 export type PlacedKind = "required" | "cart" | "imported";
 export type PlacedStatus = "placed" | "none";
 
-/** 一门课的一个可选班级；同班级号的多教师 section 会合并成一项。 */
+/** 一门课的一个可选班级；同 className+教号的 section 会合并成一项。 */
 export interface PlacedOption {
   key: string;
-  /** 旧版按「班级名|教号」存下的 key，仅用于兼容已有 localStorage/分享码。 */
+  /** 旧版按 bjh 存下的 key，仅用于兼容已有 localStorage/分享码（见 legacyBjhOptionKey）。 */
   legacyKeys?: string[];
   slots: MeetSlot[];
   teacher?: string;
@@ -50,15 +50,22 @@ export interface PlacedCourse {
 type Resolved = Pick<PlacedCourse, "status" | "noneReason" | "slots" | "teacher" | "classroom" | "srcSem" | "altCount" | "options" | "activeKey">;
 
 /**
- * 模拟课表的逻辑选班 key。正式数据可能把同一班级拆成多个教师 section，
- * 而 bjh 才是教学班标识；无 bjh 的 openclass 数据仍退回旧的「班级名|教号」。
+ * 模拟课表的逻辑选班 key：班级名 + 教号。
+ * 曾短暂改用 bjh（教学班号）来合并被拆成多教师 section 的同一教学班，但源数据里很多课程
+ * 的 bjh 是错的，会把不同班级错误合并/拆分——2026-07 起废弃，key 固定回「班级名|教号」。
  */
 export function sectionOptionKey(s: FormalSection): string {
-  const bjh = s.bjh?.trim();
-  return bjh ? `bjh:${bjh}` : `${s.className}|${s.teacherId}`;
+  return `${s.className}|${s.teacherId}`;
 }
 
-const legacySectionOptionKey = (s: FormalSection) => `${s.className}|${s.teacherId}`;
+/**
+ * 仅用于识别此前用 bjh 存过的旧 key（localStorage 选班偏好 / 分享码），不参与新 key 的生成或分组。
+ * bjh 字段仍随 FormalSection 一起加载，纯粹是为了这一次性的向后兼容判断。
+ */
+export function legacyBjhOptionKey(s: FormalSection): string | null {
+  const bjh = s.bjh?.trim();
+  return bjh ? `bjh:${bjh}` : null;
+}
 
 function optionMatchesKey(option: PlacedOption, key: string | undefined): boolean {
   return !!key && (option.key === key || option.legacyKeys?.includes(key) === true);
@@ -145,7 +152,7 @@ export function buildPlacement(
     const options: PlacedOption[] = [...groups]
       .map(([key, rows]) => ({
         key,
-        legacyKeys: [...new Set(rows.map(legacySectionOptionKey))],
+        legacyKeys: [...new Set(rows.map(legacyBjhOptionKey).filter((k): k is string => k !== null))],
         slots: mergedSlots(rows),
         teacher: uniqueText(rows.map((s) => s.teacher)),
         classroom: uniqueText(rows.map((s) => s.classroom)),

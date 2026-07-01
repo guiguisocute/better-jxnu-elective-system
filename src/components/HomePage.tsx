@@ -11,7 +11,7 @@ import { usePlanCourses } from "../hooks/usePlanCourses";
 import { useScheduleFilter } from "../hooks/useScheduleFilter";
 import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
 import { sectionMatchesSchedule, parseSchedule } from "../lib/scheduleParse";
-import { buildPlacement, sectionOptionKey } from "../lib/schedulePlacement";
+import { buildPlacement, sectionOptionKey, legacyBjhOptionKey } from "../lib/schedulePlacement";
 import { termToCalLabel, enrollYear } from "../lib/term";
 import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
@@ -376,7 +376,7 @@ export function HomePage() {
 
   // section 版加车：在 cart.toggle 之外，加车成功时同步把 chosenSections[cid] 设到当前班级。
   // 这样购物车「该课用的哪个班」被显式记录，section 详情页才能区分 exact/other 三态。
-  // 有班级号时按 bjh 选中整个教学班：同班被拆成多教师记录时仍共享一个课表选项。
+  // 选班 key = 班级名+教号（bjh 源数据多有错误，2026-07 起不再用它合并/区分教学班）。
   const sectionKeyOf = sectionOptionKey;
   const handleToggleCartSection = useCallback(
     async (s: FormalSection) => {
@@ -398,13 +398,10 @@ export function HomePage() {
       const key = sectionKeyOf(s);
       const chosen = chosenSections.chosen[s.id];
       if (chosen === key) return "exact";
-      // 兼容旧版已持久化的「班级名|教号」：先找回旧 section，再按 bjh 判断是否同班。
-      const legacySection = formal.sections.find(
-        (x) => x.id === s.id && `${x.className}|${x.teacherId}` === chosen,
-      );
-      return legacySection && sectionOptionKey(legacySection) === key ? "exact" : "other";
+      // 兼容旧版按 bjh 持久化的 key（2026-07 前）：命中则仍算 exact。
+      return chosen && chosen === legacyBjhOptionKey(s) ? "exact" : "other";
     },
-    [cart, chosenSections.chosen, formal.sections],
+    [cart, chosenSections.chosen],
   );
 
   // 学期下拉：三种数据源 (pre / formal / addDrop) 各存各的，互不污染。

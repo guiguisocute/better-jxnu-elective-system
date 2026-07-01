@@ -17,7 +17,7 @@ import { checkMyRating, deleteMyRating, removeOptimistic } from "../lib/ratingsS
 
 interface Props {
   section: FormalSection;
-  /** 同课程、同学期的 section；详情页按 bjh 合并同一教学班的多教师时段。 */
+  /** 同课程、同学期的 section；详情页按班级名+教号合并同一教学班的多教师时段。 */
   relatedSections?: FormalSection[];
   course?: Course;
   onClose: () => void;
@@ -48,7 +48,7 @@ function joinUniqueSegments(values: string[]): string {
 }
 
 // 正选/补退选详情页：以 section 为中心，course 命中时补齐 desc/plans/prereq/学位课。
-// 评分仍针对当前 section 的教师；班级课表/教室则按 bjh 合并，避免理论与实验拆教师时漏时段。
+// 评分仍针对当前 section 的教师；班级课表/教室则按班级名+教号合并，避免理论与实验拆教师时漏时段。
 export function FormalSectionDetail({
   section, relatedSections = [], course, onClose, scheduleFilter,
   simMode = false, cartStatus = "none", onToggleCart, onSwitchChosenSection, onRequestEnableSim,
@@ -200,10 +200,10 @@ export function FormalSectionDetail({
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[13px]">
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">班级名称</dt>
                 <dd className="text-gray-800 break-words">
-                  {section.className || "—"}
-                  {section.bjh && (
-                    <span className="ml-1 font-mono text-[12px] text-gray-400">（{section.bjh}）</span>
-                  )}
+                  <span className="inline-flex items-center gap-1">
+                    {section.className || "—"}
+                    {section.className && <CopyIdButton text={section.className} title="复制班级名" />}
+                  </span>
                 </dd>
                 <dt className="text-[11px] text-gray-500 uppercase tracking-wider self-center">教室代号</dt>
                 <dd className="text-gray-800 break-words font-mono text-[12px]">{classClassroom || "—"}</dd>
