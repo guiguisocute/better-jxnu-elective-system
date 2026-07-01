@@ -26,7 +26,8 @@ import re
 import sys
 import time
 import urllib.parse
-import urllib.request
+
+import requests
 
 sys.path.insert(0, __file__.replace("\\", "/").rsplit("/", 1)[0])
 import cas_login as C
@@ -48,37 +49,41 @@ def decode(body: bytes) -> str:
         return body.decode("gbk", "ignore")
 
 
-def raw_get(op, url, referer=None) -> bytes:
-    headers = {"User-Agent": UA, "Accept": "text/html,*/*", "Accept-Language": "zh-CN"}
+# requests.Session 复用底层 TCP/TLS 连接（keep-alive）；此前用 urllib.request 逐次 open()，
+# 1400+ 次请求每次都重新握手，是实测耗时 10-15 分钟的主因。改用 Session 后同机测得快数倍。
+def raw_get(session: requests.Session, url, referer=None) -> bytes:
+    headers = {"Accept": "text/html,*/*", "Accept-Language": "zh-CN"}
     if referer:
         headers["Referer"] = referer
-    return op.open(urllib.request.Request(url, headers=headers), timeout=25).read()
+    return session.get(url, headers=headers, timeout=25).content
 
 
 # --------------------------------------------------------------------------- #
 # Login (xk service)
 # --------------------------------------------------------------------------- #
 def login(username, password):
-    op, cj = C.create_session()
+    session = requests.Session()
+    session.headers.update({"User-Agent": UA})
     target_b64 = base64.b64encode(f"{XK}/Portal/default.aspx".encode()).decode()
     service = f"{XK}/sso/Memberlogin.aspx?targetUrl={{base64}}{target_b64}"
     lu = f"{CAS}/login?service=" + urllib.parse.quote(service, safe="")
 
-    page = C.http_get(op, lu).read().decode("utf-8", "ignore")
+    page = decode(session.get(lu, timeout=15).content)
     m = re.search(r'name="execution"\s+value="([^"]+)"', page)
     ex = m.group(1) if m else "e1s1"
-    pw = C.rsa_encrypt_password(password, C.get_public_key())
-    data = urllib.parse.urlencode({
+    pubkey = decode(session.get(f"{CAS}/jwt/publicKey", timeout=10).content).strip()
+    pw = C.rsa_encrypt_password(password, pubkey)
+    data = {
         "username": username, "password": pw, "execution": ex,
         "_eventId": "submit", "geolocation": "", "currentMenu": "1",
         "failN": "-1", "mfaState": "", "rememberMe": "false",
         "trustAgent": "", "fpVisitorId": "",
-    })
-    C.http_post(op, lu, data, referer=lu).read()
+    }
+    session.post(lu, data=data, timeout=15, headers={"Referer": lu, "Origin": CAS.rsplit("/", 1)[0]})
     # 预热: 落地 xk 门户, 拿 ASP.NET_SessionId
-    C.http_get(op, f"{XK}/Portal/default.aspx").read()
-    ok = any(c.name == "ASP.NET_SessionId" for c in cj)
-    return op, ok
+    session.get(f"{XK}/Portal/default.aspx", timeout=15)
+    ok = "ASP.NET_SessionId" in session.cookies.get_dict()
+    return session, ok
 
 
 # --------------------------------------------------------------------------- #
@@ -149,7 +154,7 @@ def load_kch_list(sem):
     return out
 
 
-def crawl(username, password, sem, out_path, probe=None, delay=0.25, step="Step3"):
+def crawl(username, password, sem, out_path, probe=None, delay=0.1, step="Step3"):
     if not username or not password:
         log("[x] 缺少账号/密码：传 -u/-p 或设 XK_USERNAME / XK_PASSWORD 环境变量")
         sys.exit(1)
@@ -207,7 +212,8 @@ if __name__ == "__main__":
     ap.add_argument("--out", "-o", default=None)
     ap.add_argument("--probe", type=int, default=None,
                     help="只测前 N 门(并打印 cell 结构), 用于探阶段/列序")
-    ap.add_argument("--delay", type=float, default=0.25)
+    ap.add_argument("--delay", type=float, default=0.1,
+                    help="每次请求间的额外等待秒数（Session 连接复用后单次请求本身已快很多，这里只是留个礼貌间隔）")
     ap.add_argument("--step", default=os.environ.get("XK_STEP", "Step3"),
                     help="ChangeClass.aspx 的 Step 前缀，随选课阶段变化，见文件头注释")
     args = ap.parse_args()
