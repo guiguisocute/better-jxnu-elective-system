@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-07-02 05:51:48",
+ "fetched_at": "2026-07-02 06:52:49",
  "config": {
   "len": 6477,
   "excerpt": "系统配置信息 配置名称： 正选第二阶段 系统开放时间： 2026-07-01 15:00:00 至 2026-07-07 22:00:00 选课阶段： 正选第二阶段 选课学期： 26-27第1学期 是否要求评教： 是 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区"
@@ -6996,8 +6996,8 @@
      "bjh": "002805Z1",
      "className": "教工范晓晶#1班",
      "teacher": "范晓晶",
-     "enrolled": 17,
-     "remaining": 33,
+     "enrolled": 18,
+     "remaining": 32,
      "full": false
     },
     {
@@ -7351,8 +7351,8 @@
      "bjh": "003757Z1",
      "className": "教工张颖#.1班",
      "teacher": "张颖",
-     "enrolled": 13,
-     "remaining": 37,
+     "enrolled": 12,
+     "remaining": 38,
      "full": false
     },
     {
@@ -17011,8 +17011,8 @@
      "bjh": "005167Z1",
      "className": "教工袁琴#1班",
      "teacher": "袁琴",
-     "enrolled": 38,
-     "remaining": 2,
+     "enrolled": 39,
+     "remaining": 1,
      "full": false
     },
     {
@@ -17877,8 +17877,8 @@
      "bjh": "006050Z2",
      "className": "教工曹荭蕾#2班",
      "teacher": "曹荭蕾",
-     "enrolled": 60,
-     "remaining": 0,
+     "enrolled": 59,
+     "remaining": 1,
      "full": false
     }
    ],
@@ -18460,8 +18460,8 @@
      "bjh": "001096Z1",
      "className": "李和平#1班",
      "teacher": "李和平",
-     "enrolled": 5,
-     "remaining": 65,
+     "enrolled": 6,
+     "remaining": 64,
      "full": false
     },
     {
@@ -23714,8 +23714,8 @@
      "bjh": "005870Z1",
      "className": "教工甘文聪#1班",
      "teacher": "甘文聪",
-     "enrolled": 28,
-     "remaining": 32,
+     "enrolled": 27,
+     "remaining": 33,
      "full": false
     }
    ],
@@ -33371,8 +33371,8 @@
      "bjh": "005326Z1",
      "className": "教工徐元国#1班",
      "teacher": "徐元国",
-     "enrolled": 99,
-     "remaining": 1,
+     "enrolled": 98,
+     "remaining": 2,
      "full": false
     }
    ],
