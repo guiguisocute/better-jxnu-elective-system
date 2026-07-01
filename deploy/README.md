@@ -77,14 +77,17 @@ curl -H 'Origin: https://test.better-jxnu-elective-system.pages.dev' \
 
 ---
 
-## 开课安排安全增量同步（方案A · sync-schedule）
+## 开课安排 + 实时容量安全增量同步（sync-schedule）
 
-无登录抓 `Public_Kkap.aspx` → 复用旧 enrichment → `build_data.py` → 校验 → 仅在有变化时 `git push`（触发 CF Pages 部署）。VPS 全自动，不再手动「油猴 + 构建 + 提交」。
+无登录抓 `Public_Kkap.aspx`（开课安排/增班）→ 复用旧 enrichment → 真账号登录 xk 实抓教学班容量
+（`tools/crawl_capacity.py`）→ `build_data.py` → 校验 → 仅在有变化时 `git push`（触发 CF Pages 部署）。
+VPS 全自动，每小时一次，不再手动「油猴 + 构建 + 提交」/手动跑容量爬虫。
 
 **为什么安全**
-- base 是 Public_Kkap 的**当前全量快照**，全替换、不累加陈旧行（根治旧版「无脑加超集」）。
+- 开课安排 base 是 Public_Kkap 的**当前全量快照**，全替换、不累加陈旧行（根治旧版「无脑加超集」）。
 - 教号(UserNum)等 enrichment 从上一份已提交的 `formal_schedule.json` 按 `(课程号,班级号,教师)` **复用**，只有全新教学班才缺（教号走姓名兜底，实测仅个位数差异）。
-- 三道闸：抓取行数 `< --min-rows(6000)` 拒绝输出；`git pull --ff-only` 分叉就放弃（不强推，保你手动改动）；产物 `formal_sections < 7000` 回滚不推。
+- 容量爬取失败（登录挂了/网络问题）或可见课程数过少（选课阶段变了导致 `Step` 前缀失配，见 `tools/crawl_capacity.py` 头部注释）时，**丢弃当次容量结果、保留仓库里上一份**，不影响开课安排那部分照常 push。
+- 三道闸：开课安排抓取行数 `< --min-rows(6000)` 拒绝输出；`git pull --ff-only` 分叉就放弃（不强推，保你手动改动）；产物 `formal_sections < 7000` 回滚不推。
 
 **一次性部署（VPS）**
 ```bash
@@ -93,15 +96,21 @@ git clone git@github.com:guiguisocute/better-jxnu-elective-system.git ~/better-j
 cd ~/better-jxnu-elective-system
 git config user.email "vps@jxnu-publish.asia" && git config user.name "jxnu-vps"
 
-# 2) 装 timer（每 2 小时一次；选课季可改 OnUnitActiveSec）
+# 2) 容量爬取凭据：复制模板到 kkap.env 同目录（仓库外，不随 git 同步），填真账号密码
+cp deploy/sync.env.example ~/apps/jxnu-kkap/sync.env
+chmod 600 ~/apps/jxnu-kkap/sync.env
+vi ~/apps/jxnu-kkap/sync.env   # XK_USERNAME / XK_PASSWORD / XK_STEP
+
+# 3) 装 timer（每小时一次；选课季可调密，也可临时改稀）
 mkdir -p ~/.config/systemd/user
 cp deploy/kkap-schedule.service deploy/kkap-schedule.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now kkap-schedule.timer
 
-# 3) 手动验证一次
+# 4) 手动验证一次
 ./deploy/sync-schedule.sh
 systemctl --user list-timers | grep kkap-schedule
 ```
 
-**真容量到位后**：`build_data.py` 顶部 `TRUST_OPENCLASS_CAPACITY=False` 改回（或换成真容量源），重建即恢复容量显示。
+**选课阶段变了、容量长期被跳过时**：先用 `python3 tools/crawl_capacity.py --probe 3` 核对 `Default_config.aspx`
+回显的当前阶段和实际能拿到数据的 `Step` 前缀，改 `~/apps/jxnu-kkap/sync.env` 里的 `XK_STEP` 即可，不用改代码。
