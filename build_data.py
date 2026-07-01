@@ -138,6 +138,16 @@ FOREIGN_TEACHER_ID_OVERRIDES: dict = {
     "Serdar": "jwc7016",
 }
 
+# 公选课细分标签（人文与社会/体育/科学与技术/艺术）人工兜底：这些课程号不在任何学期的
+# preselect_catalog 里（历史课程，未再开班/暂未收录），无法通过 cat_row["标签"] 自动派生细分标签。
+# 只在课程完全没有细分标签时才补（见 build_master 里的 GENERAL_ELECTIVE_SUBTAGS 判断），
+# 一旦某学期 catalog 真的收录了该课程号，学校自己的标签数据优先，这里的兜底值自动让位。
+GENERAL_ELECTIVE_SUBTAG_OVERRIDES: dict = {
+    "002204": "公选课-人文与社会",  # 方言与文化
+    "004043": "公选课-体育",       # 动画艺术与审美（同类课程 004044/045/046 也归在体育大类下，口径一致）
+}
+GENERAL_ELECTIVE_SUBTAGS = {"公选课-人文与社会", "公选课-体育", "公选课-科学与技术", "公选课-艺术"}
+
 
 # ============ Stage 1: 加载 raw ============
 
@@ -406,6 +416,10 @@ def build_master(semesters: dict, training_plan: list) -> dict:
             tags.insert(0, "公选课")
         elif re.match(r"^0[2-7]", cid) and "公共必修课" not in tags:
             tags.insert(0, "公共必修课")
+        # 兜底细分标签：仅当该课程还没有任何一个细分标签时才补（catalog 真实收录时学校数据优先）。
+        override_subtag = GENERAL_ELECTIVE_SUBTAG_OVERRIDES.get(cid)
+        if override_subtag and not any(t in GENERAL_ELECTIVE_SUBTAGS for t in tags):
+            tags.append(override_subtag)
         for n in sorted(natures_by_id.get(cid, set())):
             if n not in tags:
                 tags.append(n)
