@@ -45,8 +45,9 @@ PUBLIC_PLAN_COURSES_FILE = os.path.join(PUBLIC_DIR, "plan_courses.json")
 # 课程性质归一化（公共必修 → 公共必修课，与 catalog 一致）
 NATURE_NORMALIZE = {"公共必修": "公共必修课"}
 
-# 容量数据开关：openclass_status 的「每班容量」是预选阶段的不可信值，正选第一阶段会上 xk 实际抓。
-# 关闭后所有 section.capacity 置 null，前端只显示实时已选人数（容量待补充）。真容量到位后改回 True。
+# 容量数据开关：openclass_status 的「每班容量」是预选阶段的不可信值。
+# 关闭后 openclass 来源的 section.capacity 置 null；xk_capacity（正选期间实账号登录 xk 实抓，
+# 见 tools/crawl_capacity.py）不受此开关影响，永远视为可信来源。
 TRUST_OPENCLASS_CAPACITY = False
 
 # 学期级 raw 文件名（stage-based 稳定命名）
@@ -60,6 +61,9 @@ RAW_STAGES = (
     # 含 课程号/老师/容量/班级名称，但无星期/节次/教室。仅在该学期还没有
     # formal_schedule / addDrop_schedule 时作为 formal sections 的兜底来源。
     "openclass_status",
+    # xk 正选/补退选实时容量（爬虫 tools/crawl_capacity.py 产出，需真实学生账号登录 Step{N}/ChangeClass.aspx）：
+    # {semester, fetched_at, config, courses:[{kch, blocked, classes:[{bjh,className,teacher,enrolled,remaining,full}]}]}
+    "xk_capacity",
 )
 
 # 测试用学期镜像：把某学期的 formal sections 原样复制成另一个学期标签（多课表功能测试，
@@ -610,6 +614,27 @@ def build_openclass_capacity_lookup(openclass: dict) -> dict[tuple[str, str], in
     return {key: next(iter(capacities)) for key, capacities in values.items() if len(capacities) == 1}
 
 
+def build_xk_capacity_lookup(xk: dict) -> dict[tuple[str, str], int]:
+    """按 (课程号, 班级名称) 提取 xk 正选/补退选实时抓取的容量（授课人数+剩余容量）。
+
+    真实学生账号登录后直接读 xk 选课系统，比 openclass_status 的「每班容量」更可信，
+    始终启用（不受 TRUST_OPENCLASS_CAPACITY 影响）。blocked（该课对本账号不可见）的课程跳过。
+    """
+    values: dict[tuple[str, str], int] = {}
+    for course in xk.get("courses", []) or []:
+        if course.get("blocked"):
+            continue
+        cid = (course.get("kch") or "").strip()
+        if not cid:
+            continue
+        for cls in course.get("classes", []) or []:
+            class_name = (cls.get("className") or "").strip()
+            enrolled, remaining = cls.get("enrolled"), cls.get("remaining")
+            if class_name and enrolled is not None and remaining is not None:
+                values[(cid, class_name)] = enrolled + remaining
+    return values
+
+
 def build_sections_from_openclass(
     openclass: dict, master_by_id: dict, teacher_id_lookup: dict, sem_label: str,
 ) -> list:
@@ -739,7 +764,7 @@ def build_sections_for_semester(
             "className": class_name,
             "bjh": (bjh or "").strip().replace("$", "B"),  # 班级号（教学班号）—— 详情页展示「班级名(班级号)」；同 bjh = 同教学班。源数据用 $ 占位，统一清洗为 B（nnnnBn）
             "classroom": " / ".join(rooms),
-            "capacity": capacity if TRUST_OPENCLASS_CAPACITY else None,
+            "capacity": capacity,  # 已按可信来源过滤（见 build_public 里 capacity_lookup 的拼装）
             "semester": sem_label,
             "desc": sec_desc,
         }
@@ -829,7 +854,12 @@ def build_public(semesters: dict, master: dict) -> None:
         # 先提供真实课程/老师/容量（但 schedule/classroom 为空）。
         has_schedule_rows = any(data.get(stage) for stage in ("formal_schedule", "addDrop_schedule"))
         if has_schedule_rows:
-            capacity_lookup = build_openclass_capacity_lookup(data["openclass_status"]) if data.get("openclass_status") else {}
+            oc_lookup = (
+                build_openclass_capacity_lookup(data["openclass_status"])
+                if TRUST_OPENCLASS_CAPACITY and data.get("openclass_status") else {}
+            )
+            xk_lookup = build_xk_capacity_lookup(data["xk_capacity"]) if data.get("xk_capacity") else {}
+            capacity_lookup = {**oc_lookup, **xk_lookup}  # xk 实抓（真实登录）优先于 openclass 猜测值
             for stage in ("formal_schedule", "addDrop_schedule"):
                 rows = data.get(stage) or []
                 if not rows:
