@@ -3,6 +3,10 @@ import type { PlanCourse } from "../types";
 
 type PlanCourseMap = Record<string, PlanCourse[]>;
 
+// 共享空数组：避免「无数据」分支每次渲染都 new 一个 []，导致下游 useMemo（如 useCreditPlan 的
+// takenCids）把它当依赖时被迫每次重算——未打开模拟选课时 map 长期为 null，这个分支会命中每一帧。
+const EMPTY_COURSES: PlanCourse[] = [];
+
 // 懒加载 public/plan_courses.json（约 5MB）：仅在 enabled（模拟选课开启 / 首屏已选方案）时自动 fetch 一次并缓存。
 // courses = 当前 planKey 对应的方案课程清单（空方案或未命中 → []）。
 // coursesOf(key) = 任意 planKey 的方案课程清单（转专业用，复用同一份缓存 map，不额外 fetch）。
@@ -46,9 +50,9 @@ export function usePlanCourses(enabled: boolean, planKey: string) {
     if (enabled) ensure().catch(() => {}); // 错误已在 ensure 内记录到 error
   }, [enabled, ensure]);
 
-  const courses = planKey && map ? map[planKey] ?? [] : [];
+  const courses = planKey && map ? map[planKey] ?? EMPTY_COURSES : EMPTY_COURSES;
   const coursesOf = useCallback(
-    (key: string): PlanCourse[] => (key && map ? map[key] ?? [] : []),
+    (key: string): PlanCourse[] => (key && map ? map[key] ?? EMPTY_COURSES : EMPTY_COURSES),
     [map],
   );
   return { courses, coursesOf, ensure, loading, error, ready: map != null };
