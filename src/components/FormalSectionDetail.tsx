@@ -504,7 +504,7 @@ export function FormalSectionDetail({
 
           <div className="text-center">
             <a
-              href={`https://xk.jxnu.edu.cn/Step1/AddCourse.aspx?kch=${section.id}`}
+              href={`https://xk.jxnu.edu.cn/Step3/AddCourse.aspx?kch=${section.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1.5 text-red-400 hover:text-red-500 transition-colors"
