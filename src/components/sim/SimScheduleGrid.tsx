@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { DAY_LABELS, SLOT_KEYS, slotLabel, dayLabel } from "../../lib/scheduleParse";
 import type { PlacedCourse, PlacedKind, PlacedOption } from "../../lib/schedulePlacement";
 import { natureColor } from "../../lib/creditPlan";
-import { tagColorClasses } from "../TagBadge";
+import { tagColorClasses } from "../../lib/tagColors";
 import { CopyIdButton } from "../CopyIdButton";
 
 // 模拟选课周课表：占用格按所选培养方案下的课程性质着色（与标签色一致）；

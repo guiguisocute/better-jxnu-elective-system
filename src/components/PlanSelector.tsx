@@ -101,7 +101,8 @@ export function PlanSelector({ value, onChange, options, autoOpen = false, seedQ
     if (p) setYear(p.year);
   }, [value, open]);
 
-  const majorsForYear = byYear.get(year) ?? [];
+  // ?? [] 的兜底空数组要 memo 化：否则未命中年份时每次 render 都换引用，击穿下游 useMemo。
+  const majorsForYear = useMemo(() => byYear.get(year) ?? [], [byYear, year]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
