@@ -81,6 +81,8 @@ export function useLiveEnrollments(
         }
         if (!cancelled) {
           // 后端每周期都会刷新 fetchedAt；只有它变了才算「拿到新快照」→ 做差并触发「更新 N 条」。
+          // setSnapshot 也只在此时调用：快照没变就别换对象引用，
+          // 否则 resolver/getEnrollment 每 30s 换新引用，全表 memo 行白白重渲染一遍。
           if (parsed.fetchedAt !== lastFetchedAt.current) {
             const nextCounts = enrollmentCountMap(parsed.items);
             if (prevCounts.current.size > 0) {
@@ -89,9 +91,9 @@ export function useLiveEnrollments(
               setLastUpdate({ count: keys.size, at: Date.now() });
             }
             prevCounts.current = nextCounts;
+            setSnapshot(parsed);
+            lastFetchedAt.current = parsed.fetchedAt;
           }
-          setSnapshot(parsed);
-          lastFetchedAt.current = parsed.fetchedAt;
           setError(null);
           setStale(Date.now() - Date.parse(parsed.fetchedAt) > STALE_AFTER);
         }
