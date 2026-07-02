@@ -54,7 +54,11 @@ export function useLiveEnrollments(
 
     const scheduleNext = () => {
       window.clearTimeout(timer);
-      if (!cancelled) timer = window.setTimeout(refresh, REFRESH_INTERVAL_MS);
+      if (cancelled) return;
+      // 后台标签页不排下一轮（此前 finally 里无条件 schedule，隐藏时仍在轮询白耗请求）；
+      // 回到前台时 visibilitychange 会立即拉一次或恢复固定节奏。
+      if (document.visibilityState === "hidden") return;
+      timer = window.setTimeout(refresh, REFRESH_INTERVAL_MS);
     };
 
     const refresh = async () => {

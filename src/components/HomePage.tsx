@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { useCourseData } from "../hooks/useCourseData";
 import { useCourseFilter } from "../hooks/useCourseFilter";
 import { useFormalData } from "../hooks/useFormalData";
@@ -26,11 +26,14 @@ import { CourseDetail } from "./CourseDetail";
 import { FormalSectionDetail } from "./FormalSectionDetail";
 import { Pagination } from "./Pagination";
 import { SimToggle } from "./sim/SimToggle";
-import { SimPanel } from "./sim/SimPanel";
-import { OnboardingModal } from "./sim/OnboardingModal";
 import { ConfirmDialog } from "./sim/ConfirmDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
+
+// 模拟选课子树（SimPanel/OnboardingModal → CreditRing → ECharts）只在开启 sim 时才需要，
+// 懒加载把 ECharts 等重依赖从首屏 bundle 拆出去（浮层/弹窗短暂缺席可接受，fallback 空）。
+const SimPanel = lazy(() => import("./sim/SimPanel").then((m) => ({ default: m.SimPanel })));
+const OnboardingModal = lazy(() => import("./sim/OnboardingModal").then((m) => ({ default: m.OnboardingModal })));
 
 const DATA_SOURCE_KEY = "jxnu_data_source";
 const FORMAL_AUTO_EXPAND_SECTION_LIMIT = 240;
@@ -1390,6 +1393,7 @@ export function HomePage() {
 
       {/* 模拟选课：右下角悬浮圆环 + 展开面板 */}
       {sim.mode === "sim" && (
+        <Suspense fallback={null}>
         <SimPanel
           view={credit.view}
           cartCourses={cartCourses}
@@ -1416,10 +1420,12 @@ export function HomePage() {
           competitionOffset={credit.stored.competitionOffset}
           setCompetitionOffset={credit.setCompetitionOffset}
         />
+        </Suspense>
       )}
 
       {/* 模拟选课：引导弹窗 */}
       {sim.mode === "onboarding" && (
+        <Suspense fallback={null}>
         <OnboardingModal
           selectedPlan={filter.filters.plan}
           allPlans={allPlans}
@@ -1461,6 +1467,7 @@ export function HomePage() {
           onCancel={sim.cancelOnboarding}
           onFinish={handleOnboardingFinish}
         />
+        </Suspense>
       )}
 
       {/* 一次性「左侧有筛选」提醒气泡（SimPanel 风格）：点「浏览全部」或走完模拟选课引导后弹一次。

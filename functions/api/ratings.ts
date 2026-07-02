@@ -6,6 +6,20 @@ interface Env {
 // POST /api/ratings — submit a rating { courseId, teacherId, rating, voterId }
 // DELETE /api/ratings — delete a rating { courseId, teacherId, voterId }
 
+// 畸形 JSON body → null（调用方回 400），不再抛到运行时变 500。
+async function readBody<T>(request: Request): Promise<T | null> {
+  try {
+    return await request.json<T>();
+  } catch {
+    return null;
+  }
+}
+
+// id 类字段：非空字符串 + 长度上限（防超长垃圾写库；正常 courseId/teacherId 不超过 16，voterId 是 UUID=36）。
+function isValidId(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0 && v.length <= 64;
+}
+
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
@@ -26,19 +40,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   if (request.method === "POST") {
-    const body = await request.json<{
+    const body = await readBody<{
       courseId: string;
       teacherId: string;
       rating: number;
       voterId: string;
-    }>();
+    }>(request);
+    if (!body) {
+      return Response.json({ error: "invalid json" }, { status: 400 });
+    }
 
     const { courseId, teacherId, rating, voterId } = body;
 
-    if (!courseId || !teacherId || !rating || !voterId) {
+    if (!isValidId(courseId) || !isValidId(teacherId) || !isValidId(voterId)) {
       return Response.json({ error: "missing fields" }, { status: 400 });
     }
-    if (rating < 0.5 || rating > 5 || rating % 0.5 !== 0) {
+    if (typeof rating !== "number" || rating < 0.5 || rating > 5 || rating % 0.5 !== 0) {
       return Response.json({ error: "rating must be 0.5-5.0 in 0.5 steps" }, { status: 400 });
     }
 
@@ -59,15 +76,18 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   if (request.method === "DELETE") {
-    const body = await request.json<{
+    const body = await readBody<{
       courseId: string;
       teacherId: string;
       voterId: string;
-    }>();
+    }>(request);
+    if (!body) {
+      return Response.json({ error: "invalid json" }, { status: 400 });
+    }
 
     const { courseId, teacherId, voterId } = body;
 
-    if (!courseId || !teacherId || !voterId) {
+    if (!isValidId(courseId) || !isValidId(teacherId) || !isValidId(voterId)) {
       return Response.json({ error: "missing fields" }, { status: 400 });
     }
 
