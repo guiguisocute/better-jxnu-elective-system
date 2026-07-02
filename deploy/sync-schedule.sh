@@ -55,9 +55,12 @@ fi
 # 3) 重建产物
 python3 build_data.py >/dev/null
 
-# 4) 没变化就收工
-if git diff --quiet -- public/ data/; then
-  log "无变化，结束"
+# 4) 判变闸只认「产物」（public/ + data/master/）。raw 每小时必变
+#    （xk_capacity 的 fetched_at/config 摘要、formal_schedule 的 序号 重排），
+#    不能作为是否提交的依据 —— 产物没变就丢弃 raw 抖动，不产生无效 commit。
+if git diff --quiet -- public/ data/master/; then
+  git checkout -- data/semesters/
+  log "产物无变化（raw 仅时间戳/序号抖动，已丢弃），结束"
   exit 0
 fi
 
@@ -69,8 +72,15 @@ if [ "$N" -lt "$MIN_SECTIONS" ]; then
   exit 1
 fi
 
-# 6) 提交并推送（触发 Cloudflare Pages 部署）
+# 6) 提交并推送（触发 Cloudflare Pages 部署）。
+#    提交信息由 sync_commit_summary.py 生成：首行 = 容量/班级/课程变化摘要，正文 = 明细。
+#    生成失败时回退到旧的通用文案，绝不因 message 生成问题丢掉一次数据推送。
+MSG_FILE="$(mktemp)"
+if ! python3 tools/sync_commit_summary.py >"$MSG_FILE" || ! [ -s "$MSG_FILE" ]; then
+  echo "data: 自动同步开课安排+实时容量 (kkap $(date -u +%FT%TZ)); sections=$N" >"$MSG_FILE"
+fi
 git add public/ "$RAW" "$CAPACITY_RAW" data/master/
-git commit -q -m "data: 自动同步开课安排+实时容量 (kkap $(date -u +%FT%TZ)); sections=$N"
+git commit -q -F "$MSG_FILE"
+rm -f "$MSG_FILE"
 git push origin main
 log "[已推送] formal_sections=$N"
