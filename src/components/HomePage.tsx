@@ -387,7 +387,7 @@ export function HomePage() {
       // 移车不动 chosen，保留用户的班级偏好（下次再加自动覆盖）。
       showCartToast(had ? "已移出待选清单" : "已加入待选清单");
     },
-    [cart, confirmCartLimit, showCartToast, chosenSections],
+    [cart, confirmCartLimit, showCartToast, chosenSections, sectionKeyOf],
   );
 
   // 三态判定：none / exact / other（详见 FormalSectionDetail.cartStatus 注释）。
@@ -401,7 +401,7 @@ export function HomePage() {
       // 兼容旧版按 bjh 持久化的 key（2026-07 前）：命中则仍算 exact。
       return chosen && chosen === legacyBjhOptionKey(s) ? "exact" : "other";
     },
-    [cart, chosenSections.chosen],
+    [cart, chosenSections.chosen, sectionKeyOf],
   );
 
   // 学期下拉：三种数据源 (pre / formal / addDrop) 各存各的，互不污染。

@@ -31,7 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "not found" }, { status: 404 });
   }
 
-  let record: Record<string, unknown> = {};
+  let record: Record<string, unknown>;
   try {
     record = JSON.parse(row.record_json) as Record<string, unknown>;
   } catch {
