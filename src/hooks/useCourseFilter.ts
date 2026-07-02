@@ -48,10 +48,22 @@ export function useCourseFilter(
   takenCids?: Set<string>,
 ) {
   const saved = useMemo(() => loadSaved(), []);
-  const [filters, setFilters] = useState<Filters>(saved.filters);
-  // 重活（对 6000+ 课程/9000+ section 的过滤+排序）用 deferred 值，避免每次按键阻塞输入框 →
-  // 解决「筛选/搜索滞留、要刷新才恢复」。输入框/筛选按钮仍绑 filters（即时响应）。
-  const deferredFilters = useDeferredValue(filters);
+  // search 与其余筛选字段分开存：只有 search（打字高频）走 useDeferredValue，
+  // 点击型筛选（学分/学院/类型/方案…）立即同步生效。
+  // 之前整个 filters 对象都走 deferred —— 实时人数指示器等高频紧急 setState 会不断打断
+  // 并重启 transition 渲染，deferred 值长期追不上，表现为「点了筛选列表不动、要 F5」。
+  const [search, setSearch] = useState(saved.filters.search);
+  const [restFilters, setRestFilters] = useState<Filters>(() => ({ ...saved.filters, search: "" }));
+  const deferredSearch = useDeferredValue(search);
+
+  // UI 绑定用的即时值（输入框/按钮高亮）。
+  const filters = useMemo(() => ({ ...restFilters, search }), [restFilters, search]);
+  // 重活（对 6000+ 课程/9000+ section 的过滤+排序）用它：非 search 字段即时、search 用 deferred。
+  // 依赖只挂 restFilters + deferredSearch —— 打字期间引用稳定，不触发全量过滤。
+  const deferredFilters = useMemo(
+    () => ({ ...restFilters, search: deferredSearch }),
+    [restFilters, deferredSearch],
+  );
 
   const [sortAsc, setSortAsc] = useState(saved.sortAsc);
   const [ratingSortAsc, setRatingSortAsc] = useState<boolean | null>(null);
@@ -64,13 +76,14 @@ export function useCourseFilter(
   }, [filters, page, sortAsc]);
 
   const updateFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    if (key === "search") setSearch(value as string);
+    else setRestFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
   };
 
   // 三态循环：默认 → 选中 → 排除 → 默认
   const cycleCredit = useCallback((credit: number) => {
-    setFilters((prev) => {
+    setRestFilters((prev) => {
       const included = prev.credits.includes(credit);
       const excluded = prev.creditsExclude.includes(credit);
       if (!included && !excluded) {
@@ -88,7 +101,7 @@ export function useCourseFilter(
   }, []);
 
   const cycleDept = useCallback((dept: string) => {
-    setFilters((prev) => {
+    setRestFilters((prev) => {
       const included = prev.dept.includes(dept);
       const excluded = prev.deptExclude.includes(dept);
       if (!included && !excluded) {
@@ -103,7 +116,7 @@ export function useCourseFilter(
   }, []);
 
   const cycleType = useCallback((type: string) => {
-    setFilters((prev) => {
+    setRestFilters((prev) => {
       const included = prev.type.includes(type);
       const excluded = prev.typeExclude.includes(type);
       if (!included && !excluded) {
@@ -119,7 +132,7 @@ export function useCourseFilter(
 
   // 胶囊开关：none ↔ include（已去掉 exclude 态）。
   const cyclePlanFilter = useCallback(() => {
-    setFilters((prev) => ({
+    setRestFilters((prev) => ({
       ...prev,
       planFilter: prev.planFilter === "include" ? "none" : "include",
     }));
@@ -127,7 +140,7 @@ export function useCourseFilter(
   }, []);
 
   const cycleTag = useCallback((tag: string) => {
-    setFilters((prev) => {
+    setRestFilters((prev) => {
       const included = prev.tag.includes(tag);
       const excluded = prev.tagExclude.includes(tag);
       if (!included && !excluded) {
@@ -142,7 +155,7 @@ export function useCourseFilter(
   }, []);
 
   const cycleArea = useCallback((area: string) => {
-    setFilters((prev) => {
+    setRestFilters((prev) => {
       const included = prev.area.includes(area);
       const excluded = prev.areaExclude.includes(area);
       if (!included && !excluded) {
@@ -157,7 +170,8 @@ export function useCourseFilter(
   }, []);
 
   const clearAll = useCallback((opts?: { preservePlan?: boolean }) => {
-    setFilters((prev) => (opts?.preservePlan ? { ...EMPTY_FILTERS, plan: prev.plan } : EMPTY_FILTERS));
+    setSearch("");
+    setRestFilters((prev) => (opts?.preservePlan ? { ...EMPTY_FILTERS, plan: prev.plan } : EMPTY_FILTERS));
     setPage(1);
     if (!opts?.preservePlan) sessionStorage.removeItem(STORAGE_KEY);
   }, []);

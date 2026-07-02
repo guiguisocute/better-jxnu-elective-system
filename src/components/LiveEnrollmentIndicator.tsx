@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import type { LiveEnrollmentStatus } from "../lib/liveEnrollments";
 
 export function LiveEnrollmentIndicator({ status, compact = false }: { status: LiveEnrollmentStatus; compact?: boolean }) {
@@ -6,9 +6,12 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
 
   useEffect(() => {
     if (!status.enabled) return;
+    // 心跳只驱动倒计时文案/进度条，1s 一跳足够；且必须走 transition ——
+    // 紧急 setState 会打断并重启整棵树的 transition 渲染（useDeferredValue 的搜索过滤），
+    // 高频紧急心跳曾把 deferred 渲染饿死（长时间停留后筛选/搜索失效）。
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") setNow(Date.now());
-    }, 250);
+      if (document.visibilityState === "visible") startTransition(() => setNow(Date.now()));
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [status.enabled]);
 
@@ -56,7 +59,7 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-gray-100">
         <div
-          className={`h-full rounded-full transition-[width] duration-200 ease-linear ${barClass}`}
+          className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${barClass}`}
           style={{ width: `${view.progress}%` }}
         />
       </div>
