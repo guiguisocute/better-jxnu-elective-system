@@ -898,13 +898,13 @@ export function HomePage() {
       <header ref={headerRef} className="sticky top-0 z-40">
         {/* Layer 1: Red status bar —— relative z-10 让其底部投影盖在下方搜索行之上（见 index.css .bg-header） */}
         <div className="bg-header relative z-10">
-          <div className="max-w-[2000px] mx-auto px-6 flex items-center justify-between py-2.5">
-            <div className="flex items-center gap-2.5">
-              <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain" />
-              <h1 className="text-sm font-bold tracking-tight text-brand-fg">JXNU选课PLUS</h1>
-              <span className="text-xs hidden sm:inline" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
+          <div className="max-w-[2000px] mx-auto px-4 md:px-6 flex items-center justify-between py-2.5">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain shrink-0" />
+              <h1 className="text-sm font-bold tracking-tight text-brand-fg truncate">JXNU选课PLUS</h1>
+              <span className="text-xs hidden sm:inline shrink-0" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
               <button
                 type="button"
                 onClick={handleQuickRatePreviousSemester}
