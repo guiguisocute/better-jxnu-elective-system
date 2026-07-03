@@ -589,7 +589,7 @@ export function OnboardingModal({
                         key={c.cid}
                         onClick={isTransferAuto ? undefined : () => toggleMajorElective(c.cid)}
                         disabled={isTransferAuto}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors ${
+                        className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors ${
                           isTransferAuto
                             ? "bg-amber-50 border-amber-200 cursor-not-allowed"
                             : checked
@@ -597,7 +597,7 @@ export function OnboardingModal({
                             : "bg-white border-gray-100 hover:border-gray-200"
                         }`}
                       >
-                        <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                        <span className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 ${
                           isTransferAuto
                             ? "bg-amber-500 border-amber-500 text-white"
                             : checked
@@ -606,30 +606,39 @@ export function OnboardingModal({
                         }`}>
                           {checked && <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                         </span>
-                        <span className="min-w-0 text-[13px] text-gray-800 truncate">{c.name}</span>
-                        <span className="flex items-center gap-1 shrink-0">
-                          <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
-                            title="复制课程号"
-                            className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
-                              copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
-                            }`}
-                          >
-                            {copiedCid === c.cid ? (
-                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                            ) : (
-                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                        {/* 两行布局（与 step4 必修行一致）：手机窄屏下课名占满整行不再被截成几个字 */}
+                        <span className="min-w-0 flex-1 flex flex-col gap-1">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="min-w-0 flex-1 text-[13px] text-gray-800 truncate">{c.name}</span>
+                            <span className="text-[11px] font-bold text-gray-600 shrink-0">{c.credits}分</span>
+                          </span>
+                          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                            <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              aria-label="复制课程号"
+                              title="复制课程号"
+                              onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleCopyCid(c.cid); }
+                              }}
+                              className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
+                                copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
+                              }`}
+                            >
+                              {copiedCid === c.cid ? (
+                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                              ) : (
+                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                              )}
+                            </span>
+                            {isTransferAuto && (
+                              <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 rounded px-1 py-0.5">转专业·原专业已修</span>
                             )}
-                          </button>
+                            <span className="text-[10px] text-gray-400 font-mono">{c.semester}</span>
+                          </span>
                         </span>
-                        <span className="flex-1" />
-                        {isTransferAuto && (
-                          <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 rounded px-1 py-0.5 shrink-0">转专业·原专业已修</span>
-                        )}
-                        <span className="text-[10px] text-gray-400 font-mono shrink-0">{c.semester}</span>
-                        <span className="text-[11px] font-bold text-gray-600 shrink-0">{c.credits}分</span>
                       </button>
                     );
                   })}
