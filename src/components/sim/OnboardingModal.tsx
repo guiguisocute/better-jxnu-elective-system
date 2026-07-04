@@ -1006,9 +1006,18 @@ export function OnboardingModal({
               {preview && (
                 <div className="mt-4 space-y-3">
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
-                    <div className="text-[13px] font-bold text-gray-800">
-                      学号 {preview.rec.studentId || importSid}
-                      <span className="ml-2 text-[11px] font-medium text-gray-500">{preview.rec.className || ""}</span>
+                    <div className="text-[13px] font-bold text-gray-800 flex items-center flex-wrap gap-x-2 gap-y-1">
+                      <span>学号 {preview.rec.studentId || importSid}</span>
+                      <span className="text-[11px] font-medium text-gray-500">{preview.rec.className || ""}</span>
+                      {preview.rec.source === "live" ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />实时数据
+                        </span>
+                      ) : preview.rec.source === "snapshot" ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-1.5 py-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />离线快照·可能非最新
+                        </span>
+                      ) : null}
                     </div>
                     <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px] items-center">
                       <div className="text-gray-500">培养方案</div>
