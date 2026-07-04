@@ -350,7 +350,7 @@ export function SimScheduleGrid({ placed, onChooseSection, onCancelRequired, onR
               {conflict && <span className="text-[11px] text-rose-400 font-medium">{cellHeaderLabel(pop.key)}</span>}
               <button
                 onClick={() => setPop(null)}
-                className="ml-auto -mr-1 w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                className="ml-auto -mr-2 -my-1.5 w-8 h-8 inline-flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                 aria-label="关闭"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
