@@ -434,7 +434,7 @@ export function OnboardingModal({
         </div>
 
         {/* 内容 */}
-        <div className="px-4 sm:px-7 mt-4 pb-2 flex-1 min-h-0 overflow-y-auto">
+        <div className="px-4 sm:px-7 mt-4 pb-2 flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div key={step} className={dir > 0 ? "onb-in-right" : "onb-in-left"}>
           {/* Step 1 — 培养方案 */}
           {step === 1 && (

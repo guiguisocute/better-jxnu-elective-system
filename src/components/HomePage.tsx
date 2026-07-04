@@ -18,6 +18,7 @@ import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
 import { isPassed } from "../lib/studentRecord";
 import { LIVE_ENROLLMENT_SEMESTER } from "../lib/liveEnrollments";
+import { acquireScrollLock } from "../lib/scrollLock";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { ScheduleFilter } from "./ScheduleFilter";
@@ -791,9 +792,7 @@ export function HomePage() {
   const onboardingOpen = sim.mode === "onboarding";
   useEffect(() => {
     if (showMobileFilter || mobileCourse || mobileSection || leftAsDrawer || onboardingOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = prev; };
+      return acquireScrollLock();
     }
   }, [showMobileFilter, mobileCourse, mobileSection, leftAsDrawer, onboardingOpen]);
 
@@ -1051,7 +1050,7 @@ export function HomePage() {
       >
         <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
         <div
-          className={`absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white overflow-y-auto shadow-2xl transition-transform duration-300 ease-out ${showMobileFilter ? "translate-x-0" : "translate-x-full"}`}
+          className={`absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white overflow-y-auto overscroll-contain shadow-2xl transition-transform duration-300 ease-out ${showMobileFilter ? "translate-x-0" : "translate-x-full"}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -1174,7 +1173,7 @@ export function HomePage() {
       <div
         className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${(mobileCourse || mobileSection) ? "translate-y-0" : "translate-y-full"}`}
       >
-        <div className="h-full bg-page overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        <div className="h-full bg-page overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
           {mobileCourse ? (
             <CourseDetail
               course={mobileCourse}

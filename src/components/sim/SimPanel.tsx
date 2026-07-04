@@ -6,6 +6,7 @@ import { enrollYear, termToCalLabel } from "../../lib/term";
 import { buildPlacement } from "../../lib/schedulePlacement";
 import type { StudentScheduleSnapshot } from "../../lib/studentRecord";
 import { copyText } from "../../lib/clipboard";
+import { acquireScrollLock } from "../../lib/scrollLock";
 import { encodeBundle, decodeBundle, shareUrlOf, type PlanBundle } from "../../lib/planShare";
 import { CreditRing, CreditRingLegend, FutureRequiredToggle } from "./CreditRing";
 import { CreditBar } from "./CreditBar";
@@ -197,6 +198,12 @@ export function SimPanel({
   useEffect(() => {
     try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
   }, [pos]);
+
+  // 手机上面板是近全屏 bottom-sheet(fixed),开着时锁背景滚动;桌面浮窗不锁。
+  const sheetMode = open && vp.w < 640;
+  useEffect(() => {
+    if (sheetMode) return acquireScrollLock();
+  }, [sheetMode]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -434,7 +441,7 @@ export function SimPanel({
           </div>
 
           {/* tab 内容 */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3">
             <div key={tab} className="sim-tab-in">
             {tab === "cart" && (
               <div className="space-y-3">
