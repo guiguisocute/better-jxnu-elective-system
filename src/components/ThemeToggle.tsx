@@ -67,7 +67,7 @@ export function ThemeToggle() {
         aria-label="切换主题"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="shrink-0 w-7 h-7 rounded-lg bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition-colors"
+        className="shrink-0 w-8 h-8 rounded-lg bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition-colors"
       >
         {current.icon}
       </button>
