@@ -320,7 +320,7 @@ export function OnboardingModal({
   const noPlanData = selectedPlan !== "" && planCourses.length === 0;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/50 backdrop-blur-[1px] px-4 py-6">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/50 backdrop-blur-[1px] px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="relative w-full max-w-[960px] min-h-[min(640px,100%)] max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
         <div className="h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 shrink-0" />
 
