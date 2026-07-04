@@ -726,6 +726,8 @@ export function HomePage() {
   const [selectedSectionKey, setSelectedSectionKey] = useState<string | null>(null);
   const closingRef = useRef(false);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
+  // 筛选抽屉的返回键集成与详情浮层(closingRef)各自独立,防止两套 history.back 互扰
+  const mobileFilterClosingRef = useRef(false);
   // 桌面左侧栏开合：>1280 默认展开；<=1280 自动收起。用户可在任意宽度手动折叠/展开。
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(
     typeof window !== "undefined" ? window.innerWidth > 1280 : true,
@@ -838,6 +840,24 @@ export function HomePage() {
     setTimeout(() => { closingRef.current = false; }, 400);
   };
 
+  // 筛选抽屉同款返回键集成:开抽屉压一条历史记录,back 只关抽屉不退出应用
+  const openMobileFilter = () => {
+    setShowMobileFilter(true);
+    window.history.pushState({ mobileFilter: true }, "", window.location.href);
+  };
+  const closeMobileFilter = useCallback(() => {
+    if (mobileFilterClosingRef.current) return;
+    mobileFilterClosingRef.current = true;
+    window.history.back();
+    setTimeout(() => { mobileFilterClosingRef.current = false; }, 400);
+  }, []);
+  useEffect(() => {
+    if (!showMobileFilter) return;
+    const onPopState = () => setShowMobileFilter(false);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [showMobileFilter]);
+
   const handleQuickRatePreviousSemester = useCallback(() => {
     if (!quickRatingReady || !quickRatingSemester) return;
     if (quickRatingActive) {
@@ -857,9 +877,9 @@ export function HomePage() {
     setSelectedSectionKey(null);
     setMobileCourse(null);
     setMobileSection(null);
-    setShowMobileFilter(false);
+    if (showMobileFilter) closeMobileFilter();
     window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
-  }, [filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule]);
+  }, [closeMobileFilter, filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule, showMobileFilter]);
 
   if (loading) {
     return (
@@ -946,7 +966,7 @@ export function HomePage() {
               {/* 漏斗按钮：仅手机端 (<md) 显示，打开右抽屉。PC 上由左侧专门的展开按钮控制。 */}
               <button
                 ref={mobileFunnelRef}
-                onClick={() => setShowMobileFilter(true)}
+                onClick={openMobileFilter}
                 title="筛选"
                 className="md:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
               >
@@ -1027,7 +1047,7 @@ export function HomePage() {
       {/* Mobile filter drawer — always mounted, animated with translate */}
       <div
         className={`xl:hidden fixed inset-0 z-50 transition-opacity duration-300 ${showMobileFilter ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-        onClick={() => setShowMobileFilter(false)}
+        onClick={closeMobileFilter}
       >
         <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
         <div
@@ -1036,7 +1056,7 @@ export function HomePage() {
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-800">筛选条件</h2>
-            <button onClick={() => setShowMobileFilter(false)} className="p-1 text-gray-400 hover:text-gray-600">
+            <button onClick={closeMobileFilter} className="p-1 text-gray-400 hover:text-gray-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
