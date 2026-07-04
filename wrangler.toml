@@ -6,3 +6,8 @@ pages_build_output_dir = "dist"
 binding = "DB"
 database_name = "jxnu-ratings"
 database_id = "fa430b25-33a9-46d5-bd0c-52442971bac7"
+
+[vars]
+# 教务实时课表服务（VPS，见 tools/live_service.py）。学号导入先打这里，失败回落 D1。
+# LIVE_SECRET 不写这里 —— 用 `npx wrangler pages secret put LIVE_SECRET` 存到 CF dashboard。
+LIVE_URL = "https://getxk.jxnu-publish.asia/live/student-record"

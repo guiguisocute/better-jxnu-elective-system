@@ -65,6 +65,8 @@ export interface StudentRecord {
   requiredCidsUpToReading?: string[];
   scheduleItems: StudentScheduleItem[];
   detailCourses: StudentDetailCourse[];
+  /** 数据来源：live=VPS 教务实时抓取；snapshot=D1 离线快照兜底。缺省视为未知（旧接口）。 */
+  source?: "live" | "snapshot";
 }
 
 function str(v: unknown): string {
@@ -148,6 +150,7 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
       : undefined,
     scheduleItems,
     detailCourses,
+    source: obj.source === "live" || obj.source === "snapshot" ? obj.source : undefined,
   };
 }
 

@@ -632,12 +632,16 @@ def build_xk_capacity_lookup(xk: dict) -> dict[tuple[str, str], int]:
     """按 (课程号, 班级名称) 提取 xk 正选/补退选实时抓取的容量（授课人数+剩余容量）。
 
     真实学生账号登录后直接读 xk 选课系统，比 openclass_status 的「每班容量」更可信，
-    始终启用（不受 TRUST_OPENCLASS_CAPACITY 影响）。blocked（该课对本账号不可见）的课程跳过。
+    始终启用（不受 TRUST_OPENCLASS_CAPACITY 影响）。
+
+    **不因 `blocked` 丢弃容量。** `blocked`（页面出现「只能增选落选的课程」提示）只表示
+    本账号在当前阶段不能自由增选该课，**并不代表容量表缺失或失真**——实测该提示常与完整、
+    逐时更新的容量表并存（如 052041 大学英语TED：blocked 仍有 14 班、enrolled 39→40）。
+    因此只要班级行解析出有效 enrolled+remaining 就采用；真正无表的 blocked 课其 classes 为空，
+    自然不贡献，无需显式跳过。（曾因跳过 blocked 把公选/特色课容量误清成 None，见此函数历史。）
     """
     values: dict[tuple[str, str], int] = {}
     for course in xk.get("courses", []) or []:
-        if course.get("blocked"):
-            continue
         cid = (course.get("kch") or "").strip()
         if not cid:
             continue
