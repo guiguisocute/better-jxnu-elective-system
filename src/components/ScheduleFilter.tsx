@@ -194,7 +194,7 @@ export function ScheduleFilter({
                 周{DAY_LABELS[Number(d)]} {slot}
                 <button
                   onClick={() => removeCell(Number(d), slot)}
-                  className="opacity-60 hover:opacity-100 no-underline"
+                  className="p-1.5 -m-1 inline-flex items-center justify-center opacity-60 hover:opacity-100 no-underline"
                   title="移除"
                 >
                   <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">

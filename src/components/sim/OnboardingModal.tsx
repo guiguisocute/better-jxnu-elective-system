@@ -779,11 +779,16 @@ export function OnboardingModal({
                             </span>
                             <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                               <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                aria-label="复制课程号"
                                 title="复制课程号"
-                                className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleCopyCid(c.cid); }
+                                }}
+                                className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
                                   copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                 }`}
                               >
@@ -792,7 +797,7 @@ export function OnboardingModal({
                                 ) : (
                                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                                 )}
-                              </button>
+                              </span>
                               {/* 大学英语Ⅲ/Ⅳ：可用「大学英语特色课」1:1 抵扣 —— 显式说明 */}
                               {/大学英语/.test(c.name) && /(Ⅲ|Ⅳ|III|IV|三|四)/.test(c.name) && (
                                 <span className="max-w-full text-[10px] text-indigo-500 whitespace-nowrap" title="一门大学英语特色课可 1:1 抵扣一门大学英语Ⅲ/Ⅳ">（或大学英语特色课）</span>
@@ -838,7 +843,7 @@ export function OnboardingModal({
                               type="button"
                               onClick={() => handleCopyCid(c.cid)}
                               title="复制课程号"
-                              className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                              className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors ${
                                 copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                               }`}
                             >
@@ -878,11 +883,16 @@ export function OnboardingModal({
                             <span className={`min-w-0 text-[13px] truncate ${active ? "text-gray-800" : "text-gray-400 line-through"}`}>{c.name}</span>
                             <span className="flex items-center gap-1 shrink-0">
                               <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                aria-label="复制课程号"
                                 title="复制课程号"
-                                className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleCopyCid(c.cid); }
+                                }}
+                                className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
                                   copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                 }`}
                               >
@@ -891,7 +901,7 @@ export function OnboardingModal({
                                 ) : (
                                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                                 )}
-                              </button>
+                              </span>
                             </span>
                             <span className="flex-1" />
                             <span className="text-[9px] font-semibold text-sky-700 bg-sky-100 rounded px-1 py-0.5 shrink-0">未来</span>

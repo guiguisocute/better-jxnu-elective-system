@@ -393,7 +393,7 @@ export function SimPanel({
                 onClick={onEditEarned}
                 aria-label="编辑已修"
                 title="编辑已修"
-                className="w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                className="w-9 h-9 -m-1.5 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3" />
@@ -403,7 +403,7 @@ export function SimPanel({
               <button
                 onClick={() => setOpen(false)}
                 aria-label="收起面板"
-                className="w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                className="w-9 h-9 -m-1.5 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -484,7 +484,7 @@ export function SimPanel({
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleCopyRequired(c.cid); }}
                                     title="复制课程号"
-                                    className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                                    className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors ${
                                       copied ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                     }`}
                                   >
@@ -503,7 +503,7 @@ export function SimPanel({
                               <button
                                 onClick={(e) => { e.stopPropagation(); requestCancelRequired(c.cid, c.name); }}
                                 title="取消这门必修"
-                                className="text-gray-300 hover:text-rose-500 shrink-0"
+                                className="p-2 -m-2 inline-flex items-center justify-center rounded text-gray-300 hover:text-rose-500 shrink-0"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path strokeLinecap="round" d="M6 6l12 12M6 18L18 6" />
