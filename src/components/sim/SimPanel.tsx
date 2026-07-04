@@ -336,7 +336,7 @@ export function SimPanel({
   let transformOrigin: string;
   if (isMobile) {
     panelH = Math.round(vp.h * 0.88);
-    panelStyle = { left: 8, right: 8, bottom: 8 };
+    panelStyle = { left: 8, right: 8, bottom: "calc(8px + env(safe-area-inset-bottom))" };
     transformOrigin = "bottom center";
   } else {
     const panelW = Math.min(520, vp.w - 16);

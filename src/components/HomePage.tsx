@@ -897,7 +897,7 @@ export function HomePage() {
       {/* Header - two layers */}
       <header ref={headerRef} className="sticky top-0 z-40">
         {/* Layer 1: Red status bar —— relative z-10 让其底部投影盖在下方搜索行之上（见 index.css .bg-header） */}
-        <div className="bg-header relative z-10">
+        <div className="bg-header relative z-10 pt-[env(safe-area-inset-top)]">
           <div className="max-w-[2000px] mx-auto px-4 md:px-6 flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain shrink-0" />
@@ -1042,7 +1042,7 @@ export function HomePage() {
               </svg>
             </button>
           </div>
-          <div className="p-5 pb-8">
+          <div className="p-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
             {isFormalMode && (
               <div className="mb-5 pb-5 border-b border-gray-100">
                 <ScheduleFilter
@@ -1154,7 +1154,7 @@ export function HomePage() {
       <div
         className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${(mobileCourse || mobileSection) ? "translate-y-0" : "translate-y-full"}`}
       >
-        <div className="h-full bg-page overflow-y-auto">
+        <div className="h-full bg-page overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
           {mobileCourse ? (
             <CourseDetail
               course={mobileCourse}
