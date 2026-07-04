@@ -580,6 +580,12 @@ const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, cou
             {compressSchedule(s.schedule)}
           </InfoRow>
         )}
+        {/* 手机没有 hover,冲突时段直接写在卡面上(桌面表格行仍走 title 提示) */}
+        {warnSlots.length > 0 && (
+          <div className="mt-1 -mx-1 px-1.5 py-1 rounded bg-rose-50 text-[11px] text-rose-600 leading-snug">
+            冲突时段：{warnSlots.map(slotLabel).join("、")}
+          </div>
+        )}
         {s.className && (
           <InfoRow icon={<ClassIcon />} label="班级" title={s.className}>
             {compressClassName(s.className)}
