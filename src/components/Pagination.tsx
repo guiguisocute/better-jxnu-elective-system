@@ -21,11 +21,11 @@ export function Pagination({ page, totalPages, onPageChange }: Props) {
   }
 
   return (
-    <div className="flex items-center justify-center gap-1 py-6">
+    <div className="flex flex-wrap items-center justify-center gap-1.5 px-2 py-6">
       <button
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
-        className="px-3 py-1.5 rounded-lg text-sm text-gray-500 disabled:opacity-30 hover:bg-white hover:text-gray-700 hover:shadow-sm transition-all"
+        className="px-3.5 py-2 rounded-lg text-sm text-gray-500 disabled:opacity-30 hover:bg-white hover:text-gray-700 hover:shadow-sm transition-all"
       >
         ‹
       </button>
@@ -36,7 +36,7 @@ export function Pagination({ page, totalPages, onPageChange }: Props) {
           <button
             key={p}
             onClick={() => onPageChange(p)}
-            className={`min-w-[36px] py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`min-w-[40px] py-2 rounded-lg text-sm font-medium transition-all ${
               p === page
                 ? "bg-red-500 text-white shadow-sm shadow-red-200"
                 : "text-gray-500 hover:bg-white hover:text-gray-700 hover:shadow-sm"
@@ -49,7 +49,7 @@ export function Pagination({ page, totalPages, onPageChange }: Props) {
       <button
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
-        className="px-3 py-1.5 rounded-lg text-sm text-gray-500 disabled:opacity-30 hover:bg-white hover:text-gray-700 hover:shadow-sm transition-all"
+        className="px-3.5 py-2 rounded-lg text-sm text-gray-500 disabled:opacity-30 hover:bg-white hover:text-gray-700 hover:shadow-sm transition-all"
       >
         ›
       </button>

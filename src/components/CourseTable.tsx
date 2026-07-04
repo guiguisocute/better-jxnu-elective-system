@@ -1123,7 +1123,7 @@ export function CourseTable({
                 <button
                   type="button"
                   onClick={handleSort}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                     ratingSortAsc === null && enrollmentSortAsc === null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
@@ -1132,7 +1132,7 @@ export function CourseTable({
                 <button
                   type="button"
                   onClick={handleEnrollmentSort}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                     enrollmentSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
@@ -1141,7 +1141,7 @@ export function CourseTable({
                 <button
                   type="button"
                   onClick={handleRatingSort}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                     ratingSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
@@ -1182,7 +1182,7 @@ export function CourseTable({
               <span className="text-[11px] text-gray-400 shrink-0">排序</span>
               <button
                 onClick={handleSort}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                   ratingSortAsc === null
                     ? "bg-red-50 text-red-500"
                     : "bg-gray-100 text-gray-500"
@@ -1193,7 +1193,7 @@ export function CourseTable({
               </button>
               <button
                 onClick={handleRatingSort}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                   ratingSortAsc !== null
                     ? "bg-red-50 text-red-500"
                     : "bg-gray-100 text-gray-500"
