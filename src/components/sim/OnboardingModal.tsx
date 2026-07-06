@@ -614,15 +614,10 @@ export function OnboardingModal({
                           </span>
                           <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                             <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
+                            {/* 行本身是 button,合法 HTML 不允许交互后代/tabindex;复制退化为纯点击热区,课程号文本本身可选中 */}
                             <span
-                              role="button"
-                              tabIndex={0}
-                              aria-label="复制课程号"
                               title="复制课程号"
                               onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleCopyCid(c.cid); }
-                              }}
                               className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
                                 copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                               }`}
@@ -779,15 +774,10 @@ export function OnboardingModal({
                             </span>
                             <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                               <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
+                              {/* 行本身是 button,合法 HTML 不允许交互后代/tabindex;复制退化为纯点击热区,课程号文本本身可选中 */}
                               <span
-                                role="button"
-                                tabIndex={0}
-                                aria-label="复制课程号"
                                 title="复制课程号"
                                 onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleCopyCid(c.cid); }
-                                }}
                                 className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
                                   copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                 }`}
@@ -883,15 +873,10 @@ export function OnboardingModal({
                             <span className={`min-w-0 text-[13px] truncate ${active ? "text-gray-800" : "text-gray-400 line-through"}`}>{c.name}</span>
                             <span className="flex items-center gap-1 shrink-0">
                               <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
+                              {/* 行本身是 button,合法 HTML 不允许交互后代/tabindex;复制退化为纯点击热区,课程号文本本身可选中 */}
                               <span
-                                role="button"
-                                tabIndex={0}
-                                aria-label="复制课程号"
                                 title="复制课程号"
                                 onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleCopyCid(c.cid); }
-                                }}
                                 className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
                                   copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                 }`}
