@@ -288,7 +288,8 @@ export function buildPlacement(
       cid: c.id,
       name: c.name,
       credits: c.credits || 0,
-      kind: "cart",
+      // 教务真实课表里的课即使在待选清单（学号导入后自动入清单计学分），仍按「已选课程」呈现。
+      kind: importedByCid.has(c.id) ? "imported" : "cart",
       nature: courseNature(c, selectedPlan),
       ...resolve(c.id, true),
     });

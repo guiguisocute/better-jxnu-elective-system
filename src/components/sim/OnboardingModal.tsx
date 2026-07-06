@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import type { Course, FormalSection, MajorRequirement, PlanCourse } from "../../types";
 import type { CreditPlanView, CreditBlock } from "../../lib/creditPlan";
 import { REQUIRED_NATURES } from "../../lib/creditPlan";
-import { termIndexOf, effectiveTermIndex, termToCalLabel, enrollYear } from "../../lib/term";
+import { termIndexOf, effectiveTermIndex, termToCalLabel, enrollYear, currentPlanTerm, currentCalTerm, isDeferredSettlement } from "../../lib/term";
+import { isInCart, toggleCart } from "../../lib/cartStore";
 import { buildPlacement, matchImportedSection, previewSemsOf } from "../../lib/schedulePlacement";
 import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentRecord, type ImportSuggestion, type StudentScheduleSnapshot, type StudentScheduleItem, type StudentDetailCourse } from "../../lib/studentRecord";
 import { decodeBundle, type PlanBundle } from "../../lib/planShare";
@@ -229,6 +230,25 @@ export function OnboardingModal({
       for (const [cid, items] of itemsByCid) {
         const key = matchImportedSection(formalSections, rec.planningSemester, cid, items);
         if (key) onChooseSection(cid, key);
+      }
+      // 教务已选的非必修课自动加入待选清单：出现在清单里可管理/退选，并计入下学期规划学分。
+      // 下学期必修不加 —— 学分投影已单独计 nextReq，入清单会重复计数（口径与 buildCreditPlan 的
+      // nextSemRequired 完全一致：必修性质 + 非延迟结算 + ti == 在读+1）。
+      // planCourses 大文件尚未加载完时（coursesOf 返回空）跳过，避免把必修误加进清单。
+      const targetCourses = coursesOf(plan);
+      if (targetCourses.length > 0) {
+        const targetTerm = sug.term ?? currentPlanTerm(enrollYear(plan), currentCalTerm());
+        const nextReqCids = new Set(
+          targetCourses
+            .filter((pc) =>
+              REQUIRED_NATURES.includes(pc.nature) &&
+              !isDeferredSettlement(pc.cid) &&
+              effectiveTermIndex(pc.cid, pc.semester) === targetTerm + 1)
+            .map((pc) => pc.cid),
+        );
+        for (const cid of itemsByCid.keys()) {
+          if (!nextReqCids.has(cid) && !isInCart(cid)) toggleCart(cid);
+        }
       }
     }
     if (matched) onSelectPlan(rec.planKey!);

@@ -157,13 +157,14 @@ export function HomePage() {
   const chosenSections = useChosenSections();
   const [quickRatingActive, setQuickRatingActive] = useState(false);
 
-  // 一键排除必修课时段：模拟选课开启时，把下学期必修课（按当前选班）占用的周时段算出来，
-  // 供课表筛选「一键排除」按钮把这些格子标为 exclude，方便错峰挑选修课。
+  // 一键排除已选时段：模拟选课开启时，把下学期已选课程占用的周时段算出来 —— 必修（按当前选班）
+  // + 学号导入的教务真实课表（kind=imported，官方已选，不随待选清单增删变化）。
+  // 供课表筛选「一键排除」按钮把这些格子标为 exclude，方便错峰挑课。
   const simPlanLabel = useMemo(
     () => termToCalLabel(enrollYear(currentPlan), (credit.term ?? 0) + 1),
     [currentPlan, credit.term],
   );
-  const requiredCells = useMemo(() => {
+  const selectedCells = useMemo(() => {
     if (sim.mode !== "sim") return [];
     const placed = buildPlacement(
       credit.view.nextSemRequired, [], formal.sections, simPlanLabel,
@@ -171,15 +172,16 @@ export function HomePage() {
     );
     const cells = new Set<string>();
     for (const p of placed) {
-      if (p.kind !== "required" || p.status !== "placed") continue;
+      if (p.status !== "placed") continue;
+      if (p.kind !== "required" && p.kind !== "imported") continue;
       for (const m of p.slots) cells.add(`${m.day},${m.slot}`);
     }
     return [...cells];
   }, [sim.mode, credit.view.nextSemRequired, formal.sections, simPlanLabel, chosenSections.chosen, currentPlan, credit.stored.importedSchedule]);
-  const requiredExcluded = requiredCells.length > 0 && requiredCells.every((k) => schedule.filter[k] === "exclude");
-  const toggleExcludeRequired = useCallback(
-    () => schedule.setCells(requiredCells, requiredExcluded ? null : "exclude"),
-    [schedule, requiredCells, requiredExcluded],
+  const selectedExcluded = selectedCells.length > 0 && selectedCells.every((k) => schedule.filter[k] === "exclude");
+  const toggleExcludeSelected = useCallback(
+    () => schedule.setCells(selectedCells, selectedExcluded ? null : "exclude"),
+    [schedule, selectedCells, selectedExcluded],
   );
 
   const clearAllFilters = () => {
@@ -1083,10 +1085,10 @@ export function HomePage() {
                   clear={schedule.clear}
                   active={schedule.active}
                   cellCounts={scheduleCellCounts}
-                  requiredCells={requiredCells}
-                  showExcludeRequired={sim.mode === "sim"}
-                  requiredExcluded={requiredExcluded}
-                  onToggleExcludeRequired={toggleExcludeRequired}
+                  selectedCells={selectedCells}
+                  showExcludeSelected={sim.mode === "sim"}
+                  selectedExcluded={selectedExcluded}
+                  onToggleExcludeSelected={toggleExcludeSelected}
                 />
               </div>
             )}
@@ -1148,10 +1150,10 @@ export function HomePage() {
                   clear={schedule.clear}
                   active={schedule.active}
                   cellCounts={scheduleCellCounts}
-                  requiredCells={requiredCells}
-                  showExcludeRequired={sim.mode === "sim"}
-                  requiredExcluded={requiredExcluded}
-                  onToggleExcludeRequired={toggleExcludeRequired}
+                  selectedCells={selectedCells}
+                  showExcludeSelected={sim.mode === "sim"}
+                  selectedExcluded={selectedExcluded}
+                  onToggleExcludeSelected={toggleExcludeSelected}
                 />
               </div>
             )}
@@ -1264,10 +1266,10 @@ export function HomePage() {
                     clear={schedule.clear}
                     active={schedule.active}
                     cellCounts={scheduleCellCounts}
-                    requiredCells={requiredCells}
-                    showExcludeRequired={sim.mode === "sim"}
-                    requiredExcluded={requiredExcluded}
-                    onToggleExcludeRequired={toggleExcludeRequired}
+                    selectedCells={selectedCells}
+                    showExcludeSelected={sim.mode === "sim"}
+                    selectedExcluded={selectedExcluded}
+                    onToggleExcludeSelected={toggleExcludeSelected}
                   />
                 </div>
               )}

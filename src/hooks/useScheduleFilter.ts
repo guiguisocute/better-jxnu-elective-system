@@ -54,7 +54,7 @@ export function useScheduleFilter(scope: string) {
 
   const clear = useCallback(() => setFilter({}), []);
 
-  // 批量设置多个格子（一键排除必修课时段用）：state=null 删除这些格子，否则统一设为该状态。
+  // 批量设置多个格子（一键排除已选时段用）：state=null 删除这些格子，否则统一设为该状态。
   const setCells = useCallback((keys: string[], state: CellState | null) => {
     if (keys.length === 0) return;
     setFilter((prev) => {

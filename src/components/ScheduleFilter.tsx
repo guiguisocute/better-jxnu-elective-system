@@ -16,14 +16,14 @@ interface Props {
   active: boolean;
   /** "day,slot" → 该格上课的班级数（当前学期），用于格内提示。 */
   cellCounts?: Record<string, number>;
-  /** 下学期必修课占用的格子（"day,slot"），仅模拟选课开启时有值；用于「一键排除必修时段」。 */
-  requiredCells?: string[];
-  /** 模拟选课已开启：即使暂时没有可落格的必修课，也保留按钮并展示禁用说明。 */
-  showExcludeRequired?: boolean;
-  /** requiredCells 是否已全部处于 exclude 状态（按钮在 排除 / 恢复 间切换）。 */
-  requiredExcluded?: boolean;
-  /** 「一键排除必修时段」按钮回调（toggle）。 */
-  onToggleExcludeRequired?: () => void;
+  /** 下学期已选课程（必修 + 学号导入的教务课表）占用的格子（"day,slot"），仅模拟选课开启时有值；用于「一键排除已选时段」。 */
+  selectedCells?: string[];
+  /** 模拟选课已开启：即使暂时没有可落格的已选课程，也保留按钮并展示禁用说明。 */
+  showExcludeSelected?: boolean;
+  /** selectedCells 是否已全部处于 exclude 状态（按钮在 排除 / 恢复 间切换）。 */
+  selectedExcluded?: boolean;
+  /** 「一键排除已选时段」按钮回调（toggle）。 */
+  onToggleExcludeSelected?: () => void;
 }
 
 type CellAppearance = CellState | "none";
@@ -37,7 +37,7 @@ function cellCls(state: CellAppearance): string {
 
 export function ScheduleFilter({
   filter, cycleCell, removeCell, clear, active, cellCounts = {},
-  requiredCells = [], showExcludeRequired = false, requiredExcluded = false, onToggleExcludeRequired,
+  selectedCells = [], showExcludeSelected = false, selectedExcluded = false, onToggleExcludeSelected,
 }: Props) {
   // 行序：1-2 / 3 / 4 / 5 /（中午分隔）/ 6-7 / 8-9 / 晚上
   const rows: Array<{ kind: "lunch" } | { kind: "slot"; slot: string }> = [];
@@ -59,34 +59,34 @@ export function ScheduleFilter({
         )}
       </div>
 
-      {/* 一键排除必修课时段（仅模拟选课开启、且必修课已排好时段时出现） */}
-      {showExcludeRequired && (
+      {/* 一键排除已选时段（仅模拟选课开启、且已选课程（必修/导入课表）已排好时段时出现） */}
+      {showExcludeSelected && (
         <button
-          onClick={onToggleExcludeRequired}
-          disabled={requiredCells.length === 0}
-          title={requiredCells.length > 0
-            ? "把下学期必修课占用的时间段一键标为「排除」，方便错峰挑选修课"
-            : "当前没有已排入课表的下学期必修课时段"}
+          onClick={onToggleExcludeSelected}
+          disabled={selectedCells.length === 0}
+          title={selectedCells.length > 0
+            ? "把下学期已选课程（必修 + 已导入课表）占用的时间段一键标为「排除」，方便错峰挑课"
+            : "当前没有已排入课表的已选课程时段"}
           className={`mb-2 w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${
-            requiredCells.length === 0
+            selectedCells.length === 0
               ? "bg-white text-gray-300 border-gray-200 cursor-not-allowed"
-              : requiredExcluded
+              : selectedExcluded
               ? "bg-gray-200 text-gray-400 border-gray-300 line-through decoration-gray-400"
               : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:text-gray-800 active:bg-gray-50"
           }`}
         >
           <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {requiredExcluded ? (
+            {selectedExcluded ? (
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4 4m0-4l4 4M4 6h16M4 11h7" />
             ) : (
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18M3 10h18M3 15h7m4 3l5-5m0 5l-5-5" />
             )}
           </svg>
-          {requiredCells.length === 0
-            ? "暂无可排除的必修课时段"
-            : requiredExcluded
-              ? "已排除必修课时段 · 点此恢复"
-              : "一键排除必修课时段"}
+          {selectedCells.length === 0
+            ? "暂无可排除的已选时段"
+            : selectedExcluded
+              ? "已排除已选时段 · 点此恢复"
+              : "一键排除已选时段"}
         </button>
       )}
 
