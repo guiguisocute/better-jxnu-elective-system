@@ -39,6 +39,10 @@ const OnboardingModal = lazy(() => import("./sim/OnboardingModal").then((m) => (
 const DATA_SOURCE_KEY = "jxnu_data_source";
 const FORMAL_AUTO_EXPAND_SECTION_LIMIT = 240;
 const FORMAL_AUTO_EXPAND_GROUP_LIMIT = 30;
+// 左栏能以内联形式共存于三栏布局的最小视口宽（右详情栏常驻 500px）。
+// 低于此宽度左栏只能走全屏抽屉，因此默认必须收起——16:10 笔记本(1440/1536/1680)全落在此区间，
+// 若默认展开会导致一进页面就被抽屉+毛玻璃遮罩糊脸。
+const SIDEBAR_INLINE_MIN_W = 1700;
 
 function loadDataSource(): DataSource {
   // 默认进「正选」（学期由下方兜底 effect 落到最新 = 2026-09）；
@@ -732,9 +736,10 @@ export function HomePage() {
   const [showMobileFilter, setShowMobileFilter] = useState(false);
   // 筛选抽屉的返回键集成与详情浮层(closingRef)各自独立,防止两套 history.back 互扰
   const mobileFilterClosingRef = useRef(false);
-  // 桌面左侧栏开合：>1280 默认展开；<=1280 自动收起。用户可在任意宽度手动折叠/展开。
+  // 桌面左侧栏开合：仅当左栏能内联进三栏布局（≥1700）才默认展开；更窄视口默认收起，
+  // 由「展开筛选」按钮/筛选提醒引导用户主动打开（此时才走抽屉形态）。用户可在任意宽度手动折叠/展开。
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(
-    typeof window !== "undefined" ? window.innerWidth > 1280 : true,
+    typeof window !== "undefined" ? window.innerWidth >= SIDEBAR_INLINE_MIN_W : true,
   );
   const [viewportW, setViewportW] = useState<number>(
     typeof window !== "undefined" ? window.innerWidth : 1920,
@@ -742,8 +747,8 @@ export function HomePage() {
   const headerRef = useRef<HTMLElement>(null);
   const [headerBottom, setHeaderBottom] = useState(0);
 
-  // 视口 < 1700 时让左栏转抽屉，避免与右详情栏（始终预留 500px）共同把中央表格挤瘦
-  const leftAsDrawer = sidebarOpen && viewportW < 1700;
+  // 视口 < 1700 时左栏转抽屉，避免与右详情栏（始终预留 500px）共同把中央表格挤瘦
+  const leftAsDrawer = sidebarOpen && viewportW < SIDEBAR_INLINE_MIN_W;
 
   // 用户一旦「展开左栏」（折叠→展开的跳变）/ 打开移动筛选，筛选提醒就完成使命 → 收起。
   // 注意：宽屏左栏默认就是展开的，不能用 sidebarOpen 的稳态判断（否则提醒一出现就被秒关）——只认跳变。
@@ -781,11 +786,12 @@ export function HomePage() {
     };
   }, []);
 
-  // 窗口缩到 1280 及以下时自动收起左栏；放大不自动展开（尊重用户的手动选择）
+  // 窗口缩过内联阈值时自动收起左栏（否则内联栏会在缩放中途突变成全屏抽屉+遮罩）；
+  // 放大不自动展开（尊重用户的手动选择）
   useEffect(() => {
     const onResize = () => {
       setViewportW(window.innerWidth);
-      if (window.innerWidth <= 1280) setSidebarOpen(false);
+      if (window.innerWidth < SIDEBAR_INLINE_MIN_W) setSidebarOpen(false);
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -1110,7 +1116,7 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* PC 窄屏左侧抽屉：右详情打开 + 视口 < 1600 时启用，避免双内联栏挤瘦中央表格 */}
+      {/* PC 窄屏左侧抽屉：视口 < 1700 且用户主动展开筛选时启用（默认收起），避免双内联栏挤瘦中央表格 */}
       <div
         className={`hidden md:block fixed inset-0 z-50 transition-opacity duration-300 ${leftAsDrawer ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setSidebarOpen(false)}
@@ -1228,8 +1234,8 @@ export function HomePage() {
             </button>
           </div>
         )}
-        {/* Desktop left sidebar — 由 sidebarOpen 控制；窗口 ≤1280 时自动收起；
-            打开右详情且视口 < 1600 时改走抽屉模式（见下方 leftAsDrawer 渲染块） */}
+        {/* Desktop left sidebar — 由 sidebarOpen 控制；窗口 < 1700 时自动收起；
+            该宽度下用户主动展开则走抽屉模式（见上方 leftAsDrawer 渲染块） */}
         {sidebarOpen && !leftAsDrawer && (
           <aside
             ref={setLeftFilterEl}
