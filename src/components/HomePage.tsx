@@ -852,7 +852,10 @@ export function HomePage() {
   }, []);
   useEffect(() => {
     if (!showMobileFilter) return;
-    const onPopState = () => setShowMobileFilter(false);
+    // 校验 e.state:若未来有浮层把历史记录压在抽屉条目之上,back 弹回抽屉自身条目时不应误关抽屉
+    const onPopState = (e: PopStateEvent) => {
+      if (!e.state?.mobileFilter) setShowMobileFilter(false);
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [showMobileFilter]);
