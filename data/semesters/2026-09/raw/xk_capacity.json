@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-07-06 09:38:52",
+ "fetched_at": "2026-07-06 10:39:49",
  "config": {
   "len": 6477,
   "excerpt": "系统配置信息 配置名称： 正选第二阶段 系统开放时间： 2026-07-01 15:00:00 至 2026-07-07 22:00:00 选课阶段： 正选第二阶段 选课学期： 26-27第1学期 是否要求评教： 是 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区"
@@ -1054,7 +1054,7 @@
      "className": "王志平#1班",
      "teacher": "王志平",
      "enrolled": 32,
-     "remaining": 28,
+     "remaining": 8,
      "full": false
     }
    ],
@@ -2679,7 +2679,7 @@
      "className": "26级生物制药1班",
      "teacher": "郝文燕",
      "enrolled": 4,
-     "remaining": 1,
+     "remaining": 2,
      "full": false
     },
     {
@@ -2695,7 +2695,7 @@
      "className": "26级生物工程班",
      "teacher": "汤建萍",
      "enrolled": 4,
-     "remaining": 0,
+     "remaining": 2,
      "full": false
     },
     {
@@ -2955,8 +2955,8 @@
      "bjh": "005417Z1",
      "className": "教工乔学忠#1班",
      "teacher": "乔学忠",
-     "enrolled": 1,
-     "remaining": 29,
+     "enrolled": 0,
+     "remaining": 30,
      "full": false
     },
     {
@@ -3527,8 +3527,8 @@
      "bjh": "001923Z3",
      "className": "教工周萍#3班.",
      "teacher": "周萍",
-     "enrolled": 30,
-     "remaining": 5,
+     "enrolled": 31,
+     "remaining": 4,
      "full": false
     },
     {
@@ -4007,8 +4007,8 @@
      "bjh": "003815Z6",
      "className": "教工邱月婷#6班.",
      "teacher": "邱月婷",
-     "enrolled": 32,
-     "remaining": 3,
+     "enrolled": 33,
+     "remaining": 2,
      "full": false
     },
     {
@@ -4919,8 +4919,8 @@
      "bjh": "jwc7010Z3",
      "className": "教工杨小镘#3班",
      "teacher": "李淑龙",
-     "enrolled": 32,
-     "remaining": 3,
+     "enrolled": 31,
+     "remaining": 4,
      "full": false
     },
     {
@@ -5317,8 +5317,8 @@
      "bjh": "003649Z1",
      "className": "教工.付贵阳#1班",
      "teacher": "李钦亮",
-     "enrolled": 18,
-     "remaining": 2,
+     "enrolled": 17,
+     "remaining": 3,
      "full": false
     },
     {
@@ -5659,8 +5659,8 @@
      "bjh": "20260128",
      "className": "26级武术与民族传统体育班",
      "teacher": "裴飞娟",
-     "enrolled": 0,
-     "remaining": 3,
+     "enrolled": 1,
+     "remaining": 2,
      "full": false
     },
     {
@@ -5936,8 +5936,8 @@
      "bjh": "20260125",
      "className": "26级体育教育1班",
      "teacher": "赵亮",
-     "enrolled": 1,
-     "remaining": 2,
+     "enrolled": 2,
+     "remaining": 1,
      "full": false
     },
     {
@@ -5968,8 +5968,8 @@
      "bjh": "20260159",
      "className": "26级播音与主持艺术班",
      "teacher": "黄奕池",
-     "enrolled": 1,
-     "remaining": 2,
+     "enrolled": 0,
+     "remaining": 3,
      "full": false
     },
     {
@@ -6286,8 +6286,8 @@
      "bjh": "003170Z4",
      "className": "教工.黄琳#4班",
      "teacher": "黄琳",
-     "enrolled": 2,
-     "remaining": 0,
+     "enrolled": 1,
+     "remaining": 1,
      "full": false
     },
     {
@@ -8196,8 +8196,8 @@
      "bjh": "005812Z1",
      "className": "教工高子瑜#1班",
      "teacher": "高子瑜",
-     "enrolled": 44,
-     "remaining": 1,
+     "enrolled": 45,
+     "remaining": 0,
      "full": false
     }
    ],
@@ -8969,32 +8969,32 @@
      "bjh": "003179Z1",
      "className": "涂小云#1班",
      "teacher": "涂小云",
-     "enrolled": 36,
-     "remaining": 1,
+     "enrolled": 35,
+     "remaining": 2,
      "full": false
     },
     {
      "bjh": "004911Z1",
      "className": "教工.周毅#1班",
      "teacher": "周毅",
-     "enrolled": 41,
-     "remaining": 3,
+     "enrolled": 43,
+     "remaining": 1,
      "full": false
     },
     {
      "bjh": "004911Z2",
      "className": "教工.周毅#2班",
      "teacher": "周毅",
-     "enrolled": 30,
-     "remaining": 0,
+     "enrolled": 29,
+     "remaining": 1,
      "full": false
     },
     {
      "bjh": "005810Z1",
      "className": "教工陈明舜#1班",
      "teacher": "陈明舜",
-     "enrolled": 33,
-     "remaining": 2,
+     "enrolled": 35,
+     "remaining": 0,
      "full": false
     },
     {
@@ -9250,8 +9250,8 @@
      "bjh": "004339Z1",
      "className": "教工陈海艳#.1班",
      "teacher": "陈海艳",
-     "enrolled": 61,
-     "remaining": 9,
+     "enrolled": 60,
+     "remaining": 10,
      "full": false
     },
     {
@@ -12172,7 +12172,15 @@
      "className": "教工陈招娣#1班",
      "teacher": "陈招娣",
      "enrolled": 47,
-     "remaining": -7,
+     "remaining": -17,
+     "full": false
+    },
+    {
+     "bjh": "005273Z2",
+     "className": "教工.陈招娣#2班",
+     "teacher": "陈招娣",
+     "enrolled": 0,
+     "remaining": 30,
      "full": false
     }
    ],
@@ -12353,7 +12361,7 @@
      "className": "王志平#1班",
      "teacher": "王志平",
      "enrolled": 27,
-     "remaining": 33,
+     "remaining": 13,
      "full": false
     },
     {
@@ -12361,7 +12369,7 @@
      "className": "教工王志平#2班",
      "teacher": "王志平",
      "enrolled": 40,
-     "remaining": 20,
+     "remaining": 0,
      "full": false
     }
    ],
@@ -14086,8 +14094,8 @@
      "bjh": "003601Z1",
      "className": "何彤宇#1班",
      "teacher": "何彤宇",
-     "enrolled": 109,
-     "remaining": 1,
+     "enrolled": 110,
+     "remaining": 0,
      "full": false
     },
     {
@@ -16924,8 +16932,8 @@
      "bjh": "005609Z1",
      "className": "教工符湧#1班",
      "teacher": "符湧",
-     "enrolled": 40,
-     "remaining": 0,
+     "enrolled": 39,
+     "remaining": 1,
      "full": false
     },
     {
@@ -17143,7 +17151,7 @@
      "className": "合班乐志强.1班",
      "teacher": "乐志强",
      "enrolled": 68,
-     "remaining": 0,
+     "remaining": 2,
      "full": false
     },
     {
@@ -17159,7 +17167,7 @@
      "className": "教工何声升#2班",
      "teacher": "何声升",
      "enrolled": 66,
-     "remaining": 0,
+     "remaining": 2,
      "full": false
     },
     {
@@ -17876,8 +17884,8 @@
      "bjh": "006015Z1",
      "className": "教工李垚锦#1班",
      "teacher": "曹荭蕾",
-     "enrolled": 69,
-     "remaining": 1,
+     "enrolled": 70,
+     "remaining": 0,
      "full": false
     },
     {
@@ -18210,7 +18218,7 @@
      "bjh": "006033Z1",
      "className": "教工胡俏#1班",
      "teacher": "胡俏",
-     "enrolled": 45,
+     "enrolled": 46,
      "remaining": 0,
      "full": false
     }
@@ -20854,8 +20862,8 @@
      "bjh": "004913Z1",
      "className": "万剑敏#1班",
      "teacher": "万剑敏",
-     "enrolled": 150,
-     "remaining": 0,
+     "enrolled": 149,
+     "remaining": 1,
      "full": false
     }
    ],
@@ -20869,8 +20877,8 @@
      "bjh": "004913Z1",
      "className": "万剑敏#1班",
      "teacher": "万剑敏",
-     "enrolled": 121,
-     "remaining": 29,
+     "enrolled": 122,
+     "remaining": 28,
      "full": false
     }
    ],
@@ -22346,8 +22354,8 @@
      "bjh": "003855Z1",
      "className": "宋春晖#1班",
      "teacher": "宋春晖",
-     "enrolled": 41,
-     "remaining": 2,
+     "enrolled": 43,
+     "remaining": 0,
      "full": false
     }
    ],
@@ -24021,8 +24029,8 @@
      "bjh": "003131Z3",
      "className": "教工.钱轶青#3班",
      "teacher": "钱轶青",
-     "enrolled": 19,
-     "remaining": 1,
+     "enrolled": 20,
+     "remaining": 0,
      "full": false
     },
     {
@@ -24193,7 +24201,7 @@
      "className": "教工罗畅伟#1班",
      "teacher": "罗畅伟",
      "enrolled": 3,
-     "remaining": 1,
+     "remaining": 0,
      "full": false
     }
    ],
@@ -24584,8 +24592,8 @@
      "bjh": "001312H2",
      "className": "合班熊刚.2班",
      "teacher": "熊刚",
-     "enrolled": 0,
-     "remaining": 3,
+     "enrolled": 2,
+     "remaining": 1,
      "full": false
     },
     {
@@ -24920,8 +24928,8 @@
      "bjh": "004882H2",
      "className": "合班冯悦.2班",
      "teacher": "冯悦",
-     "enrolled": 0,
-     "remaining": 3,
+     "enrolled": 1,
+     "remaining": 2,
      "full": false
     },
     {
@@ -26976,15 +26984,15 @@
      "bjh": "20240081",
      "className": "24级生物科学2班",
      "teacher": "简敏菲",
-     "enrolled": 31,
-     "remaining": 11,
+     "enrolled": 30,
+     "remaining": 12,
      "full": false
     },
     {
      "bjh": "20240082",
      "className": "24级生物科学3班",
      "teacher": "江玉梅",
-     "enrolled": 36,
+     "enrolled": 37,
      "remaining": 0,
      "full": false
     },
@@ -27118,8 +27126,8 @@
      "bjh": "003995Z1",
      "className": "教工邵明勤#.1班",
      "teacher": "邵明勤",
-     "enrolled": 19,
-     "remaining": 0,
+     "enrolled": 18,
+     "remaining": 1,
      "full": false
     },
     {
@@ -27142,8 +27150,8 @@
      "bjh": "004331Z2",
      "className": "张艳杰#2班",
      "teacher": "张艳杰",
-     "enrolled": 21,
-     "remaining": 1,
+     "enrolled": 22,
+     "remaining": 0,
      "full": false
     },
     {
@@ -27563,8 +27571,8 @@
      "bjh": "20250101",
      "className": "25级生物工程班",
      "teacher": "龙中儿",
-     "enrolled": 48,
-     "remaining": 1,
+     "enrolled": 49,
+     "remaining": 0,
      "full": false
     },
     {
@@ -27587,8 +27595,8 @@
      "bjh": "20250104",
      "className": "25级生物科学3班",
      "teacher": "山珊",
-     "enrolled": 49,
-     "remaining": 1,
+     "enrolled": 50,
+     "remaining": 0,
      "full": false
     },
     {
@@ -27845,8 +27853,8 @@
      "bjh": "005599Z1",
      "className": "教工邵艳红#1班",
      "teacher": "邵艳红",
-     "enrolled": 36,
-     "remaining": 0,
+     "enrolled": 35,
+     "remaining": 1,
      "full": false
     },
     {
@@ -27893,8 +27901,8 @@
      "bjh": "005810Z3",
      "className": "教工陈明舜#3班",
      "teacher": "陈明舜",
-     "enrolled": 31,
-     "remaining": 1,
+     "enrolled": 32,
+     "remaining": 0,
      "full": false
     }
    ],
@@ -30170,8 +30178,8 @@
      "bjh": "005780Z1",
      "className": "教工胡国建#1班",
      "teacher": "胡国建",
-     "enrolled": 158,
-     "remaining": 0,
+     "enrolled": 157,
+     "remaining": 1,
      "full": false
     },
     {
@@ -30522,7 +30530,7 @@
      "bjh": "20260124",
      "className": "26级社会体育指导与管理班",
      "teacher": "刘建坤",
-     "enrolled": 13,
+     "enrolled": 14,
      "remaining": 0,
      "full": false
     },
@@ -30546,7 +30554,7 @@
      "bjh": "20260127",
      "className": "26级体育教育3班",
      "teacher": "陈冬伟",
-     "enrolled": 8,
+     "enrolled": 10,
      "remaining": 0,
      "full": false
     },
@@ -30616,8 +30624,8 @@
      "bjh": "001226Z2",
      "className": "刘琪#2班",
      "teacher": "刘琪",
-     "enrolled": 31,
-     "remaining": 0,
+     "enrolled": 30,
+     "remaining": 1,
      "full": false
     }
    ],
@@ -31026,8 +31034,8 @@
      "bjh": "001247Z1",
      "className": "教工.尹国昌#1班",
      "teacher": "尹国昌",
-     "enrolled": 20,
-     "remaining": 1,
+     "enrolled": 21,
+     "remaining": 0,
      "full": false
     }
    ],
@@ -32242,8 +32250,8 @@
      "bjh": "003517Z1",
      "className": "段小华#1班",
      "teacher": "段小华",
-     "enrolled": 15,
-     "remaining": 25,
+     "enrolled": 14,
+     "remaining": 26,
      "full": false
     }
    ],
@@ -34885,8 +34893,8 @@
      "bjh": "20240083",
      "className": "24级生物科学4班",
      "teacher": "潘阳",
-     "enrolled": 40,
-     "remaining": 0,
+     "enrolled": 39,
+     "remaining": 1,
      "full": false
     },
     {
@@ -34901,8 +34909,8 @@
      "bjh": "20240085",
      "className": "24级生物科学6班",
      "teacher": "潘阳",
-     "enrolled": 42,
-     "remaining": 1,
+     "enrolled": 43,
+     "remaining": 0,
      "full": false
     }
    ],
@@ -35199,8 +35207,8 @@
      "bjh": "20260141",
      "className": "26级电子信息类1班",
      "teacher": "王燕",
-     "enrolled": 10,
-     "remaining": 3,
+     "enrolled": 11,
+     "remaining": 2,
      "full": false
     },
     {
@@ -37996,8 +38004,8 @@
      "bjh": "003179Z6",
      "className": "教工涂小云#6班",
      "teacher": "涂小云",
-     "enrolled": 250,
-     "remaining": 0,
+     "enrolled": 249,
+     "remaining": 1,
      "full": false
     },
     {
@@ -38354,16 +38362,16 @@
      "bjh": "003980Z1",
      "className": "教工.罗向东#1班",
      "teacher": "罗向东",
-     "enrolled": 20,
-     "remaining": 1,
+     "enrolled": 19,
+     "remaining": 2,
      "full": false
     },
     {
      "bjh": "003980Z2",
      "className": "教工.罗向东#2班",
      "teacher": "罗向东",
-     "enrolled": 20,
-     "remaining": 1,
+     "enrolled": 21,
+     "remaining": 0,
      "full": false
     },
     {
@@ -40781,8 +40789,8 @@
      "bjh": "003631Z1",
      "className": "教工曹跃香#.1班",
      "teacher": "曹跃香",
-     "enrolled": 44,
-     "remaining": 6,
+     "enrolled": 45,
+     "remaining": 5,
      "full": false
     }
    ],
@@ -42576,8 +42584,8 @@
      "bjh": "005239Z2",
      "className": "教工徐华博#2班",
      "teacher": "徐华博",
-     "enrolled": 61,
-     "remaining": 9,
+     "enrolled": 62,
+     "remaining": 8,
      "full": false
     }
    ],
@@ -45128,7 +45136,7 @@
      "bjh": "005448Z1",
      "className": "教工郑磊#1班",
      "teacher": "郑磊",
-     "enrolled": 0,
+     "enrolled": 2,
      "remaining": 0,
      "full": false
     },
