@@ -18,6 +18,7 @@ import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
 import { isPassed } from "../lib/studentRecord";
 import { LIVE_ENROLLMENT_SEMESTER } from "../lib/liveEnrollments";
+import { acquireScrollLock } from "../lib/scrollLock";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { ScheduleFilter } from "./ScheduleFilter";
@@ -729,6 +730,8 @@ export function HomePage() {
   const [selectedSectionKey, setSelectedSectionKey] = useState<string | null>(null);
   const closingRef = useRef(false);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
+  // 筛选抽屉的返回键集成与详情浮层(closingRef)各自独立,防止两套 history.back 互扰
+  const mobileFilterClosingRef = useRef(false);
   // 桌面左侧栏开合：>1280 默认展开；<=1280 自动收起。用户可在任意宽度手动折叠/展开。
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(
     typeof window !== "undefined" ? window.innerWidth > 1280 : true,
@@ -792,9 +795,7 @@ export function HomePage() {
   const onboardingOpen = sim.mode === "onboarding";
   useEffect(() => {
     if (showMobileFilter || mobileCourse || mobileSection || leftAsDrawer || onboardingOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = prev; };
+      return acquireScrollLock();
     }
   }, [showMobileFilter, mobileCourse, mobileSection, leftAsDrawer, onboardingOpen]);
 
@@ -841,6 +842,27 @@ export function HomePage() {
     setTimeout(() => { closingRef.current = false; }, 400);
   };
 
+  // 筛选抽屉同款返回键集成:开抽屉压一条历史记录,back 只关抽屉不退出应用
+  const openMobileFilter = () => {
+    setShowMobileFilter(true);
+    window.history.pushState({ mobileFilter: true }, "", window.location.href);
+  };
+  const closeMobileFilter = useCallback(() => {
+    if (mobileFilterClosingRef.current) return;
+    mobileFilterClosingRef.current = true;
+    window.history.back();
+    setTimeout(() => { mobileFilterClosingRef.current = false; }, 400);
+  }, []);
+  useEffect(() => {
+    if (!showMobileFilter) return;
+    // 校验 e.state:若未来有浮层把历史记录压在抽屉条目之上,back 弹回抽屉自身条目时不应误关抽屉
+    const onPopState = (e: PopStateEvent) => {
+      if (!e.state?.mobileFilter) setShowMobileFilter(false);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [showMobileFilter]);
+
   const handleQuickRatePreviousSemester = useCallback(() => {
     if (!quickRatingReady || !quickRatingSemester) return;
     if (quickRatingActive) {
@@ -860,9 +882,9 @@ export function HomePage() {
     setSelectedSectionKey(null);
     setMobileCourse(null);
     setMobileSection(null);
-    setShowMobileFilter(false);
+    if (showMobileFilter) closeMobileFilter();
     window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
-  }, [filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule]);
+  }, [closeMobileFilter, filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule, showMobileFilter]);
 
   if (loading) {
     return (
@@ -900,14 +922,14 @@ export function HomePage() {
       {/* Header - two layers */}
       <header ref={headerRef} className="sticky top-0 z-40">
         {/* Layer 1: Red status bar —— relative z-10 让其底部投影盖在下方搜索行之上（见 index.css .bg-header） */}
-        <div className="bg-header relative z-10">
-          <div className="max-w-[2000px] mx-auto px-6 flex items-center justify-between py-2.5">
-            <div className="flex items-center gap-2.5">
-              <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain" />
-              <h1 className="text-sm font-bold tracking-tight text-brand-fg">JXNU选课PLUS</h1>
-              <span className="text-xs hidden sm:inline" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
+        <div className="bg-header relative z-10 pt-[env(safe-area-inset-top)]">
+          <div className="max-w-[2000px] mx-auto px-4 md:px-6 flex items-center justify-between py-2.5">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain shrink-0" />
+              <h1 className="text-sm font-bold tracking-tight text-brand-fg truncate">JXNU选课PLUS</h1>
+              <span className="text-xs hidden sm:inline shrink-0" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
               <button
                 type="button"
                 onClick={handleQuickRatePreviousSemester}
@@ -949,7 +971,7 @@ export function HomePage() {
               {/* 漏斗按钮：仅手机端 (<md) 显示，打开右抽屉。PC 上由左侧专门的展开按钮控制。 */}
               <button
                 ref={mobileFunnelRef}
-                onClick={() => setShowMobileFilter(true)}
+                onClick={openMobileFilter}
                 title="筛选"
                 className="md:hidden shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30"
               >
@@ -1030,22 +1052,22 @@ export function HomePage() {
       {/* Mobile filter drawer — always mounted, animated with translate */}
       <div
         className={`xl:hidden fixed inset-0 z-50 transition-opacity duration-300 ${showMobileFilter ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-        onClick={() => setShowMobileFilter(false)}
+        onClick={closeMobileFilter}
       >
         <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
         <div
-          className={`absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white overflow-y-auto shadow-2xl transition-transform duration-300 ease-out ${showMobileFilter ? "translate-x-0" : "translate-x-full"}`}
+          className={`absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white overflow-y-auto overscroll-contain shadow-2xl transition-transform duration-300 ease-out ${showMobileFilter ? "translate-x-0" : "translate-x-full"}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-800">筛选条件</h2>
-            <button onClick={() => setShowMobileFilter(false)} className="p-1 text-gray-400 hover:text-gray-600">
+            <button onClick={closeMobileFilter} className="p-1 text-gray-400 hover:text-gray-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <div className="p-5 pb-8">
+          <div className="p-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
             {isFormalMode && (
               <div className="mb-5 pb-5 border-b border-gray-100">
                 <ScheduleFilter
@@ -1157,7 +1179,7 @@ export function HomePage() {
       <div
         className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${(mobileCourse || mobileSection) ? "translate-y-0" : "translate-y-full"}`}
       >
-        <div className="h-full bg-page overflow-y-auto">
+        <div className="h-full bg-page overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
           {mobileCourse ? (
             <CourseDetail
               course={mobileCourse}

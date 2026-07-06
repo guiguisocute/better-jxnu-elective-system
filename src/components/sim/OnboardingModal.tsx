@@ -320,8 +320,8 @@ export function OnboardingModal({
   const noPlanData = selectedPlan !== "" && planCourses.length === 0;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/50 backdrop-blur-[1px] px-4 py-6">
-      <div className="relative w-full max-w-[960px] min-h-[640px] max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/50 backdrop-blur-[1px] px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="relative w-full max-w-[960px] min-h-[min(640px,100%)] max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
         <div className="h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 shrink-0" />
 
         {/* 标题 */}
@@ -434,7 +434,7 @@ export function OnboardingModal({
         </div>
 
         {/* 内容 */}
-        <div className="px-4 sm:px-7 mt-4 pb-2 flex-1 min-h-0 overflow-y-auto">
+        <div className="px-4 sm:px-7 mt-4 pb-2 flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div key={step} className={dir > 0 ? "onb-in-right" : "onb-in-left"}>
           {/* Step 1 — 培养方案 */}
           {step === 1 && (
@@ -589,7 +589,7 @@ export function OnboardingModal({
                         key={c.cid}
                         onClick={isTransferAuto ? undefined : () => toggleMajorElective(c.cid)}
                         disabled={isTransferAuto}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors ${
+                        className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors ${
                           isTransferAuto
                             ? "bg-amber-50 border-amber-200 cursor-not-allowed"
                             : checked
@@ -597,7 +597,7 @@ export function OnboardingModal({
                             : "bg-white border-gray-100 hover:border-gray-200"
                         }`}
                       >
-                        <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                        <span className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 ${
                           isTransferAuto
                             ? "bg-amber-500 border-amber-500 text-white"
                             : checked
@@ -606,30 +606,34 @@ export function OnboardingModal({
                         }`}>
                           {checked && <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                         </span>
-                        <span className="min-w-0 text-[13px] text-gray-800 truncate">{c.name}</span>
-                        <span className="flex items-center gap-1 shrink-0">
-                          <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
-                            title="复制课程号"
-                            className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
-                              copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
-                            }`}
-                          >
-                            {copiedCid === c.cid ? (
-                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                            ) : (
-                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                        {/* 两行布局（与 step4 必修行一致）：手机窄屏下课名占满整行不再被截成几个字 */}
+                        <span className="min-w-0 flex-1 flex flex-col gap-1">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="min-w-0 flex-1 text-[13px] text-gray-800 truncate">{c.name}</span>
+                            <span className="text-[11px] font-bold text-gray-600 shrink-0">{c.credits}分</span>
+                          </span>
+                          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                            <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
+                            {/* 行本身是 button,合法 HTML 不允许交互后代/tabindex;复制退化为纯点击热区,课程号文本本身可选中 */}
+                            <span
+                              title="复制课程号"
+                              onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                              className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
+                                copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
+                              }`}
+                            >
+                              {copiedCid === c.cid ? (
+                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                              ) : (
+                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                              )}
+                            </span>
+                            {isTransferAuto && (
+                              <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 rounded px-1 py-0.5">转专业·原专业已修</span>
                             )}
-                          </button>
+                            <span className="text-[10px] text-gray-400 font-mono">{c.semester}</span>
+                          </span>
                         </span>
-                        <span className="flex-1" />
-                        {isTransferAuto && (
-                          <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 rounded px-1 py-0.5 shrink-0">转专业·原专业已修</span>
-                        )}
-                        <span className="text-[10px] text-gray-400 font-mono shrink-0">{c.semester}</span>
-                        <span className="text-[11px] font-bold text-gray-600 shrink-0">{c.credits}分</span>
                       </button>
                     );
                   })}
@@ -770,11 +774,11 @@ export function OnboardingModal({
                             </span>
                             <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                               <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                              {/* 行本身是 button,合法 HTML 不允许交互后代/tabindex;复制退化为纯点击热区,课程号文本本身可选中 */}
+                              <span
                                 title="复制课程号"
-                                className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                                className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
                                   copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                 }`}
                               >
@@ -783,7 +787,7 @@ export function OnboardingModal({
                                 ) : (
                                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                                 )}
-                              </button>
+                              </span>
                               {/* 大学英语Ⅲ/Ⅳ：可用「大学英语特色课」1:1 抵扣 —— 显式说明 */}
                               {/大学英语/.test(c.name) && /(Ⅲ|Ⅳ|III|IV|三|四)/.test(c.name) && (
                                 <span className="max-w-full text-[10px] text-indigo-500 whitespace-nowrap" title="一门大学英语特色课可 1:1 抵扣一门大学英语Ⅲ/Ⅳ">（或大学英语特色课）</span>
@@ -829,7 +833,7 @@ export function OnboardingModal({
                               type="button"
                               onClick={() => handleCopyCid(c.cid)}
                               title="复制课程号"
-                              className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                              className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors ${
                                 copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                               }`}
                             >
@@ -869,11 +873,11 @@ export function OnboardingModal({
                             <span className={`min-w-0 text-[13px] truncate ${active ? "text-gray-800" : "text-gray-400 line-through"}`}>{c.name}</span>
                             <span className="flex items-center gap-1 shrink-0">
                               <span className="text-[11px] text-gray-400 font-mono">{c.cid}</span>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                              {/* 行本身是 button,合法 HTML 不允许交互后代/tabindex;复制退化为纯点击热区,课程号文本本身可选中 */}
+                              <span
                                 title="复制课程号"
-                                className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                                onClick={(e) => { e.stopPropagation(); handleCopyCid(c.cid); }}
+                                className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors cursor-pointer ${
                                   copiedCid === c.cid ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                 }`}
                               >
@@ -882,7 +886,7 @@ export function OnboardingModal({
                                 ) : (
                                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                                 )}
-                              </button>
+                              </span>
                             </span>
                             <span className="flex-1" />
                             <span className="text-[9px] font-semibold text-sky-700 bg-sky-100 rounded px-1 py-0.5 shrink-0">未来</span>

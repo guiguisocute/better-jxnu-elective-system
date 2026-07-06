@@ -580,6 +580,12 @@ const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, cou
             {compressSchedule(s.schedule)}
           </InfoRow>
         )}
+        {/* 手机没有 hover,冲突时段直接写在卡面上(桌面表格行仍走 title 提示) */}
+        {warnSlots.length > 0 && (
+          <div className="mt-1 -mx-1 px-1.5 py-1 rounded bg-rose-50 text-[11px] text-rose-600 leading-snug">
+            冲突时段：{warnSlots.map(slotLabel).join("、")}
+          </div>
+        )}
         {s.className && (
           <InfoRow icon={<ClassIcon />} label="班级" title={s.className}>
             {compressClassName(s.className)}
@@ -1123,7 +1129,7 @@ export function CourseTable({
                 <button
                   type="button"
                   onClick={handleSort}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                     ratingSortAsc === null && enrollmentSortAsc === null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
@@ -1132,7 +1138,7 @@ export function CourseTable({
                 <button
                   type="button"
                   onClick={handleEnrollmentSort}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                     enrollmentSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
@@ -1141,7 +1147,7 @@ export function CourseTable({
                 <button
                   type="button"
                   onClick={handleRatingSort}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                     ratingSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
@@ -1182,7 +1188,7 @@ export function CourseTable({
               <span className="text-[11px] text-gray-400 shrink-0">排序</span>
               <button
                 onClick={handleSort}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                   ratingSortAsc === null
                     ? "bg-red-50 text-red-500"
                     : "bg-gray-100 text-gray-500"
@@ -1193,7 +1199,7 @@ export function CourseTable({
               </button>
               <button
                 onClick={handleRatingSort}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                   ratingSortAsc !== null
                     ? "bg-red-50 text-red-500"
                     : "bg-gray-100 text-gray-500"

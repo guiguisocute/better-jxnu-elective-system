@@ -6,7 +6,7 @@ interface Props {
   size?: number;
 }
 
-export function StarRatingInput({ value, onChange, size = 24 }: Props) {
+export function StarRatingInput({ value, onChange, size = 28 }: Props) {
   const [hover, setHover] = useState(0);
 
   const handleClick = (star: number, half: boolean) => {
@@ -16,7 +16,7 @@ export function StarRatingInput({ value, onChange, size = 24 }: Props) {
   return (
     <div
       className="flex items-center"
-      style={{ gap: 4 }}
+      style={{ gap: 6 }}
       onMouseLeave={() => setHover(0)}
     >
       {[1, 2, 3, 4, 5].map((star) => {

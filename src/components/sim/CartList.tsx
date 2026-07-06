@@ -93,7 +93,7 @@ export function CartList({ courses, selectedPlan, onRemove, sectionInfo, onNotif
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCopy(c.id); }}
                   title="复制课程号"
-                  className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                  className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors ${
                     copied ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                   }`}
                 >
@@ -111,7 +111,7 @@ export function CartList({ courses, selectedPlan, onRemove, sectionInfo, onNotif
             <button
               onClick={(e) => { e.stopPropagation(); onRemove(c.id); }}
               title="移出待选清单"
-              className="text-gray-300 hover:text-rose-500 shrink-0"
+              className="p-2 -m-2 inline-flex items-center justify-center rounded text-gray-300 hover:text-rose-500 shrink-0"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" d="M6 6l12 12M6 18L18 6" />

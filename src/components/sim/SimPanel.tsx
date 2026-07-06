@@ -6,6 +6,7 @@ import { enrollYear, termToCalLabel } from "../../lib/term";
 import { buildPlacement } from "../../lib/schedulePlacement";
 import type { StudentScheduleSnapshot } from "../../lib/studentRecord";
 import { copyText } from "../../lib/clipboard";
+import { acquireScrollLock } from "../../lib/scrollLock";
 import { encodeBundle, decodeBundle, shareUrlOf, type PlanBundle } from "../../lib/planShare";
 import { CreditRing, CreditRingLegend, FutureRequiredToggle } from "./CreditRing";
 import { CreditBar } from "./CreditBar";
@@ -198,6 +199,12 @@ export function SimPanel({
     try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
   }, [pos]);
 
+  // 手机上面板是近全屏 bottom-sheet(fixed),开着时锁背景滚动;桌面浮窗不锁。
+  const sheetMode = open && vp.w < 640;
+  useEffect(() => {
+    if (sheetMode) return acquireScrollLock();
+  }, [sheetMode]);
+
   const onPointerDown = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { px: e.clientX, py: e.clientY, ox: pos.x, oy: pos.y, moved: false };
@@ -336,7 +343,7 @@ export function SimPanel({
   let transformOrigin: string;
   if (isMobile) {
     panelH = Math.round(vp.h * 0.88);
-    panelStyle = { left: 8, right: 8, bottom: 8 };
+    panelStyle = { left: 8, right: 8, bottom: "calc(8px + env(safe-area-inset-bottom))" };
     transformOrigin = "bottom center";
   } else {
     const panelW = Math.min(520, vp.w - 16);
@@ -393,7 +400,7 @@ export function SimPanel({
                 onClick={onEditEarned}
                 aria-label="编辑已修"
                 title="编辑已修"
-                className="w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                className="w-9 h-9 -m-1.5 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3" />
@@ -403,7 +410,7 @@ export function SimPanel({
               <button
                 onClick={() => setOpen(false)}
                 aria-label="收起面板"
-                className="w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                className="w-9 h-9 -m-1.5 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -434,7 +441,7 @@ export function SimPanel({
           </div>
 
           {/* tab 内容 */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3">
             <div key={tab} className="sim-tab-in">
             {tab === "cart" && (
               <div className="space-y-3">
@@ -484,7 +491,7 @@ export function SimPanel({
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleCopyRequired(c.cid); }}
                                     title="复制课程号"
-                                    className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${
+                                    className={`inline-flex items-center justify-center w-7 h-7 -m-1.5 rounded transition-colors ${
                                       copied ? "text-green-500" : "text-gray-300 hover:text-gray-600"
                                     }`}
                                   >
@@ -503,7 +510,7 @@ export function SimPanel({
                               <button
                                 onClick={(e) => { e.stopPropagation(); requestCancelRequired(c.cid, c.name); }}
                                 title="取消这门必修"
-                                className="text-gray-300 hover:text-rose-500 shrink-0"
+                                className="p-2 -m-2 inline-flex items-center justify-center rounded text-gray-300 hover:text-rose-500 shrink-0"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path strokeLinecap="round" d="M6 6l12 12M6 18L18 6" />
