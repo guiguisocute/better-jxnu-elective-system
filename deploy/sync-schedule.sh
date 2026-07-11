@@ -6,15 +6,10 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO"
-SEM="2026-09"
-RAW="data/semesters/$SEM/raw/formal_schedule.json"
-CAPACITY_RAW="data/semesters/$SEM/raw/xk_capacity.json"
-MIN_SECTIONS=7000
-MIN_CAPACITY_VISIBLE=300
 
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
 
-# 凭据（XK_USERNAME/XK_PASSWORD，供下面容量爬取用）：VPS 上放在仓库外的
+# 凭据（XK_USERNAME/XK_PASSWORD，供下面容量爬取用）+ 可选的 SYNC_* 参数覆盖：VPS 上放在仓库外的
 # ~/apps/jxnu-kkap/sync.env（模板见 deploy/sync.env.example），不随仓库一起同步/提交。
 SYNC_ENV="$HOME/apps/jxnu-kkap/sync.env"
 if [ -f "$SYNC_ENV" ]; then
@@ -24,11 +19,24 @@ if [ -f "$SYNC_ENV" ]; then
   set +a
 fi
 
+# 共享锁：与管理面板（tools/admin_service.py）互斥，避免两边同时改仓库/推送。
+# 目录可能尚未创建（首次部署）——bash 非交互下 exec 重定向失败会直接退出 shell，先确保目录存在。
+mkdir -p "$HOME/apps/jxnu-kkap"
+exec 9>"$HOME/apps/jxnu-kkap/sync.lock"
+flock -n 9 || { echo "[sync] 锁被占用（管理面板或另一轮同步进行中），跳过本轮"; exit 0; }
+
+# 同步参数：默认写死，sync.env 里放 SYNC_* 即可覆盖（不用改脚本）。
+SEM="${SYNC_SEM:-2026-09}"
+RAW="data/semesters/$SEM/raw/formal_schedule.json"
+CAPACITY_RAW="data/semesters/$SEM/raw/xk_capacity.json"
+MIN_SECTIONS="${SYNC_MIN_SECTIONS:-7000}"
+MIN_CAPACITY_VISIBLE="${SYNC_MIN_CAPACITY_VISIBLE:-300}"
+
 # 0) 同步远端（快进；若分叉则放弃本次，等人工处理，绝不强推）
 git pull --ff-only origin main || { log "git pull 非快进，跳过本次同步"; exit 0; }
 
 # 1) 开课安排：抓取 + 复用旧 enrichment（脚本内含 --min-rows 安全闸，抓太少会自己 abort）
-python3 tools/kkap_schedule_export.py --merge-from "$RAW" --min-rows 6000 -o "$RAW.tmp"
+python3 tools/kkap_schedule_export.py --merge-from "$RAW" --min-rows "${SYNC_MIN_ROWS:-6000}" -o "$RAW.tmp"
 mv -f "$RAW.tmp" "$RAW"
 
 # 2) 实时容量：真账号登录 xk 实抓（教学班容量，不是已选人数——已选人数走单独的 kkap-realtime 服务）。
@@ -80,6 +88,11 @@ if ! python3 tools/sync_commit_summary.py >"$MSG_FILE" || ! [ -s "$MSG_FILE" ]; 
   echo "data: 自动同步开课安排+实时容量 (kkap $(date -u +%FT%TZ)); sections=$N" >"$MSG_FILE"
 fi
 git add public/ "$RAW" "$CAPACITY_RAW" data/master/
+# 源配置一并入库：public/app_config.json 由 data/build_config.json 派生，只提交派生不提交源会漂移；
+# 文件可能尚未创建（管理面板首次保存才生成），git add 不存在的路径会报错，先判存在。
+if [ -f data/build_config.json ]; then
+  git add data/build_config.json
+fi
 git commit -q -F "$MSG_FILE"
 rm -f "$MSG_FILE"
 git push origin main

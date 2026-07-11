@@ -7,10 +7,11 @@ raw 三类输入：
   data/semesters/<sem>/raw/formal_schedule.json    ← 该学期正选开课安排
   data/semesters/<sem>/raw/addDrop_schedule.json   ← 该学期补退选开课安排（可缺）
   data/semesters/<sem>/meta.json                   ← isCurrent / 抓取日期等
+  data/build_config.json                           ← 构建期配置（后台 GUI 唯一写入点；缺失回默认）
 
 输出两层：
   data/master/*.json   ← 跨学期持久化派生数据（courses / teachers / major_requirements）
-  public/*.json        ← 前端 fetch 产物（courses / formal_sections / major_requirements）
+  public/*.json        ← 前端 fetch 产物（courses / formal_sections / major_requirements / app_config）
 
 字段优先级 merge 规则见 ARCHITECTURE.md §4。每次执行是覆盖式重算，零状态。
 """
@@ -31,6 +32,7 @@ MASTER_DIR = os.path.join("data", "master")
 PUBLIC_DIR = "public"
 
 TRAINING_PLAN_FILE = os.path.join(MASTER_RAW_DIR, "training_plan.json")
+BUILD_CONFIG_FILE = os.path.join("data", "build_config.json")
 
 MASTER_COURSES_FILE = os.path.join(MASTER_DIR, "courses.json")
 MASTER_TEACHERS_FILE = os.path.join(MASTER_DIR, "teachers.json")
@@ -41,6 +43,7 @@ PUBLIC_COURSES_FILE = os.path.join(PUBLIC_DIR, "courses.json")
 PUBLIC_FORMAL_FILE = os.path.join(PUBLIC_DIR, "formal_sections.json")
 PUBLIC_REQS_FILE = os.path.join(PUBLIC_DIR, "major_requirements.json")
 PUBLIC_PLAN_COURSES_FILE = os.path.join(PUBLIC_DIR, "plan_courses.json")
+PUBLIC_APP_CONFIG_FILE = os.path.join(PUBLIC_DIR, "app_config.json")
 
 # 课程性质归一化（公共必修 → 公共必修课，与 catalog 一致）
 NATURE_NORMALIZE = {"公共必修": "公共必修课"}
@@ -66,10 +69,66 @@ RAW_STAGES = (
     "xk_capacity",
 )
 
+# ============ 构建期配置（data/build_config.json，后台 GUI 唯一写入点） ============
+# 字段缺失 / 文件缺失 → 一律回落默认值（与历史硬编码等价），保持零状态幂等；
+# 坏 JSON 直接抛错（静默吞掉会让后台改的配置悄悄失效）。
+#   testSemesters          → public/app_config.json（前端「（测试）」后缀 + 详情页提示）
+#   mirrorSemesters        → 纯构建期（学期镜像），不外发
+#   liveEnrollmentSemester → public/app_config.json（实时人数只在该学期开启）
+#   featureFlags           → public/app_config.json（studentImport / aiPick 运行时开关）
+DEFAULT_BUILD_CONFIG = {
+    "testSemesters": [],
+    "mirrorSemesters": {},
+    "liveEnrollmentSemester": "2026-09",
+    "featureFlags": {"studentImport": True, "aiPick": True},
+}
+
+
+def load_build_config() -> dict:
+    """读 data/build_config.json 并逐字段回落默认；文件缺失 = 全默认。"""
+    raw = {}
+    if os.path.exists(BUILD_CONFIG_FILE):
+        with open(BUILD_CONFIG_FILE, encoding="utf-8") as f:
+            raw = json.load(f)  # 坏 JSON 在此直接 raise，不静默
+    if not isinstance(raw, dict):
+        raise ValueError(f"{BUILD_CONFIG_FILE} 顶层必须是对象，实际为 {type(raw).__name__}")
+    default_flags = DEFAULT_BUILD_CONFIG["featureFlags"]
+    raw_flags = raw.get("featureFlags") or {}
+    # testSemesters：非 list（含缺失）→ 回默认；是 list 则逐项转 str
+    tests_raw = raw.get("testSemesters")
+    tests = [str(s) for s in tests_raw] if isinstance(tests_raw, list) else list(DEFAULT_BUILD_CONFIG["testSemesters"])
+    # mirrorSemesters：缺失/null → 回默认；存在但非对象 → 直接抛错（静默回落会让镜像悄悄失效）
+    mirror_raw = raw.get("mirrorSemesters")
+    if mirror_raw is None:
+        mirror = dict(DEFAULT_BUILD_CONFIG["mirrorSemesters"])
+    elif isinstance(mirror_raw, dict):
+        mirror = dict(mirror_raw)
+    else:
+        raise ValueError(f"{BUILD_CONFIG_FILE} 的 mirrorSemesters 必须是对象，实际为 {type(mirror_raw).__name__}")
+    # liveEnrollmentSemester：显式空串要放行（"" = 关闭实时人数轮询，管理面板「留空」语义），
+    # 只有缺失/非字符串才回默认
+    live_raw = raw.get("liveEnrollmentSemester")
+    live = live_raw if isinstance(live_raw, str) else DEFAULT_BUILD_CONFIG["liveEnrollmentSemester"]
+    return {
+        "testSemesters": tests,
+        "mirrorSemesters": mirror,
+        "liveEnrollmentSemester": live,
+        "featureFlags": {
+            "studentImport": bool(raw_flags.get("studentImport", default_flags["studentImport"])),
+            "aiPick": bool(raw_flags.get("aiPick", default_flags["aiPick"])),
+        },
+    }
+
+
+BUILD_CONFIG = load_build_config()
+
 # 测试用学期镜像：把某学期的 formal sections 原样复制成另一个学期标签（多课表功能测试，
-# 避免重复 raw）。真实多学期数据到位后清空。2025-09 与 2026-09 均已有真实课表，
-# 不再需要镜像 → 置空。
-MIRROR_SEMESTERS: dict[str, list[str]] = {}
+# 避免重复 raw）。真实多学期数据到位后清空。现由 data/build_config.json 的 mirrorSemesters 提供
+# （默认空 = 不镜像）。
+MIRROR_SEMESTERS: dict[str, list[str]] = {
+    str(src): [str(d) for d in ([dsts] if isinstance(dsts, str) else (dsts or []))]
+    for src, dsts in BUILD_CONFIG["mirrorSemesters"].items()
+}
 
 
 # ============ 工具 ============
@@ -965,6 +1024,14 @@ def build_public(semesters: dict, master: dict) -> None:
         json.dump(master["reqs"], f, ensure_ascii=False, separators=(",", ":"))
     with open(PUBLIC_PLAN_COURSES_FILE, "w", encoding="utf-8") as f:
         json.dump(master["planCourses"], f, ensure_ascii=False, separators=(",", ":"))
+    # 前端运行时配置（src/lib/appConfig.ts 消费）。mirrorSemesters 是纯构建期概念，不外发。
+    app_config = {
+        "testSemesters": BUILD_CONFIG["testSemesters"],
+        "liveEnrollmentSemester": BUILD_CONFIG["liveEnrollmentSemester"],
+        "featureFlags": BUILD_CONFIG["featureFlags"],
+    }
+    with open(PUBLIC_APP_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(app_config, f, ensure_ascii=False, separators=(",", ":"))
 
     return current_sem, len(public_courses), len(public_sections), unmatched_foreign_teachers
 

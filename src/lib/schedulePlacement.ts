@@ -67,7 +67,8 @@ export function legacyBjhOptionKey(s: FormalSection): string | null {
   return bjh ? `bjh:${bjh}` : null;
 }
 
-function optionMatchesKey(option: PlacedOption, key: string | undefined): boolean {
+/** option 是否匹配一个已存的选班 key（含旧版 `bjh:` key 兼容）。AI 候选/校验侧（lib/ai）复用同一判定。 */
+export function optionMatchesKey(option: PlacedOption, key: string | undefined): boolean {
   return !!key && (option.key === key || option.legacyKeys?.includes(key) === true);
 }
 

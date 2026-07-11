@@ -60,7 +60,7 @@ TCP 80/443 用于 HTTP/HTTPS 和自动签发证书，UDP 443 用于 HTTP/3。
 ```text
 Type: A
 Name: getxk
-IPv4: 38.76.188.214
+IPv4: <VPS 公网 IP>
 Proxy: 首次签发证书时 DNS only（灰云）；验证 HTTPS 后可切换 Proxied（橙云）
 TTL: Auto
 ```
@@ -114,3 +114,57 @@ systemctl --user list-timers | grep kkap-schedule
 
 **选课阶段变了、容量长期被跳过时**：先用 `python3 tools/crawl_capacity.py --probe 3` 核对 `Default_config.aspx`
 回显的当前阶段和实际能拿到数据的 `Step` 前缀，改 `~/apps/jxnu-kkap/sync.env` 里的 `XK_STEP` 即可，不用改代码。
+
+---
+
+## 管理面板（jxnu-admin）
+
+`tools/admin_service.py` 是部署在 VPS 上的运维配置 WebUI（单文件、Python 3.11 标准库、零第三方依赖；
+仅 Cloudflare API 部分可选用系统级 requests）。只绑 `127.0.0.1:8790`，**不暴露公网**。
+
+能干什么：总览各服务状态与六个学期旋钮的一致性检查 / 切换当前学期（isCurrent）/
+编辑 `data/build_config.json` / 白名单编辑三个 env 文件（kkap / sync / live）/
+重启服务、手动触发同步、探测容量阶段 / 改 Cloudflare Pages 环境变量并触发部署 / 看 journalctl 日志。
+所有仓库写操作走 `repo_op`（停 kkap-schedule.timer → 等 service 空闲 → flock sync.lock →
+`git pull --ff-only` → 改文件 → `build_data.py` + sanity → commit/push → 恢复 timer），与每小时同步互斥。
+
+### 安装（VPS 上，幂等可重跑）
+
+```bash
+cd ~/better-jxnu-elective-system && git pull --ff-only
+./deploy/install-admin.sh
+```
+
+首次运行会生成 `~/apps/jxnu-admin/admin.env`（600 权限）并 **echo 一个随机 ADMIN_PASSWORD——立刻保存**。
+之后重跑只更新 `admin_service.py` 与 unit 并重启，不动 admin.env。
+
+### 访问（SSH 隧道）
+
+```bash
+ssh -L 8790:127.0.0.1:8790 <VPS别名>   # <VPS别名> = 本地 ~/.ssh/config 里配好的主机别名（含跳板/密钥）
+```
+
+保持该连接，然后浏览器打开 `http://127.0.0.1:8790`，用 admin.env 里的 `ADMIN_PASSWORD` 登录。
+
+### admin.env 键说明
+
+| 键 | 说明 |
+| --- | --- |
+| `ADMIN_BIND` / `ADMIN_PORT` | 监听地址/端口，默认 `127.0.0.1:8790`，别改成公网地址 |
+| `ADMIN_PASSWORD` | 登录密码（必填；安装脚本自动生成随机值） |
+| `REPO_DIR` | 仓库 clone 位置，repo_op 的 git / build_data.py 在此执行 |
+| `KKAP_ENV` / `SYNC_ENV` / `LIVE_ENV` | 三个服务 env 文件路径（面板做白名单键编辑，写回后 chmod 600） |
+| `SYNC_LOCK` | 与每小时同步互斥的 flock 锁文件路径 |
+| `CF_ACCOUNT_ID` / `CF_API_TOKEN` / `CF_PAGES_PROJECT` | Cloudflare Pages API（可空；不配则 /ai 页只显示指引） |
+
+### Cloudflare API Token 创建指引
+
+dash.cloudflare.com → 右上角 **My Profile** → **API Tokens** → **Create Token** → **Create Custom Token**：
+
+- Permissions：`Account / Cloudflare Pages / Edit`
+- Account Resources：选自己的账号
+- 建好后把 token 填进 `admin.env` 的 `CF_API_TOKEN`，Account ID（dashboard 任意域概览页右侧栏）填 `CF_ACCOUNT_ID`，
+  然后 `systemctl --user restart jxnu-admin`。
+
+注意：面板里改 `LIVE_SECRET` 必须 **VPS 侧（live.env）与 Cloudflare 侧（/ai 页）两边同步**，
+否则学号实时导入会回落 D1 快照；Cloudflare 环境变量改完需触发新部署（/ai 页有按钮）才生效。

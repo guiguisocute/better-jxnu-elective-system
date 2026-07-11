@@ -17,7 +17,7 @@ import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
 import { isPassed } from "../lib/studentRecord";
-import { LIVE_ENROLLMENT_SEMESTER } from "../lib/liveEnrollments";
+import { useAppConfig } from "../lib/appConfig";
 import { acquireScrollLock } from "../lib/scrollLock";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
@@ -115,6 +115,8 @@ export function HomePage() {
   const { courses, loading, error, allDepts, allCredits, allPlans, courseTypes, subTags } = useCourseData();
   const { getCourseAvg, getTeacherAvg } = useAllRatings();
   const formal = useFormalData();
+  // 运行时配置（public/app_config.json）：实时人数学期等；加载完成后自动重渲染。
+  const appConfig = useAppConfig();
 
   // 数据源切换：预选 / 正选 / 补退选。初值从 sessionStorage 恢复。
   const [dataSource, setDataSource] = useState<DataSource>(() => loadDataSource());
@@ -529,7 +531,18 @@ export function HomePage() {
   const liveEnrollment = useLiveEnrollments(
     formal.sections,
     selectedSemester,
-    isFormalMode && selectedSemester === LIVE_ENROLLMENT_SEMESTER,
+    isFormalMode && selectedSemester === appConfig.liveEnrollmentSemester,
+  );
+  // AI帮我选（SimPanel AiTab）：余量 = 容量 − 实时已选；无实时快照（非直播学期）返回 null，
+  // 候选行该段写 "-"。getEnrollment 已按 section.semester 自校验，跨学期查询天然得 null。
+  const getLiveEnrollment = liveEnrollment.getEnrollment;
+  const remainingOf = useCallback(
+    (s: FormalSection) => {
+      const enrolled = getLiveEnrollment(s);
+      if (enrolled == null || s.capacity == null) return null;
+      return { left: s.capacity - enrolled, cap: s.capacity };
+    },
+    [getLiveEnrollment],
   );
 
   // 「内容筛选」后的班级集合：搜索/学院/方案/学分/类型/教学区/隐藏已修，但【不含】课表时段筛选。
@@ -1449,6 +1462,13 @@ export function HomePage() {
           setMoocOffset={credit.setMoocOffset}
           competitionOffset={credit.stored.competitionOffset}
           setCompetitionOffset={credit.setCompetitionOffset}
+          courses={courses}
+          planCourses={planCourses.courses}
+          planCoursesReady={planCourses.ready}
+          takenCids={credit.takenCids}
+          cartIds={cart.ids}
+          ratingOf={getTeacherAvg}
+          remainingOf={remainingOf}
         />
         </Suspense>
       )}

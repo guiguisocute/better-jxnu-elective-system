@@ -9,6 +9,7 @@ import { importStudentRecord, deriveInputsFromRecord, isPassed, type StudentReco
 import { decodeBundle, type PlanBundle } from "../../lib/planShare";
 import type { StoredInputs } from "../../hooks/useCreditPlan";
 import { STUDENT_IMPORT_ENABLED } from "../../lib/featureFlags";
+import { useAppConfig } from "../../lib/appConfig";
 import { PlanSelector } from "../PlanSelector";
 import { CreditRing, CreditRingLegend, FutureRequiredToggle } from "./CreditRing";
 import { SimScheduleGrid } from "./SimScheduleGrid";
@@ -109,6 +110,9 @@ export function OnboardingModal({
   visitedMajorElective, setVisitedMajorElective,
   onApplyBundle, onCancel, onFinish, initialStep,
 }: Props) {
+  // 学号导入入口受双开关控制：编译期总闸 STUDENT_IMPORT_ENABLED && 运行时 appConfig（后台 GUI 可关）。
+  const appConfig = useAppConfig();
+  const studentImportEnabled = STUDENT_IMPORT_ENABLED && appConfig.featureFlags.studentImport;
   // 每次开引导都重新挂载，lazy init 即可读到当次 initialStep；夹到合法步数范围。
   const [step, setStep] = useState(() => Math.min(Math.max(initialStep ?? 1, 1), TOTAL));
   const [dir, setDir] = useState<1 | -1>(1);
@@ -351,7 +355,7 @@ export function OnboardingModal({
               <span className="text-[11px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
                 第 {step} 步 / 共 {TOTAL} 步
               </span>
-              {STUDENT_IMPORT_ENABLED && (
+              {studentImportEnabled && (
                 <button
                   type="button"
                   onClick={() => { setImportOpen(true); setImportErr(null); }}

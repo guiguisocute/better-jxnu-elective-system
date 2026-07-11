@@ -91,8 +91,14 @@ export function termToCalLabel(enrollY: number, term: number): string {
 
 // 测试学期：仅正选/补退选 视图给它们加「（测试）」后缀 + 顶部提示横幅（数据是借的/占位时提示用户）。
 // 预选视图永远不带后缀。
-// 2026-09 已有真实 formal_schedule，故不属于测试学期；将来若再引入借用/占位学期，加进来即可。
-const TEST_SEMESTERS = new Set<string>([]);
+// 集合改由运行时配置提供（data/build_config.json → public/app_config.json → appConfig.ts 加载成功后
+// 调 setTestSemesters 注入）；默认空 = 无测试学期，与历史硬编码等价。
+let TEST_SEMESTERS = new Set<string>([]);
+
+/** 运行时注入测试学期集合（appConfig 加载成功后调用；isTestSemester/formatSemesterLabel API 不变）。 */
+export function setTestSemesters(list: string[]): void {
+  TEST_SEMESTERS = new Set(list);
+}
 
 /** 给定学期 key 是否属于"借数据/未发布"测试集合（用于在详情页给提示）。 */
 export function isTestSemester(sem: string): boolean {

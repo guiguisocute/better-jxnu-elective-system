@@ -32,3 +32,15 @@ CREATE TABLE IF NOT EXISTS student_records (
   record_json  TEXT NOT NULL,
   updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- AI帮我选 用量记账（functions/api/ai/recommend.ts）。
+-- 配额原子预扣：INSERT .. ON CONFLICT DO UPDATE SET calls=calls+1 RETURNING calls，先扣再判防并发绕过。
+-- scope = 'voter:<uuid>'（per 用户日配额）| 'site'（全站日 calls 上限 + token 熔断）。
+-- 不含任何可与 student_records 关联的字段（无学号、无 IP）。
+CREATE TABLE IF NOT EXISTS ai_usage (
+  day    TEXT NOT NULL,
+  scope  TEXT NOT NULL,
+  calls  INTEGER NOT NULL DEFAULT 0,
+  tokens INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, scope)
+);

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import type { Course, FormalSection } from "../../types";
+import type { Course, FormalSection, PlanCourse } from "../../types";
 import type { CreditPlanView } from "../../lib/creditPlan";
 import { courseNature, REQUIRED_NATURES } from "../../lib/creditPlan";
 import { enrollYear, termToCalLabel } from "../../lib/term";
@@ -8,11 +8,14 @@ import type { StudentScheduleSnapshot } from "../../lib/studentRecord";
 import { copyText } from "../../lib/clipboard";
 import { acquireScrollLock } from "../../lib/scrollLock";
 import { encodeBundle, decodeBundle, shareUrlOf, type PlanBundle } from "../../lib/planShare";
+import { AI_PICK_ENABLED } from "../../lib/featureFlags";
+import { useAppConfig } from "../../lib/appConfig";
 import { CreditRing, CreditRingLegend, FutureRequiredToggle } from "./CreditRing";
 import { CreditBar } from "./CreditBar";
 import { CartList } from "./CartList";
 import { SimScheduleGrid } from "./SimScheduleGrid";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { AiTab } from "./AiTab";
 import { useTheme } from "../../hooks/useTheme";
 
 interface Props {
@@ -51,14 +54,26 @@ interface Props {
   /** 赛事学分抵扣（浮点，直接加到选修）。 */
   competitionOffset: number;
   setCompetitionOffset: (v: number) => void;
+  /* ---- AI帮我选（AiTab 直传，语义见 AiTab Props 注释） ---- */
+  /** 课程表（courses.json，并非全集——只在往期开课的方案选修不在其中，AI 侧仅作展示/归类兜底）。 */
+  courses: Course[];
+  /** 当前方案 plan_courses（HomePage 已加载的缓存，勿在下游二次 fetch）。 */
+  planCourses: PlanCourse[];
+  /** plan_courses.json 是否已加载完成（5.5MB 懒加载中不允许发起 AI 生成）。 */
+  planCoursesReady: boolean;
+  takenCids: Set<string>;
+  /** 待选清单 cid 数组（cartStore 原始顺序；cartCourses 会滤掉全量表未命中项，不能替代它）。 */
+  cartIds: string[];
+  ratingOf: (cid: string, teacherId: string) => { avg: number; count: number } | null;
+  remainingOf: (s: FormalSection) => { left: number; cap: number } | null;
 }
 
 const JWXT_URL = "https://xk.jxnu.edu.cn/";
 const RING = 64; // 悬浮按钮直径
 const POS_KEY = "jxnu.sim.ringPos";
 
-type Tab = "cart" | "schedule" | "credit";
-const TABS: { key: Tab; label: string }[] = [
+type Tab = "cart" | "schedule" | "credit" | "ai";
+const BASE_TABS: { key: Tab; label: string }[] = [
   { key: "cart", label: "待选清单" },
   { key: "schedule", label: "周课表" },
   { key: "credit", label: "毕业核算" },
@@ -92,11 +107,28 @@ export function SimPanel({
   onRemove, onClear, onEditEarned, onExpandSchedule, onCancelRequired, onSelectCourse, onSelectSection,
   selectedCourseId, inputs, onApplyBundle, showFutureRequired, setShowFutureRequired,
   moocOffset, setMoocOffset, competitionOffset, setCompetitionOffset,
+  courses, planCourses, planCoursesReady, takenCids, cartIds, ratingOf, remainingOf,
 }: Props) {
   const { resolved } = useTheme();
   const isDark = resolved === "dark";
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("cart");
+  // AI帮我选 tab 受双开关控制：编译期总闸 AI_PICK_ENABLED && 运行时 appConfig（后台 GUI 可关）。
+  const appConfig = useAppConfig();
+  const aiPickEnabled = AI_PICK_ENABLED && appConfig.featureFlags.aiPick;
+  const tabs = useMemo<{ key: Tab; label: string }[]>(
+    () => (aiPickEnabled ? [...BASE_TABS, { key: "ai", label: "AI帮我选" }] : BASE_TABS),
+    [aiPickEnabled],
+  );
+  // AI tab 首次进入后常驻挂载（切走仅隐藏不卸载）：卸载会中止在途请求并丢掉结果/偏好/勾选。
+  const [aiVisited, setAiVisited] = useState(false);
+  useEffect(() => {
+    if (tab === "ai") setAiVisited(true);
+  }, [tab]);
+  // 运行时开关变 false（后台 GUI 关 aiPick / appConfig 迟到加载）时，停在 ai tab 会悬空——退回待选清单
+  useEffect(() => {
+    if (!aiPickEnabled && tab === "ai") setTab("cart");
+  }, [aiPickEnabled, tab]);
   const [hint, setHint] = useState(true); // 进入模拟选课时的位置提示
   const [reqOpen, setReqOpen] = useState(false); // 待选清单里「本学期必修」折叠保护（默认折叠）
   const [requiredCopiedId, setRequiredCopiedId] = useState<string | null>(null);
@@ -421,7 +453,7 @@ export function SimPanel({
 
           {/* tab 条 */}
           <div className="flex items-center gap-1 px-3 pt-2.5 shrink-0">
-            {TABS.map((t) => {
+            {tabs.map((t) => {
               const active = tab === t.key;
               return (
                 <button
@@ -791,7 +823,37 @@ export function SimPanel({
                 )}
               </div>
             )}
+
+            {/* ai tab 的内容不在这个 key={tab} 容器里（切 tab 会整棵重挂），见下方常驻 div。 */}
             </div>
+
+            {/* AI帮我选：常驻不卸载（结果/偏好/勾选/在途请求都在 AiTab 内部 state），切走仅 display:none。
+                aiVisited 首次进入置 true 后不复位；面板整体关闭/卸载时仍触发 AiTab 的 abort-on-unmount。
+                注意它在同一个滚动容器（flex-1 min-h-0 overflow-y-auto）内，hidden 时不占布局。
+                aiPickEnabled 变 false 时整块卸载：运行时关闸后不能留下仍可交互的 AiTab。 */}
+            {aiPickEnabled && (
+            <div className={tab === "ai" ? "sim-tab-in" : "hidden"}>
+              {aiVisited && (
+                <AiTab
+                  view={view}
+                  selectedPlan={selectedPlan}
+                  term={term}
+                  courses={courses}
+                  planCourses={planCourses}
+                  planCoursesReady={planCoursesReady}
+                  formalSections={formalSections}
+                  takenCids={takenCids}
+                  cart={cartIds}
+                  chosen={chosen}
+                  ratingOf={ratingOf}
+                  remainingOf={remainingOf}
+                  inputs={inputs}
+                  onApplyBundle={onApplyBundle}
+                  onNotify={notify}
+                />
+              )}
+            </div>
+            )}
           </div>
 
           {/* 轻提示 toast（复制 / 桩功能） */}

@@ -1,0 +1,9 @@
+{
+  "testSemesters": [],
+  "mirrorSemesters": {},
+  "liveEnrollmentSemester": "2026-09",
+  "featureFlags": {
+    "studentImport": true,
+    "aiPick": true
+  }
+}
