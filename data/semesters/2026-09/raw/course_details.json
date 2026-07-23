@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-07-23T07:46:31Z",
+ "fetchedAt": "2026-07-23T08:45:58Z",
  "courses": [
   {
    "courseId": "002166",
@@ -248,6 +248,107 @@
    "fetchedAt": "2026-07-23T07:46:31Z"
   },
   {
+   "courseId": "251336",
+   "courseName": "中国当代文学",
+   "courseNameIdentity": "中国当代文学（双专）",
+   "credits": 2,
+   "classId": "20251005",
+   "courseSiteId": "195624",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195624",
+   "fetchedAt": "2026-07-23T08:45:20Z"
+  },
+  {
+   "courseId": "252078",
+   "courseName": "商务日语",
+   "courseNameIdentity": "商务日语",
+   "englishName": "Business Janpanese",
+   "credits": 2,
+   "description": "介绍商贸日语的专用名词，商务谈判技巧以及日本人商贸习惯等。",
+   "classId": "003870$1",
+   "courseSiteId": "193768",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193768",
+   "fetchedAt": "2026-07-23T08:45:28Z"
+  },
+  {
+   "courseId": "252247",
+   "courseName": "综合英语",
+   "courseNameIdentity": "综合英语Ⅰ（双专业）",
+   "credits": 3,
+   "classId": "20261005",
+   "courseSiteId": "195639",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195639",
+   "fetchedAt": "2026-07-23T08:45:29Z"
+  },
+  {
+   "courseId": "252289",
+   "courseName": "综合英语（双专业）",
+   "courseNameIdentity": "综合英语Ⅲ（双专业）",
+   "credits": 3,
+   "classId": "20251004",
+   "courseSiteId": "195645",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195645",
+   "fetchedAt": "2026-07-23T08:45:31Z"
+  },
+  {
+   "courseId": "252459",
+   "courseName": "中国文化概要",
+   "courseNameIdentity": "中国文化概要",
+   "credits": 2,
+   "classId": "20260043",
+   "courseSiteId": "195211",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195211",
+   "fetchedAt": "2026-07-23T08:45:32Z"
+  },
+  {
+   "courseId": "252464",
+   "courseName": "英语视听说Ⅰ",
+   "courseNameIdentity": "英语视听说Ⅰ（双专）",
+   "credits": 2,
+   "classId": "20261005",
+   "courseSiteId": "195647",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195647",
+   "fetchedAt": "2026-07-23T08:45:33Z"
+  },
+  {
+   "courseId": "252528",
+   "courseName": "英语口语",
+   "courseNameIdentity": "英语口语Ⅰ（双专）",
+   "credits": 2,
+   "classId": "20261005",
+   "courseSiteId": "195610",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195610",
+   "fetchedAt": "2026-07-23T08:45:35Z"
+  },
+  {
+   "courseId": "252548",
+   "courseName": "英汉/汉英笔译",
+   "courseNameIdentity": "英汉/汉英笔译（双专）",
+   "credits": 2,
+   "classId": "20251004",
+   "courseSiteId": "195620",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195620",
+   "fetchedAt": "2026-07-23T08:45:36Z"
+  },
+  {
+   "courseId": "252576",
+   "courseName": "英语文学导论",
+   "courseNameIdentity": "英语文学导论（双专）",
+   "credits": 2,
+   "classId": "20251004",
+   "courseSiteId": "195615",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195615",
+   "fetchedAt": "2026-07-23T08:45:37Z"
+  },
+  {
    "courseId": "252599",
    "courseName": "综合英语Ⅰ",
    "courseNameIdentity": "综合英语Ⅰ（中外）",
@@ -270,6 +371,17 @@
    "fetchedAt": "2026-07-23T07:45:55Z"
   },
   {
+   "courseId": "255285",
+   "courseName": "批判性思维（2分）",
+   "courseNameIdentity": "批判性思维（2分）",
+   "credits": 2,
+   "classId": "005376$1",
+   "courseSiteId": "193532",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193532",
+   "fetchedAt": "2026-07-23T08:45:38Z"
+  },
+  {
    "courseId": "255301",
    "courseName": "数学分析",
    "courseNameIdentity": "数学分析Ⅰ",
@@ -283,6 +395,32 @@
    "fetchedAt": "2026-07-23T07:45:57Z"
   },
   {
+   "courseId": "255501",
+   "courseName": "高等数学（理学类）",
+   "courseNameIdentity": "高等数学（理学类）Ⅰ",
+   "englishName": "High Mathematics I",
+   "credits": 4,
+   "description": "《高等数学》（理学类）是高等学校理工科专业的最重要的基础课之一。它分为两个学期授课，高等数学I是其第一学期。高等数学I的内容包括函数与极限，一元函数的导数与微分、微分中值定理与导数的应用、不定积分、定积分。极限是本课程的基本概念，通过极限定义函数的连续性，可导性和可积性，然后运用导数研究函数量的变化，极限和导数是研究变量的有力工具。",
+   "classId": "005873H1",
+   "courseSiteId": "192560",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192560",
+   "fetchedAt": "2026-07-23T08:45:39Z"
+  },
+  {
+   "courseId": "255504",
+   "courseName": "高等数学（工学类）",
+   "courseNameIdentity": "高等数学（工学类）Ⅰ",
+   "englishName": "Higher Mathematics",
+   "credits": 4,
+   "description": "函数与极限，一元函数的导数与微分、微分中值定理与导数的应用、不定积分、定积分及其应用、常微分方程。",
+   "classId": "20260058",
+   "courseSiteId": "192517",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192517",
+   "fetchedAt": "2026-07-23T08:45:40Z"
+  },
+  {
    "courseId": "255543",
    "courseName": "高等数学（工学类）Ⅰ",
    "courseNameIdentity": "高等数学（工学类）中外Ⅰ",
@@ -292,6 +430,113 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195541",
    "fetchedAt": "2026-07-23T07:45:58Z"
+  },
+  {
+   "courseId": "256046",
+   "courseName": "体育社会学",
+   "courseNameIdentity": "体育社会学（2分）",
+   "englishName": "Sports Sociology",
+   "credits": 2,
+   "description": "体育社会学是一门理论和实践性都较强的课程，理论部门主要包括竞技的地位和作用，运动训练的方法和手段，运动训练的原理和原则，技术训练、战术训练、心理训练、智能训练，运动训练过程的组织与管理等。实践部门要求学生能结合理论知识解决训练、比赛过程中的具体问题，能指导训练队进行实际训练。",
+   "classId": "20240096",
+   "courseSiteId": "194176",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194176",
+   "fetchedAt": "2026-07-23T08:45:41Z"
+  },
+  {
+   "courseId": "256056",
+   "courseName": "体育科研方法",
+   "courseNameIdentity": "体育科研方法（2分）",
+   "englishName": "Research Methods for Sport Studies",
+   "credits": 2,
+   "description": "随着科学技术的飞速发展，体育也以科学化和社会化的特征跨入了崭新的现代体育的发展阶段，并以其前所未有的规模和力度，渗透到人类社会和生活的各个领域。体育事业的发展离不开体育科学研究的支持，而体育科学研究则需要科学研究方法的支撑，掌握好体育科学研究方法是进行体育科学研究的前提。体育科学研究是人们研究体育现象，揭示体育内部和外部规律的一种创造性的实践活动，它是人类科学研究活动的组成部分。通过该课程的学习，",
+   "classId": "20240100",
+   "courseSiteId": "194171",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194171",
+   "fetchedAt": "2026-07-23T08:45:42Z"
+  },
+  {
+   "courseId": "256071",
+   "courseName": "体育绘图",
+   "courseNameIdentity": "体育绘图",
+   "englishName": "Sports Drawing",
+   "credits": 2,
+   "description": "本课程系统地介绍了有关体育绘图的基本知识和方法，人体比例与形态结构，人体一般运动规律和透视原理等人体绘画基础知识，详细阐述了组织教法示意图和体育技术插图的简易绘制方法，以及体育美术字体的设计和体育电脑绘图。要求学习后掌握各种人体运动图和所有运动场地图的手工绘制及电脑绘制。",
+   "classId": "001226$1",
+   "courseSiteId": "194169",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194169",
+   "fetchedAt": "2026-07-23T08:45:43Z"
+  },
+  {
+   "courseId": "256176",
+   "courseName": "体育管理学",
+   "courseNameIdentity": "体育管理学（2分）",
+   "englishName": "Physical Education Administration",
+   "credits": 2,
+   "description": "体育管理的基本原理与方法，体育管理的计划职能、组织职能、控制职能以及学校体育、社会体育、运动训练、运动竞赛、体育产业、体育信息、体育科技工作的管理。",
+   "classId": "004716$1",
+   "courseSiteId": "194168",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194168",
+   "fetchedAt": "2026-07-23T08:45:44Z"
+  },
+  {
+   "courseId": "256338",
+   "courseName": "体育概论",
+   "courseNameIdentity": "体育概论（2分）",
+   "credits": 2,
+   "classId": "20260124",
+   "courseSiteId": "194163",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194163",
+   "fetchedAt": "2026-07-23T08:45:53Z"
+  },
+  {
+   "courseId": "258534",
+   "courseName": "中国文化专题（3分）",
+   "courseNameIdentity": "中国文化专题（3分）",
+   "credits": 3,
+   "classId": "20250075",
+   "courseSiteId": "195220",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195220",
+   "fetchedAt": "2026-07-23T08:45:54Z"
+  },
+  {
+   "courseId": "258605",
+   "courseName": "外国史学史",
+   "courseNameIdentity": "外国史学史（双专）",
+   "credits": 2,
+   "classId": "20251003",
+   "courseSiteId": "195591",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195591",
+   "fetchedAt": "2026-07-23T08:45:55Z"
+  },
+  {
+   "courseId": "258608",
+   "courseName": "中国近现代史",
+   "courseNameIdentity": "中国近现代史Ⅰ（双专）",
+   "credits": 2,
+   "classId": "20251003",
+   "courseSiteId": "195631",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195631",
+   "fetchedAt": "2026-07-23T08:45:57Z"
+  },
+  {
+   "courseId": "258611",
+   "courseName": "世界古代史",
+   "courseNameIdentity": "世界古代史Ⅱ（双专）",
+   "credits": 2,
+   "classId": "20251003",
+   "courseSiteId": "195580",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195580",
+   "fetchedAt": "2026-07-23T08:45:58Z"
   },
   {
    "courseId": "259772",
