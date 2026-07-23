@@ -72,6 +72,29 @@ if [ ! -f "$ENV_FILE" ]; then
   fi
 fi
 
+# 早期 Go 迁移版本只在 backend.env 不存在时复制 Cloudflare 凭据。如果该文件先由
+# 示例模板创建，两个空键会永久跳过迁移，导致新版 AI 配置页无法连接 Pages API。
+# 升级时只补空值，绝不覆盖维护者已经显式填写的新凭据。
+backfill_legacy_env_key() {
+  local key="$1" legacy_file="$2" current legacy_value tmp
+  current="$(read_legacy_value "$key" "$ENV_FILE" || true)"
+  [ -z "$current" ] || return 0
+  legacy_value="$(read_legacy_value "$key" "$legacy_file" || true)"
+  [ -n "$legacy_value" ] || return 0
+  tmp="$(mktemp "$APP_DIR/.backend.env.XXXXXX")"
+  awk -v key="$key" -v value="$legacy_value" '
+    BEGIN { found = 0 }
+    index($0, key "=") == 1 { print key "=" value; found = 1; next }
+    { print }
+    END { if (!found) print key "=" value }
+  ' "$ENV_FILE" >"$tmp"
+  chmod 600 "$tmp"
+  mv -f "$tmp" "$ENV_FILE"
+}
+
+backfill_legacy_env_key CF_ACCOUNT_ID "$HOME/apps/jxnu-admin/admin.env"
+backfill_legacy_env_key CF_API_TOKEN "$HOME/apps/jxnu-admin/admin.env"
+
 if [ ! -f "$CONFIG_FILE" ]; then
   install -m 0600 "$SCRIPT_DIR/backend.config.example.json" "$CONFIG_FILE"
 fi

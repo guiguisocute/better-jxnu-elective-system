@@ -46,6 +46,17 @@ grep '^ADMIN_PASSWORD=' ~/apps/jxnu-backend/backend.env
 
 “高级设置”折叠了刷新频率、容量开关/阶段、礼貌延迟、异常数据安全闸和 CORS 白名单。学校关闭选课期间保持“容量抓取”关闭；开选后再开启。关闭只跳过无法验证的联网探测，不会删除或覆盖上一份容量数据。
 
+“AI 配置”页直接管理 Cloudflare Pages production 的“AI 帮我选”设置：
+
+| 分组 | 可配置项 |
+| --- | --- |
+| 服务商连接 | OpenAI-compatible API 根 URL、模型名称、只写不回显的 API Key |
+| 模型行为 | 可编辑业务系统提示词；候选白名单、JSON 契约和“专业任选 = 任意选修”等固定规则由接口强制追加 |
+| 生成参数 | temperature、最大输出 token、上游超时 |
+| 预算 | 单用户每日次数、全站每日调用次数、全站每日 token 熔断 |
+
+保存按钮会先 PATCH Pages 项目的 production 环境变量，再创建一次 production 部署；只有部署完成后新配置才会生效。现有 `AI_API_KEY` 始终按 `secret_text` 处理，页面、结果页和日志都不会回显。面板使用的 `CF_API_TOKEN` 需要 `Account / Cloudflare Pages / Edit` 权限；VPS 尚未配置时，“AI 配置”页会先显示一次性 Cloudflare 连接表单，验证成功后以 `0600` 权限写入 `backend.env` 并立即解锁完整配置。
+
 ## 本地构建与首次部署
 
 VPS 不需要安装 Go。在开发机仓库根目录交叉编译：

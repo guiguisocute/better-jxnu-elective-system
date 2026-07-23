@@ -334,10 +334,11 @@ export function AiTab({
           className="w-full h-16 px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-[12px] leading-relaxed resize-none outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100 disabled:bg-gray-50 disabled:text-gray-400"
         />
         <p className="text-[10.5px] text-gray-400 leading-relaxed">
-          推荐范围 = 本方案选修 + 公选课；想考虑其他任意选修，请在偏好里点名（如「想选日语」）。
+          推荐范围 = 本方案选修 + 公选课 + 当前开课的任意选修（最多 20 门）；偏好关键词会优先筛选。
+          专业任选和任意选修按同一优先级比较。
         </p>
         <p className="text-[10.5px] text-gray-400 leading-relaxed">
-          点击后将把你的培养方案与学分进度摘要、候选课程列表发送给 AI 服务（DeepSeek）。
+          点击后将把你的培养方案与学分进度摘要、候选课程列表发送给管理员配置的 AI 服务商。
         </p>
         {phase === "requesting" ? (
           <div className="flex items-center gap-2">

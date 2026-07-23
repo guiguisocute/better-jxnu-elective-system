@@ -111,6 +111,7 @@ func (c RuntimeConfig) Validate() error {
 
 type Environment struct {
 	ConfigPath       string
+	EnvFilePath      string
 	RepoDir          string
 	SyncLockPath     string
 	PublicAddr       string
@@ -131,6 +132,7 @@ func LoadEnvironment() Environment {
 	home, _ := os.UserHomeDir()
 	return Environment{
 		ConfigPath:       envOr("BACKEND_CONFIG", filepath.Join(home, "apps", "jxnu-backend", "config.json")),
+		EnvFilePath:      envOr("BACKEND_ENV_FILE", filepath.Join(home, "apps", "jxnu-backend", "backend.env")),
 		RepoDir:          envOr("REPO_DIR", filepath.Join(home, "better-jxnu-elective-system")),
 		SyncLockPath:     envOr("SYNC_LOCK", filepath.Join(home, "apps", "jxnu-backend", "sync.lock")),
 		PublicAddr:       envOr("PUBLIC_ADDR", DefaultPublicAddr),

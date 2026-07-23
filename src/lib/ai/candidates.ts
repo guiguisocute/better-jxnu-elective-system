@@ -18,7 +18,7 @@ import { CANDIDATE_MAX_LINES, CONTEXT_MAX_CHARS } from "./types";
 
 /** 每门课最多发出的班级行数（超出的按评分截断，计入 stats.truncatedSections）。 */
 const SECTIONS_PER_COURSE = 4;
-/** 「任意选修（按偏好检索）」最多注入的课程门数。 */
+/** 当前实际开课的任意选修最多注入的课程门数（偏好命中优先，其次评分）。 */
 const ANY_ELECTIVE_MAX = 20;
 /** context 里待选清单最多逐条列出的门数（再多折叠成「…等 N 门」）。 */
 const CART_LIST_MAX = 30;
@@ -188,8 +188,9 @@ export interface AiCandidateArgs {
 
 /**
  * 构建 AI 推荐候选集：context 摘要 + 候选行块 + 白名单/解歧映射。
- * 候选范围 = 本方案选修（非必修性质）+ 全部公选课 + 偏好关键词命中的任意选修（top 20），
+ * 候选范围 = 本方案选修（非必修性质）+ 全部公选课 + 当前开课的任意选修（按偏好/评分 top 20），
  * 排除已修（takenCids）/ 已在待选清单 / 下学期必修；每门课班级按评分降序截 top 4；
+ * 专业限选仅在实际硬缺口 > 0 时单列；专业任选和任意选修进入同一无来源权重的排序池。
  * 总行数 ≤ CANDIDATE_MAX_LINES，超预算时公选组优先按评分截断。
  * **取班学期唯一权威** = resolveCandidateSemester（规划学期，未发布则当前进行中的开课安排）；
  * 该学期没开的课不进候选——绝不按往期开课推荐可能已停开的课。
@@ -202,6 +203,17 @@ export function buildAiCandidateBundle(args: AiCandidateArgs): AiCandidateBundle
   const cartSet = new Set(cart);
   const courseById = new Map(courses.map((c) => [c.id, c]));
   const nextReqCids = new Set(view.nextSemRequired.map((c) => c.cid));
+  const electiveBlock = view.blocks.find((b) => b.key === "elective") ?? null;
+  const majorElectiveTarget = electiveBlock?.subTarget ?? null;
+  const majorElectiveGap = majorElectiveTarget
+    ? Math.max(0, majorElectiveTarget.required - majorElectiveTarget.earned - majorElectiveTarget.planned)
+    : 0;
+  const tokens = preferenceTokens(preference);
+
+  const scorePreference = (text: string): number => {
+    const hay = text.toLowerCase();
+    return tokens.reduce((score, token) => score + (hay.includes(token) ? 1 : 0), 0);
+  };
 
   const whitelist = new Map<string, Set<SectionOptionKey>>();
   const keyByClassName = new Map<string, SectionOptionKey>();
@@ -287,40 +299,50 @@ export function buildAiCandidateBundle(args: AiCandidateArgs): AiCandidateBundle
     return true;
   };
 
-  // ---- 组 1：本方案选修（专业限选优先——它是硬性子目标，其余按课号稳定序）----
-  const planGroup: string[] = [];
-  const planPool = planCourses
-    .filter((pc) => !REQUIRED_NATURES.includes(pc.nature))
-    .sort(
-      (a, b) =>
-        (a.nature === "专业限选" ? 0 : 1) - (b.nature === "专业限选" ? 0 : 1) ||
-        a.cid.localeCompare(b.cid),
-    );
-  for (const pc of planPool) {
-    if (skip(pc.cid)) continue;
-    const built = buildCourse(pc.cid, pc.name, pc.credits, pc.nature);
-    if (built) commit(built, planGroup);
-  }
+  type RankedCourse = { built: BuiltCourse; preferenceScore: number };
 
-  // ---- 组 3（先建后排版）：任意选修，仅当偏好关键词命中课名/院系/tag 时注入 top 20 ----
-  const anyGroup: string[] = [];
-  const tokens = preferenceTokens(preference);
-  if (tokens.length > 0) {
-    const scored: Array<{ c: Course; score: number }> = [];
-    for (const c of courses) {
-      if (skip(c.id) || !isAnyElective(c, plan) || isGeneralElective(c)) continue;
-      const hay = `${c.name} ${c.dept} ${c.tags.join(" ")}`.toLowerCase();
-      const score = tokens.reduce((s, t) => s + (hay.includes(t) ? 1 : 0), 0);
-      if (score > 0) scored.push({ c, score });
-    }
-    scored.sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id));
-    let picked = 0;
-    for (const { c } of scored) {
-      if (picked >= ANY_ELECTIVE_MAX) break;
-      const built = buildCourse(c.id, c.name, c.credits, "任意选修");
-      if (built && commit(built, anyGroup)) picked += 1;
-    }
+  // 专业限选只有在真实硬缺口 > 0 时单列优先；已经达标后与普通选修一起公平排序。
+  const majorGapGroup: string[] = [];
+  const majorGapBuilt: RankedCourse[] = [];
+  const ordinaryBuilt: RankedCourse[] = [];
+  for (const pc of planCourses) {
+    if (REQUIRED_NATURES.includes(pc.nature) || skip(pc.cid)) continue;
+    const built = buildCourse(pc.cid, pc.name, pc.credits, pc.nature);
+    if (!built) continue;
+    const c = courseById.get(pc.cid);
+    const ranked = {
+      built,
+      preferenceScore: scorePreference(`${pc.name} ${pc.nature} ${c?.dept ?? ""} ${c?.tags.join(" ") ?? ""}`),
+    };
+    if (pc.nature === "专业限选" && majorElectiveGap > 0) majorGapBuilt.push(ranked);
+    else ordinaryBuilt.push(ranked);
   }
+  majorGapBuilt.sort(
+    (a, b) => b.preferenceScore - a.preferenceScore || b.built.bestAvg - a.built.bestAvg || a.built.cid.localeCompare(b.built.cid),
+  );
+  for (const item of majorGapBuilt) commit(item.built, majorGapGroup);
+
+  // 任意选修不再要求用户必须先写关键词才有候选资格：从当前实际开课中按偏好、评分取 top 20，
+  // 再和专业任选等方案内普通选修放进同一个排序池，不给“是否在方案内”任何额外权重。
+  const anyBuilt: RankedCourse[] = [];
+  for (const c of courses) {
+    if (skip(c.id) || !isAnyElective(c, plan) || isGeneralElective(c)) continue;
+    const built = buildCourse(c.id, c.name, c.credits, "任意选修");
+    if (!built) continue;
+    anyBuilt.push({
+      built,
+      preferenceScore: scorePreference(`${c.name} ${c.dept} ${c.tags.join(" ")}`),
+    });
+  }
+  anyBuilt.sort(
+    (a, b) => b.preferenceScore - a.preferenceScore || b.built.bestAvg - a.built.bestAvg || a.built.cid.localeCompare(b.built.cid),
+  );
+  ordinaryBuilt.push(...anyBuilt.slice(0, ANY_ELECTIVE_MAX));
+  ordinaryBuilt.sort(
+    (a, b) => b.preferenceScore - a.preferenceScore || b.built.bestAvg - a.built.bestAvg || a.built.cid.localeCompare(b.built.cid),
+  );
+  const ordinaryGroup: string[] = [];
+  for (const item of ordinaryBuilt) commit(item.built, ordinaryGroup);
 
   // ---- 组 2：公选课（用剩余预算；超预算时按评分降序保留 = 「公选组优先截」）----
   const geGroup: string[] = [];
@@ -336,14 +358,12 @@ export function buildAiCandidateBundle(args: AiCandidateArgs): AiCandidateBundle
 
   // ---- 拼候选块（组序固定；空组不输出标题）----
   const blocks: string[] = [];
-  if (planGroup.length > 0) blocks.push("## 本方案选修（下学期开课）", ...planGroup);
+  if (majorGapGroup.length > 0) blocks.push(`## 专业限选（仅补足 ${majorElectiveGap} 学分硬缺口）`, ...majorGapGroup);
+  if (ordinaryGroup.length > 0) blocks.push("## 普通选修（专业任选与任意选修同级）", ...ordinaryGroup);
   if (geGroup.length > 0) blocks.push("## 公选课", ...geGroup);
-  if (anyGroup.length > 0) blocks.push("## 任意选修（按偏好检索）", ...anyGroup);
   const candidates = blocks.join("\n");
 
   // ---- context 摘要（≤ CONTEXT_MAX_CHARS；不含学号/姓名/成绩明细，已修只给数字）----
-  const electiveBlock = view.blocks.find((b) => b.key === "elective") ?? null;
-  const sub = electiveBlock?.subTarget ?? null;
   const ctx: string[] = [];
   ctx.push(`培养方案：${plan || "未选择"}；当前在读第 ${term} 学期，本次选课目标为第 ${planTerm} 学期${planLabel ? `（${planLabel}）` : ""}。`);
   ctx.push(
@@ -351,9 +371,14 @@ export function buildAiCandidateBundle(args: AiCandidateArgs): AiCandidateBundle
       `下学期已规划 ${view.nextSemCredits} 学分，上限 ${view.nextSemCap}${view.nextSemOver ? "（已超）" : ""}。`,
   );
   ctx.push(
-    `选修块缺口：还需 ${electiveBlock?.remaining ?? "未知"} 学分` +
-      (sub ? `；其中专业限选应修 ${sub.required}，还差 ${Math.max(0, sub.required - sub.earned - sub.planned)} 学分。` : "。"),
+    `选修块缺口：还需 ${electiveBlock?.remaining ?? "未知"} 学分；` +
+      (majorElectiveTarget
+        ? majorElectiveGap > 0
+          ? `其中专业限选硬缺口 ${majorElectiveGap} 学分，只需补足该数值，不要超额。`
+          : "专业限选硬目标已经达标，不再优先推荐。"
+        : "没有专业限选硬目标。"),
   );
+  ctx.push("普通选修公平规则：专业任选与任意选修优先级完全相同，只按偏好、时段、评分和余量比较，不因是否在培养方案内加权。");
   ctx.push("下学期必修（系统已自动排入，禁止重复推荐）：");
   const occupied: MeetSlot[] = [];
   const occupiedSeen = new Set<string>();
