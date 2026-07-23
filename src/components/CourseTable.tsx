@@ -36,7 +36,7 @@ interface Props {
   liveEnrollmentStatus?: LiveEnrollmentStatus;
   /** 选中的培养方案 key。空串表示未选 —— 此时不做高亮也不裁剪 tag。 */
   selectedPlan?: string;
-  /** 数据源（预选 / 正选 / 补退选）。 */
+  /** 数据源（预选 / 正选与补退选共用入口）。 */
   dataSource: DataSource;
   onChangeDataSource: (v: DataSource) => void;
   /** 正选/补退选 课程分组（同课程号折叠；已按当前排序排好、按组分页）。 */
@@ -740,8 +740,7 @@ export function CourseTable({
     setEnrollmentSortAsc(enrollmentSortAsc === null ? false : !enrollmentSortAsc);
   };
 
-  // 正选 + 补退选 共用 formal 列布局与数据源（暂用同一份 JSON）
-  const isFormal = dataSource === "formal" || dataSource === "addDrop";
+  const isFormal = dataSource === "formal";
   const tableHeaderTop = stickyTop + DESKTOP_TOOLBAR_HEIGHT;
 
   return (
@@ -923,7 +922,7 @@ export function CourseTable({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <p className="text-base font-medium text-gray-500">
-                          {dataSource === "addDrop" ? "补退选阶段尚未开始" : "正选阶段尚未开始"}
+                          正选/补退选阶段尚未开始
                         </p>
                         <p className="text-sm mt-1 text-gray-400">教务系统发布数据后此处将自动显示实际开班课程</p>
                       </div>
@@ -1113,7 +1112,7 @@ export function CourseTable({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <p className="text-sm font-medium text-gray-500">
-                {dataSource === "addDrop" ? "补退选阶段尚未开始" : "正选阶段尚未开始"}
+                正选/补退选阶段尚未开始
               </p>
               <p className="text-xs mt-1 text-gray-400">教务系统发布数据后此处将自动显示</p>
             </div>

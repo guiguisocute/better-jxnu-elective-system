@@ -5,8 +5,8 @@ export interface Teacher {
   gender: string;
 }
 
-// 选课阶段：预选 / 正选 / 补退选。后两者数据形态一致，差异只在课程范围与时间跨度。
-export type DataSource = "pre" | "formal" | "addDrop";
+// 展示阶段：预选 / 正选与补退选（后二者共用同一课表入口）。
+export type DataSource = "pre" | "formal";
 
 // 正选/补退选阶段数据：每行 = 一个实际开班的 section。
 export interface FormalSection {

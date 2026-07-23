@@ -102,7 +102,16 @@ func (s *Servers) publicHandler() http.Handler {
 			return
 		}
 		cfg := s.config.Get()
-		writeJSON(w, map[string]any{"version": cfg.Version, "defaultDataSource": cfg.DefaultDataSource, "liveEnrollmentSemester": cfg.LiveEnrollmentSemester, "scheduleSyncSemester": cfg.ScheduleSyncSemester, "studentScheduleTerm": nullableString(cfg.StudentScheduleTerm), "studentScheduleTermMode": map[bool]string{true: "auto", false: "fixed"}[cfg.StudentScheduleTerm == ""]}, http.StatusOK, s.corsOrigin(r))
+		profile := cfg.ActiveAcquisitionProfile()
+		writeJSON(w, map[string]any{
+			"version": cfg.Version, "defaultDataSource": cfg.DefaultDataSource,
+			"liveEnrollmentSemester": cfg.LiveEnrollmentTarget(),
+			"activeAcquisitionStage": profile.DataSource, "activeAcquisitionSemester": profile.Semester,
+			"activeAcquisitionAcademicTerm": academicTermLabel(profile.Semester),
+			"phaseSemesters":                map[string]string{"pre": cfg.PreselectSemester, "formal": cfg.SelectionSemester},
+			"studentScheduleTerm":           nullableString(cfg.StudentScheduleTerm),
+			"studentScheduleTermMode":       map[bool]string{true: "auto", false: "fixed"}[cfg.StudentScheduleTerm == ""],
+		}, http.StatusOK, s.corsOrigin(r))
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if !methodAllowed(w, r, http.MethodGet) {

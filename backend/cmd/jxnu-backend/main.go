@@ -56,6 +56,24 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "probe-kkap" {
+		semester := store.Get().SelectionSemester
+		if len(os.Args) > 2 {
+			semester = os.Args[2]
+		}
+		result, probeErr := syncRunner.ProbeKKAP(ctx, semester)
+		if probeErr != nil {
+			logger.Error("探测 KKAP 目标学期失败", "error", probeErr)
+			os.Exit(1)
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(result); err != nil {
+			logger.Error("输出 KKAP 探测结果失败", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "sync" {
 		scheduled := len(os.Args) > 2 && os.Args[2] == "--scheduled"
 		if err := syncRunner.Run(ctx, scheduled); err != nil {
@@ -63,6 +81,16 @@ func main() {
 				return
 			}
 			logger.Error("同步失败", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "build" {
+		if err := syncRunner.BuildOnly(ctx); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
+			logger.Error("离线构建失败", "error", err)
 			os.Exit(1)
 		}
 		return

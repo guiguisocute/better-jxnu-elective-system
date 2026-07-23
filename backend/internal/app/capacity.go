@@ -38,6 +38,7 @@ type CapacityCourse struct {
 type CapacitySnapshot struct {
 	Semester  string           `json:"semester"`
 	FetchedAt string           `json:"fetched_at"`
+	SourceURL string           `json:"sourceUrl"`
 	Config    map[string]any   `json:"config"`
 	Courses   []CapacityCourse `json:"courses"`
 	Summary   struct {
@@ -144,9 +145,17 @@ func (c *XKClient) SystemConfig(ctx context.Context) map[string]any {
 	}
 	return map[string]any{"len": len(raw), "excerpt": text}
 }
-func (c *XKClient) ChangeClass(ctx context.Context, courseID, step string) (CapacityCourse, error) {
-	target := fmt.Sprintf("%s/%s/ChangeClass.aspx?kch=%s&action=change", xkBase, step, url.QueryEscape(courseID))
-	raw, err := c.do(ctx, http.MethodGet, target, nil, http.Header{"Referer": {xkBase + "/" + step + "/"}})
+func (c *XKClient) ChangeClass(ctx context.Context, courseID, urlTemplate string) (CapacityCourse, error) {
+	if err := validateCapacityURL(urlTemplate); err != nil {
+		return CapacityCourse{}, err
+	}
+	target := strings.ReplaceAll(urlTemplate, "{courseId}", url.QueryEscape(courseID))
+	parsed, _ := url.Parse(target)
+	referer := xkBase + "/"
+	if slash := strings.LastIndex(parsed.Path, "/"); slash >= 0 {
+		referer = parsed.Scheme + "://" + parsed.Host + parsed.Path[:slash+1]
+	}
+	raw, err := c.do(ctx, http.MethodGet, target, nil, http.Header{"Referer": {referer}})
 	if err != nil {
 		return CapacityCourse{}, err
 	}
@@ -236,7 +245,7 @@ func LoadCourseNames(path string) ([]string, map[string]string, error) {
 	}
 	return order, names, nil
 }
-func CrawlCapacity(ctx context.Context, client *XKClient, semester, formalPath, step string, delay time.Duration, progress func(int, int, CapacityCourse)) (*CapacitySnapshot, error) {
+func CrawlCapacity(ctx context.Context, client *XKClient, semester, formalPath, urlTemplate string, delay time.Duration, progress func(int, int, CapacityCourse)) (*CapacitySnapshot, error) {
 	if err := client.Login(ctx); err != nil {
 		return nil, err
 	}
@@ -244,9 +253,9 @@ func CrawlCapacity(ctx context.Context, client *XKClient, semester, formalPath, 
 	if err != nil {
 		return nil, err
 	}
-	snapshot := &CapacitySnapshot{Semester: semester, FetchedAt: time.Now().Format("2006-01-02 15:04:05"), Config: client.SystemConfig(ctx), Courses: []CapacityCourse{}}
+	snapshot := &CapacitySnapshot{Semester: semester, FetchedAt: time.Now().Format("2006-01-02 15:04:05"), SourceURL: urlTemplate, Config: client.SystemConfig(ctx), Courses: []CapacityCourse{}}
 	for i, id := range courseIDs {
-		record, fetchErr := client.ChangeClass(ctx, id, step)
+		record, fetchErr := client.ChangeClass(ctx, id, urlTemplate)
 		if fetchErr != nil {
 			if progress != nil {
 				progress(i+1, len(courseIDs), CapacityCourse{CourseID: id, Name: "ERROR: " + fetchErr.Error()})

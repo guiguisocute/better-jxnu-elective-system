@@ -50,6 +50,41 @@ type ScheduleRow struct {
 	TeacherInfo  any    `json:"任课老师,omitempty"`
 }
 
+type SchoolTermOption struct {
+	Label    string `json:"label"`
+	Value    string `json:"value"`
+	Semester string `json:"semester,omitempty"`
+}
+
+// TargetSemesterUnavailableError means the school has not published the
+// configured term in Public_Kkap yet. It is an expected watcher state, not a
+// failed synchronization attempt.
+type TargetSemesterUnavailableError struct {
+	TargetSemester string
+	TargetTerm     string
+	AvailableTerms []string
+}
+
+func (e *TargetSemesterUnavailableError) Error() string {
+	available := "暂无"
+	if len(e.AvailableTerms) > 0 {
+		available = strings.Join(e.AvailableTerms, "、")
+	}
+	return fmt.Sprintf("KKAP 尚未开放目标学期 %s（%s）；当前可选：%s", e.TargetTerm, e.TargetSemester, available)
+}
+
+type TargetScheduleIncompleteError struct {
+	TargetSemester string
+	TargetTerm     string
+	Cause          error
+}
+
+func (e *TargetScheduleIncompleteError) Error() string {
+	return fmt.Sprintf("KKAP 已出现目标学期 %s（%s），但全量课表尚未就绪：%v", e.TargetTerm, e.TargetSemester, e.Cause)
+}
+
+func (e *TargetScheduleIncompleteError) Unwrap() error { return e.Cause }
+
 type EnrollmentItem [4]any
 
 type EnrollmentSnapshot struct {
@@ -116,7 +151,8 @@ func (s *EnrollmentService) loadSnapshot() {
 	}
 	fetchedAt, err := time.Parse(time.RFC3339, snapshot.FetchedAt)
 	cfg := s.config.Get()
-	if err != nil || time.Since(fetchedAt) > 24*time.Hour || snapshot.Semester != cfg.LiveEnrollmentSemester || snapshot.ClassCount == 0 || len(snapshot.Items) != snapshot.ClassCount {
+	target := cfg.LiveEnrollmentTarget()
+	if target == "" || err != nil || time.Since(fetchedAt) > 24*time.Hour || snapshot.Semester != target || snapshot.ClassCount == 0 || len(snapshot.Items) != snapshot.ClassCount {
 		return
 	}
 	now := time.Now()
@@ -148,8 +184,16 @@ func (s *EnrollmentService) Run(ctx context.Context) {
 	for {
 		started := time.Now()
 		cfg := s.config.Get()
+		target := cfg.LiveEnrollmentTarget()
+		if target == "" {
+			s.disableForPreselect(started, cfg.EnrollmentRefreshSeconds)
+			if !s.wait(ctx, time.Duration(cfg.EnrollmentRefreshSeconds)*time.Second) {
+				return
+			}
+			continue
+		}
 		s.setAttempt(started, cfg.EnrollmentRefreshSeconds)
-		snapshot, err := FetchEnrollmentSnapshot(ctx, s.client, cfg.LiveEnrollmentSemester)
+		snapshot, err := FetchEnrollmentSnapshot(ctx, s.client, target)
 		if err != nil {
 			s.logger.Error("实时人数刷新失败", "error", err)
 		} else {
@@ -163,20 +207,42 @@ func (s *EnrollmentService) Run(ctx context.Context) {
 		if err == nil {
 			s.persistSnapshot(snapshot)
 		}
-		timer := time.NewTimer(wait)
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
+		if !s.wait(ctx, wait) {
 			return
-		case <-s.wake:
-			if !timer.Stop() {
-				<-timer.C
-			}
-		case <-timer.C:
 		}
 	}
+}
+
+func (s *EnrollmentService) wait(ctx context.Context, wait time.Duration) bool {
+	if wait < minimumRefreshPause {
+		wait = minimumRefreshPause
+	}
+	timer := time.NewTimer(wait)
+	select {
+	case <-ctx.Done():
+		if !timer.Stop() {
+			<-timer.C
+		}
+		return false
+	case <-s.wake:
+		if !timer.Stop() {
+			<-timer.C
+		}
+		return true
+	case <-timer.C:
+		return true
+	}
+}
+
+func (s *EnrollmentService) disableForPreselect(now time.Time, interval int) {
+	message := "当前默认阶段为预选：预选目录不含实时人数，KKAP 轮询已按阶段关闭"
+	s.mu.Lock()
+	s.state = enrollmentState{
+		OK: false, Refreshing: false, NextRefreshAt: now.Add(time.Duration(interval) * time.Second).UTC().Format(time.RFC3339),
+		RefreshIntervalMS: interval * 1000, Error: &message,
+	}
+	s.reencodeLocked()
+	s.mu.Unlock()
 }
 
 func (s *EnrollmentService) setAttempt(now time.Time, interval int) {
@@ -252,7 +318,7 @@ func (s *EnrollmentService) Status() enrollmentState {
 }
 
 func FetchEnrollmentSnapshot(ctx context.Context, client *http.Client, semester string) (*EnrollmentSnapshot, error) {
-	rows, err := FetchPublicSchedule(ctx, client)
+	rows, err := FetchPublicSchedule(ctx, client, semester)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +372,12 @@ func FetchEnrollmentSnapshot(ctx context.Context, client *http.Client, semester 
 	}, nil
 }
 
-func FetchPublicSchedule(ctx context.Context, client *http.Client) ([]ScheduleRow, error) {
+func FetchPublicSchedule(ctx context.Context, client *http.Client, targetSemester string) ([]ScheduleRow, error) {
+	target, ok := ResolveAcquisitionTarget(targetSemester)
+	if !ok {
+		return nil, fmt.Errorf("KKAP 目标学期不合法：%s", targetSemester)
+	}
+	targetTerm := target.AcademicTerm
 	get, err := http.NewRequestWithContext(ctx, http.MethodGet, kkapURL, nil)
 	if err != nil {
 		return nil, err
@@ -332,9 +403,25 @@ func FetchPublicSchedule(ctx context.Context, client *http.Client) ([]ScheduleRo
 	if viewstate == "" {
 		return nil, errors.New("Public_Kkap 未返回 __VIEWSTATE")
 	}
+	termOptions := parseSchoolTermOptions(doc)
+	termValue := ""
+	availableTerms := make([]string, 0, len(termOptions))
+	for _, option := range termOptions {
+		if option.Label != "" {
+			availableTerms = append(availableTerms, option.Label)
+		}
+		if option.Semester == targetSemester || option.Label == targetTerm {
+			termValue = option.Value
+		}
+	}
+	if termValue == "" {
+		return nil, &TargetSemesterUnavailableError{TargetSemester: targetSemester, TargetTerm: targetTerm, AvailableTerms: availableTerms}
+	}
 	form := url.Values{
 		"__VIEWSTATE": {viewstate}, "__VIEWSTATEGENERATOR": {hiddenValue(doc, "__VIEWSTATEGENERATOR")},
-		"__EVENTVALIDATION": {hiddenValue(doc, "__EVENTVALIDATION")}, "btnSearch": {"查询"},
+		"__EVENTVALIDATION": {hiddenValue(doc, "__EVENTVALIDATION")},
+		"ddlSterm":          {termValue}, "ddlCollege": {"不限"}, "ddlWeek": {"不限"}, "ddlJC": {"不限"},
+		"txtJS": {""}, "txtKc": {""}, "txtTeacher": {""}, "btnSearch": {"查询"},
 	}
 	post, err := http.NewRequestWithContext(ctx, http.MethodPost, kkapURL, strings.NewReader(form.Encode()))
 	if err != nil {
@@ -356,7 +443,48 @@ func FetchPublicSchedule(ctx context.Context, client *http.Client) ([]ScheduleRo
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Public_Kkap POST HTTP %d", response.StatusCode)
 	}
-	return ParsePublicSchedule(string(resultBytes))
+	rows, err := ParsePublicSchedule(string(resultBytes))
+	if err != nil {
+		return nil, &TargetScheduleIncompleteError{TargetSemester: targetSemester, TargetTerm: targetTerm, Cause: err}
+	}
+	if err := validateScheduleSemester(rows, targetSemester); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func parseSchoolTermOptions(doc *xhtml.Node) []SchoolTermOption {
+	var options []SchoolTermOption
+	for _, selectNode := range findAll(doc, func(n *xhtml.Node) bool {
+		return n.Type == xhtml.ElementNode && strings.EqualFold(n.Data, "select") &&
+			(attr(n, "name") == "ddlSterm" || attr(n, "id") == "ddlSterm")
+	}) {
+		for _, option := range findAll(selectNode, func(n *xhtml.Node) bool {
+			return n.Type == xhtml.ElementNode && strings.EqualFold(n.Data, "option")
+		}) {
+			value := strings.TrimSpace(attr(option, "value"))
+			label := nodeText(option)
+			semester, _ := SemesterFromSchoolDate(value)
+			options = append(options, SchoolTermOption{Label: label, Value: value, Semester: semester})
+		}
+	}
+	return options
+}
+
+func validateScheduleSemester(rows []ScheduleRow, targetSemester string) error {
+	if len(rows) == 0 {
+		return errors.New("KKAP 没有返回开课安排")
+	}
+	for i, row := range rows {
+		semester, ok := SemesterFromSchoolDate(row.RawSemester)
+		if !ok {
+			return fmt.Errorf("KKAP 第 %d 行缺少可识别的学期：%q", i+1, row.RawSemester)
+		}
+		if semester != targetSemester {
+			return fmt.Errorf("KKAP 返回了错误学期：目标 %s，第 %d 行实际为 %s（%s）", targetSemester, i+1, semester, row.RawSemester)
+		}
+	}
+	return nil
 }
 
 func ParsePublicSchedule(raw string) ([]ScheduleRow, error) {

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
@@ -35,5 +36,44 @@ func TestSameCourseDetailIgnoresFetchedAt(t *testing.T) {
 	right.Credits = 3
 	if sameCourseDetail(left, right) {
 		t.Fatal("metadata change must be detected")
+	}
+}
+
+func TestCourseInfoHasPositiveCredit(t *testing.T) {
+	for name, test := range map[string]struct {
+		value any
+		want  bool
+	}{
+		"missing object": {nil, false},
+		"missing field":  {map[string]any{"内容简介": "x"}, false},
+		"nil field":      {map[string]any{"学分": nil}, false},
+		"empty":          {map[string]any{"学分": ""}, false},
+		"zero":           {map[string]any{"学分": "0"}, false},
+		"invalid":        {map[string]any{"学分": "未知"}, false},
+		"string":         {map[string]any{"学分": "2"}, true},
+		"number":         {map[string]any{"学分": 2.5}, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := courseInfoHasPositiveCredit(test.value); got != test.want {
+				t.Fatalf("got %v want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestDiscoverMissingCreditCoursesUsesDataNotWhitelist(t *testing.T) {
+	classes, missing := discoverMissingCreditCourses([]ScheduleRow{
+		{CourseID: "269729", ClassID: "20260062", CourseInfo: nil},
+		{CourseID: "269729", ClassID: "20260063", CourseInfo: map[string]any{"学分": ""}},
+		{CourseID: "HAS001", ClassID: "CLASS1", CourseInfo: nil},
+		{CourseID: "HAS001", ClassID: "CLASS2", CourseInfo: map[string]any{"学分": "2"}},
+		{CourseID: "ZERO01", ClassID: "CLASS3", CourseInfo: map[string]any{"学分": 0}},
+	})
+	if classes["269729"] != "20260062" {
+		t.Fatalf("class selection = %v", classes)
+	}
+	want := []string{"269729", "ZERO01"}
+	if !reflect.DeepEqual(missing, want) {
+		t.Fatalf("missing = %v want %v", missing, want)
 	}
 }

@@ -28,7 +28,7 @@ flock -n 9 || { echo "[sync] 锁被占用（管理面板或另一轮同步进行
 # 同步参数：默认写死，sync.env 里放 SYNC_* 即可覆盖（不用改脚本）。
 SEM="${SYNC_SEM:-2026-09}"
 RAW="data/semesters/$SEM/raw/formal_schedule.json"
-CAPACITY_RAW="data/semesters/$SEM/raw/xk_capacity.json"
+CAPACITY_RAW="data/semesters/$SEM/raw/formal_capacity.json"
 MIN_SECTIONS="${SYNC_MIN_SECTIONS:-7000}"
 MIN_CAPACITY_VISIBLE="${SYNC_MIN_CAPACITY_VISIBLE:-300}"
 
@@ -64,7 +64,7 @@ fi
 python3 build_data.py >/dev/null
 
 # 4) 判变闸只认「产物」（public/ + data/master/）。raw 每小时必变
-#    （xk_capacity 的 fetched_at/config 摘要、formal_schedule 的 序号 重排），
+#    （formal_capacity 的 fetched_at/config 摘要、formal_schedule 的 序号 重排），
 #    不能作为是否提交的依据 —— 产物没变就丢弃 raw 抖动，不产生无效 commit。
 if git diff --quiet -- public/ data/master/; then
   git checkout -- data/semesters/

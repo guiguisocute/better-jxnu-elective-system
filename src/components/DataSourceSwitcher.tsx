@@ -7,8 +7,7 @@ interface Props {
 
 const OPTIONS: { value: DataSource; label: string }[] = [
   { value: "pre", label: "预选" },
-  { value: "formal", label: "正选" },
-  { value: "addDrop", label: "补退选" },
+  { value: "formal", label: "正选/补退选" },
 ];
 
 export function DataSourceSwitcher({ value, onChange }: Props) {

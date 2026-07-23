@@ -47,12 +47,13 @@ const SIDEBAR_INLINE_MIN_W = 1700;
 function storedDataSource(): DataSource | null {
   if (typeof window === "undefined") return null;
   const v = sessionStorage.getItem(DATA_SOURCE_KEY);
-  return v === "pre" || v === "formal" || v === "addDrop" ? v : null;
+  if (v === "addDrop") return "formal"; // 旧会话兼容：补退选已合并进正选入口
+  return v === "pre" || v === "formal" ? v : null;
 }
 
 function loadDataSource(fallback: DataSource): DataSource {
   // 默认进「正选」（学期由下方兜底 effect 落到最新 = 2026-09）；
-  // 同会话内已切到预选/补退选的选择仍被 sessionStorage 尊重。
+  // 同会话内已切换的选择仍被 sessionStorage 尊重。
   return storedDataSource() ?? fallback;
 }
 
@@ -121,7 +122,7 @@ export function HomePage() {
   // 运行时配置（public/app_config.json）：实时人数学期等；加载完成后自动重渲染。
   const appConfig = useAppConfig();
 
-  // 数据源切换：预选 / 正选 / 补退选。初值从 sessionStorage 恢复。
+  // 数据源切换：预选 / 正选与补退选共用入口。初值从 sessionStorage 恢复。
   const hadSavedDataSource = useRef(storedDataSource() !== null);
   const [dataSource, setDataSource] = useState<DataSource>(() => loadDataSource(appConfig.defaultDataSource));
   const changeDataSource = useCallback((next: DataSource) => {
@@ -136,7 +137,7 @@ export function HomePage() {
     sessionStorage.setItem(DATA_SOURCE_KEY, dataSource);
   }, [dataSource]);
 
-  // 课表时段筛选 —— 预选/正选/补退选 分别保存（不共享）。
+  // 课表时段筛选 —— 预选与正选/补退选两个入口分别保存（不共享）。
   const schedule = useScheduleFilter(dataSource);
 
   // 模拟选课：模式状态机 + 待选清单 + 学分核算（全部作用于预选/Course 视图）。
@@ -428,17 +429,17 @@ export function HomePage() {
     [cart, chosenSections.chosen, sectionKeyOf],
   );
 
-  // 学期下拉：三种数据源 (pre / formal / addDrop) 各存各的，互不污染。
+  // 学期下拉：预选与正选/补退选各存各的，互不污染。
   //   - 预选 视图只看 catalog 当前学期（preSemesters），不带「（测试）」后缀。
-  //   - 正选 / 补退选 共用 formal.allSemesters；测试学期的后缀由 SemesterSelector 统一处理。
+  //   - 正选/补退选共用同一份课表与学期选项。
   // 切换 dataSource 不会丢失另一侧的已选学期；sessionStorage 持久化整张 Record。
   const SEM_KEY = "jxnu_selected_semester";
   const [semesterByDS, setSemesterByDS] = useState<Record<DataSource, string>>(() => {
     try {
       const parsed = JSON.parse(sessionStorage.getItem(SEM_KEY) ?? "{}");
-      return { pre: "", formal: "", addDrop: "", ...parsed };
+      return { pre: "", formal: "", ...parsed };
     } catch {
-      return { pre: "", formal: "", addDrop: "" };
+      return { pre: "", formal: "" };
     }
   });
   useEffect(() => {
@@ -734,7 +735,7 @@ export function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, filter.enrollmentSortAsc, getTeacherAvg, filter.enrollmentSortAsc !== null ? liveEnrollment.getEnrollment : null, coursesById, foldGroups]);
 
-  // 正选/补退选独立分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
+  // 正选/补退选共用入口单独分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
   // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。
   const FORMAL_PAGE_SIZE = 50;
   const [formalPage, setFormalPage] = useState(1);
@@ -853,7 +854,7 @@ export function HomePage() {
     }
   };
 
-  // Formal/补退选 行点击：永远走 FormalSectionDetail（section-centric 单教师视图）。
+  // 正选/补退选行点击：永远走 FormalSectionDetail（section-centric 单教师视图）。
   // 渲染处再用 courses.find lookup 把同课程号的 Course 当 prop 喂进去补齐 desc/plans/prereq。
   // useCallback 稳定引用 —— 作为 CourseTable rowProps 一员传给 memo 化的行组件，避免击穿 memo。
   const handleSelectSection = useCallback((s: FormalSection) => {
@@ -1041,7 +1042,7 @@ export function HomePage() {
                 formal.loading ? (
                   <span className="text-gray-400">加载中...</span>
                 ) : !formal.available ? (
-                  <span className="text-gray-400">{dataSource === "addDrop" ? "补退选" : "正选"}未发布</span>
+                  <span className="text-gray-400">正选/补退选未发布</span>
                 ) : (
                   <>
                     <span className="font-semibold text-gray-700">{visibleFormalSections.length}</span>

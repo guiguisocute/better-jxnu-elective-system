@@ -5,7 +5,7 @@ raw 三类输入：
   data/master_raw/training_plan.json            ← 跨学期培养方案
   data/semesters/<sem>/raw/preselect_catalog.json  ← 该学期预选目录
   data/semesters/<sem>/raw/formal_schedule.json    ← 该学期正选开课安排
-  data/semesters/<sem>/raw/addDrop_schedule.json   ← 该学期补退选开课安排（可缺）
+  data/semesters/<sem>/raw/addDrop_schedule.json   ← 旧流程兼容兜底（新数据不再生成）
   data/semesters/<sem>/meta.json                   ← isCurrent / 抓取日期等
   data/build_config.json                           ← 构建期配置（后台 GUI 唯一写入点；缺失回默认）
 
@@ -49,8 +49,8 @@ PUBLIC_APP_CONFIG_FILE = os.path.join(PUBLIC_DIR, "app_config.json")
 NATURE_NORMALIZE = {"公共必修": "公共必修课"}
 
 # 容量数据开关：openclass_status 的「每班容量」是预选阶段的不可信值。
-# 关闭后 openclass 来源的 section.capacity 置 null；xk_capacity（正选期间实账号登录 xk 实抓，
-# 见 tools/crawl_capacity.py）不受此开关影响，永远视为可信来源。
+# 关闭后 openclass 来源的 section.capacity 置 null；formal_capacity（正选/补退选
+# 共用、真实账号登录 xk 实抓）不受此开关影响，永远视为可信来源。
 TRUST_OPENCLASS_CAPACITY = False
 
 # 学期级 raw 文件名（stage-based 稳定命名）
@@ -64,7 +64,9 @@ RAW_STAGES = (
     # 含 课程号/老师/容量/班级名称，但无星期/节次/教室。仅在该学期还没有
     # formal_schedule / addDrop_schedule 时作为 formal sections 的兜底来源。
     "openclass_status",
-    # xk 正选/补退选实时容量（爬虫 tools/crawl_capacity.py 产出，需真实学生账号登录 Step{N}/ChangeClass.aspx）：
+    # 正选/补退选共用的 xk 实时容量；阶段切换只改变采集 URL。
+    # 旧 xk_capacity 作为 formal_capacity 的兼容输入。
+    "formal_capacity",
     # {semester, fetched_at, config, courses:[{kch, blocked, classes:[{bjh,className,teacher,enrolled,remaining,full}]}]}
     "xk_capacity",
     # 登录教务后从 wsktNew/CourseSetting.aspx → CourseInfor.aspx 抓到的课程级补充信息。
@@ -881,7 +883,7 @@ def build_public(semesters: dict, master: dict) -> None:
     """生成前端 fetch 的 3 个 JSON。
 
     - courses.json：当前学期 preselect_catalog 命中的 master 课程 + 该学期师课绑定
-    - formal_sections.json：全部学期 formal + addDrop 合并
+    - formal_sections.json：全部学期正选/补退选共用 section（formal 优先，旧 addDrop 兜底）
     - major_requirements.json：master 副本
     """
     current_sem = find_current_semester(semesters)
@@ -918,7 +920,7 @@ def build_public(semesters: dict, master: dict) -> None:
             course["_search"] = build_search_course(course, teachers)
             public_courses.append(course)
 
-    # formal_sections：所有学期 formal + addDrop。学期标签 = 目录名（权威源）。
+    # formal_sections：所有学期正选/补退选共用课表。学期标签 = 目录名（权威源）。
     public_sections = []
     unmatched_foreign_teachers: list = []
     for sem in sorted(semesters.keys()):
@@ -960,20 +962,21 @@ def build_public(semesters: dict, master: dict) -> None:
                 build_openclass_capacity_lookup(data["openclass_status"])
                 if TRUST_OPENCLASS_CAPACITY and data.get("openclass_status") else {}
             )
-            xk_lookup = build_xk_capacity_lookup(data["xk_capacity"]) if data.get("xk_capacity") else {}
-            capacity_lookup = {**oc_lookup, **xk_lookup}  # xk 实抓（真实登录）优先于 openclass 猜测值
-            for stage in ("formal_schedule", "addDrop_schedule"):
-                rows = data.get(stage) or []
-                if not rows:
-                    continue
-                public_sections.extend(build_sections_for_semester(
-                    rows,
-                    master_by_id,
-                    t_lookup,
-                    sem_label,
-                    unmatched_foreign_teachers,
-                    capacity_lookup,
-                ))
+            # 正选和补退选的课表完全一致：canonical raw 永远是
+            # formal_schedule.json。addDrop_schedule 只作为旧数据兼容兜底，
+            # 两者同时存在时绝不重复生成 section。
+            rows = data.get("formal_schedule") or data.get("addDrop_schedule") or []
+            capacity_raw = data.get("formal_capacity") or data.get("xk_capacity")
+            xk_lookup = build_xk_capacity_lookup(capacity_raw) if capacity_raw else {}
+            capacity_lookup = {**oc_lookup, **xk_lookup}
+            public_sections.extend(build_sections_for_semester(
+                rows,
+                master_by_id,
+                t_lookup,
+                sem_label,
+                unmatched_foreign_teachers,
+                capacity_lookup,
+            ))
         elif data.get("openclass_status"):
             public_sections.extend(
                 build_sections_from_openclass(

@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormalSection } from "../types";
 
-// 正选 / 补退选共用此数据源。当前两阶段读同一个 formal_sections.json；
-// 待学校实际发布 正选 / 补退选 两套数据后，再按 dataSource 拆分 fetch URL。
+// 正选 / 补退选共用同一份课表和同一个前端入口。
 export function useFormalData() {
   const [sections, setSections] = useState<FormalSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +29,9 @@ export function useFormalData() {
 
   const available = !loading && !error && sections.length > 0;
   // 降序：最近的学期排在最上（下拉框首项）。YYYY-MM 字典序 == 时间序。
-  const allSemesters = [...new Set(sections.map((s) => s.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-
+  const allSemesters = useMemo(
+    () => [...new Set(sections.map((s) => s.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a)),
+    [sections],
+  );
   return { sections, loading, error, available, allSemesters };
 }

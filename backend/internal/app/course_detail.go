@@ -249,15 +249,11 @@ func firstNonEmpty(values ...string) string {
 }
 
 func semesterCourseSettingValue(semester string) (string, error) {
-	if !semesterPattern.MatchString(semester) {
+	target, ok := ResolveAcquisitionTarget(semester)
+	if !ok {
 		return "", errors.New("课程详情学期必须是 YYYY-03 或 YYYY-09")
 	}
-	year := semester[:4]
-	month := "9"
-	if strings.HasSuffix(semester, "-03") {
-		month = "3"
-	}
-	return year + "/" + month + "/1 0:00:00", nil
+	return target.SchoolDate, nil
 }
 
 func RefreshCourseDetails(ctx context.Context, client *JWCClient, semester string, rows []ScheduleRow, old CourseDetailSnapshot, cfg RuntimeConfig, logger *slog.Logger) (CourseDetailSnapshot, CourseDetailRefreshStats) {
@@ -268,22 +264,8 @@ func RefreshCourseDetails(ctx context.Context, client *JWCClient, semester strin
 			byID[record.CourseID] = record
 		}
 	}
-	classByCourse := map[string]string{}
-	missingInfo := map[string]bool{}
-	for _, row := range rows {
-		if !courseIDPattern.MatchString(row.CourseID) || !classIDPattern.MatchString(row.ClassID) {
-			continue
-		}
-		if _, exists := classByCourse[row.CourseID]; !exists {
-			classByCourse[row.CourseID] = row.ClassID
-		}
-		courseInfo, ok := row.CourseInfo.(map[string]any)
-		if !ok || strings.TrimSpace(fmt.Sprint(courseInfo["学分"])) == "" || fmt.Sprint(courseInfo["学分"]) == "0" {
-			missingInfo[row.CourseID] = true
-		}
-	}
+	classByCourse, missingCreditIDs := discoverMissingCreditCourses(rows)
 	tracked := map[string]bool{}
-	priority := map[string]bool{}
 	var targets []string
 	addTarget := func(courseID string) {
 		if tracked[courseID] || classByCourse[courseID] == "" {
@@ -292,15 +274,8 @@ func RefreshCourseDetails(ctx context.Context, client *JWCClient, semester strin
 		tracked[courseID] = true
 		targets = append(targets, courseID)
 	}
-	for _, courseID := range cfg.CourseDetailCourseIDs {
-		priority[courseID] = true
-		record, cached := byID[courseID]
-		if cfg.CourseDetailsVerifyTrackedEveryRun || !cached || courseDetailExpired(record, cfg.CourseDetailsRefreshHours, time.Now()) {
-			addTarget(courseID)
-		}
-	}
 	var autoIDs []string
-	for courseID := range missingInfo {
+	for _, courseID := range missingCreditIDs {
 		record, cached := byID[courseID]
 		if !cached || courseDetailExpired(record, cfg.CourseDetailsRefreshHours, time.Now()) {
 			autoIDs = append(autoIDs, courseID)
@@ -339,11 +314,9 @@ func RefreshCourseDetails(ctx context.Context, client *JWCClient, semester strin
 		}
 		if previous, exists := byID[courseID]; exists && sameCourseDetail(previous, record) {
 			stats.Unchanged++
-			if !priority[courseID] || !cfg.CourseDetailsVerifyTrackedEveryRun {
-				previous.FetchedAt = record.FetchedAt
-				byID[courseID] = previous
-				stats.Refreshed++
-			}
+			previous.FetchedAt = record.FetchedAt
+			byID[courseID] = previous
+			stats.Refreshed++
 			continue
 		}
 		byID[courseID] = record
@@ -351,6 +324,43 @@ func RefreshCourseDetails(ctx context.Context, client *JWCClient, semester strin
 	}
 	stats.Cached = len(byID)
 	return courseDetailSnapshot(semester, byID), stats
+}
+
+func courseInfoHasPositiveCredit(value any) bool {
+	info, ok := value.(map[string]any)
+	if !ok {
+		return false
+	}
+	raw, exists := info["学分"]
+	if !exists || raw == nil {
+		return false
+	}
+	credit, err := strconv.ParseFloat(strings.TrimSpace(fmt.Sprint(raw)), 64)
+	return err == nil && credit > 0
+}
+
+func discoverMissingCreditCourses(rows []ScheduleRow) (map[string]string, []string) {
+	classByCourse := map[string]string{}
+	hasEmbeddedCredit := map[string]bool{}
+	for _, row := range rows {
+		if !courseIDPattern.MatchString(row.CourseID) || !classIDPattern.MatchString(row.ClassID) {
+			continue
+		}
+		if _, exists := classByCourse[row.CourseID]; !exists {
+			classByCourse[row.CourseID] = row.ClassID
+		}
+		if courseInfoHasPositiveCredit(row.CourseInfo) {
+			hasEmbeddedCredit[row.CourseID] = true
+		}
+	}
+	missing := make([]string, 0)
+	for courseID := range classByCourse {
+		if !hasEmbeddedCredit[courseID] {
+			missing = append(missing, courseID)
+		}
+	}
+	sort.Strings(missing)
+	return classByCourse, missing
 }
 
 func sameCourseDetail(left, right CourseDetailRecord) bool {

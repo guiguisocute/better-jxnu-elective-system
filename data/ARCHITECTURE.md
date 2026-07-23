@@ -28,7 +28,7 @@
 1. **覆盖式 build** —— `python build_data.py` 每次从 raw 全量重算 master + public。零状态、幂等、可回滚（删了 master 重跑就回来）。
 2. **课程定义和师课绑定解耦** —— master 里的课程是稳定定义（学分/性质/培养方案归属），师课绑定属于"某学期某 section"，不进 master。
 3. **学期作为顶层维度** —— `data/semesters/<sem>/raw/` 是每学期独立目录，永不混淆。
-4. **stage-based 稳定文件名** —— raw 文件名按选课阶段（preselect / formal / addDrop）命名，build 脚本路径常量永远不变。学校原文件名带日期是抓取层的事，入库即改名。
+4. **入口级稳定文件名** —— raw 只按两类数据契约命名：预选使用 `preselect_catalog.json`，正选/补退选共用 `formal_schedule.json` 与 `formal_capacity.json`。学校原文件名和页面阶段只属于抓取层；`addDrop_schedule.json` 仅保留为历史兜底。
 
 ---
 
@@ -52,11 +52,11 @@ better-jxnu-elective-system/
 │   │   │   ├── meta.json                  ← 学期元信息（label="YYYY-MM"、起止日期、抓取时间戳）
 │   │   │   └── raw/                       ← 学期级 raw
 │   │   │       ├── preselect_catalog.json ← 预选界面所有课（cid + 候选 teachers）
-│   │   │       ├── formal_schedule.json   ← 正选开课安排（section 级：班级/教师/教室/时间）
+│   │   │       ├── formal_schedule.json   ← 正选/补退选共用课表（section 级：班级/教师/教室/时间）
+│   │   │       ├── formal_capacity.json   ← 正选/补退选共用 xk 容量快照
 │   │   │       ├── course_details.json    ← CAS 后 CourseInfor 课程级补充信息（Go 后端限速核查）
-│   │   │       ├── formal_actual.json     ← 正选时选课系统实际可选（暂无）
-│   │   │       ├── addDrop_schedule.json  ← 补退选开课安排（裁剪版）
-│   │   │       └── addDrop_actual.json    ← 补退选实际可选（暂无）
+│   │   │       ├── addDrop_schedule.json  ← 仅兼容历史输入；新数据不再生成
+│   │   │       └── xk_capacity.json       ← 旧容量文件兼容输入；新数据不再生成
 │   │   └── 2026-03/
 │   │       └── ...
 │   │
@@ -65,7 +65,7 @@ better-jxnu-elective-system/
 │
 └── public/                                ← 前端 fetch 产物（committed）
     ├── courses.json                       ← 当前学期预选视图（catalog only）
-    ├── formal_sections.json               ← 全部已抓学期的 sections（前端按 semester 过滤）
+    ├── formal_sections.json               ← 全部已抓 sections（前端按 semester 过滤）
     └── major_requirements.json            ← master/major_requirements.json 的拷贝
 ```
 
@@ -88,10 +88,14 @@ better-jxnu-elective-system/
 | `preselect_catalog.json` | 预选 | 预选课目录界面（油猴） | 预选进行中 | 全集（学校把所有可能开的课列出来，含大量实际不开班的） |
 | `formal_schedule.json` | 正选 | 开课安排公告（油猴） | 正选开始前夕 | section 级，含教师/班级/教室/时间 |
 | `formal_actual.json` | 正选 | 选课系统 | 正选进行中 | 与 schedule 对照可看到正选阶段又被裁掉的课。暂可空。 |
-| `addDrop_schedule.json` | 补退选 | 开课安排公告 | 补退选开始前夕 | 课程范围比 formal_schedule 更小、时间跨度更长 |
+| `addDrop_schedule.json` | 历史兼容 | 旧流程输入 | 不再新增 | 若某旧学期没有 formal_schedule 才作为兜底；正选/补退选课表现已确认完全一致。 |
 | `addDrop_actual.json` | 补退选 | 选课系统 | 补退选进行中 | 暂可空。 |
 | `openclass_status.json` | 正选(兜底/补充) | 选课开班界面（`tools/crawl_courses.py` + `tools/cas_login.py` 爬取） | 开班阶段 | 真实开班：课程号/老师(必修带教号)/容量/班级名称/选课人数；**无星期/节次/教室**。没有正式课表时生成 formal sections；正式课表到位后，仍补充 master 课程/教师，并按 `(课程号, 班级名称)` 精确回填容量。 |
-| `xk_capacity.json` | 正选/补退选 | xk 选课系统（真实学生账号登录，`tools/crawl_capacity.py` + `tools/cas_login.py` 爬取） | 该阶段开放期间 | 逐课程号 GET `Step{N}/ChangeClass.aspx?kch=...`（N 随选课阶段变化，见下方备注），解析每教学班 `{bjh, className, teacher, enrolled, remaining}`。按 `(课程号, 班级名称)` 精确回填容量 = enrolled+remaining，始终视为可信来源（不受 `TRUST_OPENCLASS_CAPACITY` 开关影响）。该账号培养方案外的课程会返回空班级列表或 `blocked`。**Step 前缀会随选课阶段变化**（如 2026-09 学期：预选 Step1 → 正选第一阶段疑似 Step2 → 正选第二阶段 Step3），开抓前用 `--probe` 核对 `Default_config.aspx` 的「配置名称」，阶段变了要同步改 `tools/crawl_capacity.py` 里的 Step 前缀。 |
+| `formal_capacity.json` | 正选/补退选 | xk 选课系统（真实学生账号登录） | 对应阶段开放期间 | 始终从 `formal_schedule.json` 取课程号；两个阶段共用快照文件，阶段切换时只在面板修改容量嗅探 URL。旧 `xk_capacity.json` 仅作为兼容输入。 |
+
+**采集只有两条管线。** 默认展示入口决定 timer 运行预选还是正选/补退选：预选只消费目标目录的 `preselect_catalog.json`；正选与补退选共用 `formal_schedule.json`、目标学期和实时人数。两阶段只有容量页面 URL 随时间变化。KKAP 抓取仍显式选择 `ddlSterm` 并逐行校验 `xq`；预选系统关闭期间不以 KKAP 或历史数据替代 CAS 课程目录。
+
+**课程详情补全不维护课程号白名单。** Go 后端按课程号聚合 KKAP 全量行；若某课程没有任何一行携带可解析的正学分，则自动使用其班级号经 CAS 访问 `CourseSetting.aspx → CourseInfor.aspx`，结果缓存为 `course_details.json`。有效缓存按配置周期复用，学校页仍无学分或请求失败时保留旧数据并在后续周期重试。
 
 **注**：当前 `data/raw/course_schedule.json` 实际是 `formal_schedule` 角色。迁移时按学期归类。
 
@@ -114,9 +118,9 @@ better-jxnu-elective-system/
 | 先修说明 | **仅** preselect_catalog | 培养方案有简版 `先修课程说明`，但 catalog 的更完整 |
 | 标签 公选课 / 公共必修课 | **派生**（cid 前缀规则） | 不依赖 raw |
 | 师课绑定（teachers per course） | formal_schedule（actual）> preselect_catalog（candidates） | catalog 列的是候选；schedule 是真实授课 |
-| 师课绑定（per section） | **仅** formal_schedule / addDrop_schedule | section 是单 teacher 粒度 |
-| 班级/教室/上课时间 | **仅** formal_schedule / addDrop_schedule | |
-| 教学班容量 | xk_capacity（真实登录实抓）> openclass_status（`TRUST_OPENCLASS_CAPACITY` 开关控制，默认关） | 两者都按 `(课程号, 班级名称)` 精确连接；同键容量不唯一或班级名为空时不回填 |
+| 师课绑定（per section） | **仅** formal_schedule（旧 addDrop_schedule 只作兜底） | section 是单 teacher 粒度 |
+| 班级/教室/上课时间 | **仅** formal_schedule（旧 addDrop_schedule 只作兜底） | |
+| 教学班容量 | formal_capacity（正选/补退选共用，真实登录实抓）> openclass_status | 按 `(课程号, 班级名称)` 精确连接；阶段切换覆盖同一份最新容量快照 |
 | 毕业学分要求 / 按性质汇总 | **仅** training_plan 顶层 | |
 | 教师姓名/性别/教号/单位 | preselect_catalog `教师[]` + formal_schedule `任课老师` | 累积进 master/teachers.json |
 | 教师邮箱/职称/教学简介 | formal_schedule `任课老师`（最新有效非空值） | 过滤格式错误邮箱及“未定”等占位职称 |
@@ -199,7 +203,7 @@ type Course = MasterCourse & {
 ```
 
 ### 6.2 `public/formal_sections.json`
-**多学期合并**：包含所有已抓学期的 formal + addDrop sections，前端按 `semester` 字段过滤。
+**多学期合并**：每学期读取唯一的 `formal_schedule.json`；仅在它不存在时读取历史 `addDrop_schedule.json` 兜底，绝不把二者叠加。前端按 `semester` 字段过滤。
 等总大小到 10MB 再考虑按学期拆 URL。
 
 ### 6.3 `public/major_requirements.json`
@@ -241,7 +245,7 @@ JSON
 python build_data.py
 
 # 7. 验证
-npm run dev   # 抽查 预选/正选/补退选 三个 tab
+npm run dev   # 抽查「预选」「正选/补退选」两个入口
 ```
 
 ---
@@ -255,14 +259,14 @@ npm run dev   # 抽查 预选/正选/补退选 三个 tab
 
 **2026-06-28** 2026-09 真实正式课表到位：
 - 新增 `data/semesters/2026-09/raw/formal_schedule.json`（8453 条时段记录，聚合为 4340 个教学班 / 1415 个课程号），含真实教师、星期、节次与教室。
-- `build_data.py` 调整 section 来源优先级：formal/addDrop 正式课表优先，`openclass_status` 仅在课表缺失时兜底；openclass 仍参与 master 课程/教师累积。
+- `build_data.py` 调整 section 来源优先级：正式课表优先，`openclass_status` 仅在课表缺失时兜底；openclass 仍参与 master 课程/教师累积。（后续已进一步统一为 `formal_schedule.json`，旧 addDrop 文件只作历史兜底。）
 - 正式课表与 openclass 做字段级合并：按 `(课程号, 班级名称)` 精确连接，恢复可唯一匹配教学班的容量；未匹配班级保持空值。
 - 对新课表做字段级质量核对后增量扩展 master：课程补英文名与缺失简介；教师补有效邮箱、职称、教学简介。上游开课实例 `CourseID` 因同一课程号存在多值，不进入课程 master。
 - `meta.fetchedAt` 更新为 `2026-06-28`；2026-09 正选/补退选周课表不再为空。
 
 **2026-06-22** 2026-09 正选改用真实开班数据 + 借用数据归位：
 - 新增 raw stage `openclass_status`（`tools/crawl_courses.py` 爬选课开班界面）；`data/semesters/2026-09/raw/openclass_status.json` = 真实 2026 开班（2046 行 / 1941 课程号；含老师/容量/班级名称，无星期节次教室）。
-- `build_data.py`：新增 `iter_openclass_rows` + `build_sections_from_openclass`；某学期有 openclass 则 formal sections 由它生成（schedule/classroom 空，capacity 填真实值），跳过 formal_schedule/addDrop；openclass 课程号/老师并入 master。
+- `build_data.py`：新增 `iter_openclass_rows` + `build_sections_from_openclass`；当时曾由 openclass 生成 formal sections（后续已由正式课表替代）；openclass 课程号/老师仍并入 master。
 - **借用的 2025秋 formal 归位**：`data/semesters/2026-09/raw/formal_schedule.json` → `data/semesters/2025-09/raw/formal_schedule.json` + 新建 `2025-09/meta.json`。2025-09 成为带完整周课表的真实历史学期。
 - `MIRROR_SEMESTERS` 置空 `{}`（不再镜像）。`TEST_SEMESTERS` 仍含 `2026-09`（缺时段，UI 续标「（测试）」）。
 - 产物：`master/courses.json` 7696、`teachers.json` 2240、`public/courses.json` 6213、`public/formal_sections.json` 12855（2026-09 openclass 7783 无时段 + 2025-09 真实 5072 带时段）。
@@ -300,5 +304,5 @@ npm run dev   # 抽查 预选/正选/补退选 三个 tab
 ## 9. 未决项 / 将来再说
 
 - **学期下拉排序**：`useFormalData.allSemesters` 与 `HomePage.preSemesters` 均按 YYYY-MM **降序**（最近学期排最上 = 下拉首项）。
-- **正选 vs 补退选 数据分裂**：现在 addDrop 复用 formal 数据。等真实补退选 JSON 到位后，会分两份独立 schedule。
+- **正选与补退选合并**：两阶段课表已确认完全一致，前后端永久共用 formal 数据；仅容量嗅探 URL 在阶段切换时人工调整。
 - **教师跨课程聚合**：master/teachers.json 是否带 `taughtCourses: cid[]`？需要算但便于"教师所授课程"查询。暂不加，等真实需求出现。

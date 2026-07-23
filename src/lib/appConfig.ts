@@ -15,7 +15,7 @@ export interface AppFeatureFlags {
 
 export interface AppConfig {
   /** 新会话默认进入的选课阶段；用户在当前会话主动切换后优先尊重用户选择。 */
-  defaultDataSource: "pre" | "formal" | "addDrop";
+  defaultDataSource: "pre" | "formal";
   /** 测试学期集合（正选/补退选视图加「（测试）」后缀），加载成功后注入 term.ts。 */
   testSemesters: string[];
   /** 实时人数只在该学期开启（HomePage 的 enabled 比较）。 */
@@ -72,11 +72,9 @@ function normalize(raw: unknown, d: AppConfig = APP_CONFIG_DEFAULTS): AppConfig 
   ) as Record<string, unknown>;
   return {
     defaultDataSource:
-      data.defaultDataSource === "pre"
-      || data.defaultDataSource === "formal"
-      || data.defaultDataSource === "addDrop"
+      data.defaultDataSource === "pre" || data.defaultDataSource === "formal"
         ? data.defaultDataSource
-        : d.defaultDataSource,
+        : data.defaultDataSource === "addDrop" ? "formal" : d.defaultDataSource,
     testSemesters: Array.isArray(data.testSemesters)
       ? data.testSemesters.filter((s): s is string => typeof s === "string")
       : d.testSemesters,
