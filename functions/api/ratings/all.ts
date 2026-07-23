@@ -2,12 +2,12 @@ interface Env {
   DB: D1Database;
 }
 
-// GET /api/ratings/all — get all ratings grouped by course_id and teacher_id
+// 兼容期端点：GET /api/ratings/all — 旧客户端的 overall 聚合（读 reviews.overall）。
 // Returns: { [courseId]: { [teacherId]: { avg: number, count: number } } }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { results } = await context.env.DB.prepare(
-    "SELECT course_id, teacher_id, AVG(rating) as avg_rating, COUNT(*) as count FROM ratings GROUP BY course_id, teacher_id"
+    "SELECT course_id, teacher_id, AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE overall IS NOT NULL GROUP BY course_id, teacher_id"
   ).all();
 
   const grouped: Record<string, Record<string, { avg: number; count: number }>> = {};

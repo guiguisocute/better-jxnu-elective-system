@@ -44,7 +44,6 @@ function loadSaved(): { filters: Filters; page: number; sortAsc: boolean } {
 
 export function useCourseFilter(
   courses: Course[],
-  getCourseAvg?: (courseId: string) => number | null,
   takenCids?: Set<string>,
 ) {
   const saved = useMemo(() => loadSaved(), []);
@@ -66,7 +65,6 @@ export function useCourseFilter(
   );
 
   const [sortAsc, setSortAsc] = useState(saved.sortAsc);
-  const [ratingSortAsc, setRatingSortAsc] = useState<boolean | null>(null);
   const [enrollmentSortAsc, setEnrollmentSortAsc] = useState<boolean | null>(null);
   const [page, setPage] = useState(saved.page);
   const [pageSize] = useState(50);
@@ -237,17 +235,12 @@ export function useCourseFilter(
     }
 
     result = [...result].sort((a, b) => {
-      if (ratingSortAsc !== null && getCourseAvg) {
-        const aAvg = getCourseAvg(a.id) ?? -1;
-        const bAvg = getCourseAvg(b.id) ?? -1;
-        if (aAvg !== bAvg) return ratingSortAsc ? aAvg - bAvg : bAvg - aAvg;
-      }
       const cmp = a.credits - b.credits;
       return sortAsc ? cmp : -cmp;
     });
 
     return result;
-  }, [courses, deferredFilters, sortAsc, ratingSortAsc, getCourseAvg, takenCids]);
+  }, [courses, deferredFilters, sortAsc, takenCids]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -289,8 +282,6 @@ export function useCourseFilter(
     pageSize,
     sortAsc,
     setSortAsc,
-    ratingSortAsc,
-    setRatingSortAsc,
     enrollmentSortAsc,
     setEnrollmentSortAsc,
     hasActiveFilters,

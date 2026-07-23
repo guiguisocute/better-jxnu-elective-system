@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
 import { TagBadge } from "./TagBadge";
-import { StarRating } from "./StarRating";
 import { CopyIdButton } from "./CopyIdButton";
 import { displayTags, isInPlan, compactTags } from "../lib/planMatch";
 import { DataSourceSwitcher } from "./DataSourceSwitcher";
@@ -21,14 +20,9 @@ interface Props {
   onSelect: (course: Course) => void;
   sortAsc: boolean;
   setSortAsc: (v: boolean) => void;
-  ratingSortAsc: boolean | null;
-  setRatingSortAsc: (v: boolean | null) => void;
   enrollmentSortAsc: boolean | null;
   setEnrollmentSortAsc: (v: boolean | null) => void;
   stickyTop?: number;
-  getCourseAvg?: (courseId: string) => number | null;
-  /** 正选/补退选行用：按 (课程, 老师) 取该 section 教师的评分；预选行仍用 getCourseAvg（课程平均）。 */
-  getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
   /** 正选/补退选：读取 VPS 实时授课人数；容量仍来自静态 FormalSection。 */
   getEnrollment?: (section: FormalSection) => number | null;
   /** 本次刷新该班级人数是否变化（驱动已选/容量徽章闪烁）。 */
@@ -224,19 +218,18 @@ function getCreditColor(credits: number): string {
 
 const FORMAL_HEADERS = [
   "课程号", "课程名称", "学分", "开课学院", "标签",
-  "任课教师", "上课时间", "班级名称", "教室代号", "已选/容量", "评分",
+  "任课教师", "上课时间", "班级名称", "教室代号", "已选/容量",
 ];
 
 const DESKTOP_TOOLBAR_HEIGHT = 50;
 const FORMAL_SECTION_BATCH_SIZE = 60;
 
-// 一行「班级」（desktop table tr，11 列）。indented：作为折叠组子行时首列加左缩进。
+// 一行「班级」（desktop table tr，10 列）。indented：作为折叠组子行时首列加左缩进。
 interface RowShared {
   selectedPlan: string;
   coursesById?: Map<string, Course>;
   scheduleFilter?: ScheduleFilterMap;
   selectedSectionKey?: string | null;
-  getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
   getEnrollment?: (section: FormalSection) => number | null;
   enrollmentStale?: boolean;
   /** 该班级本次刷新人数是否有变化（驱动徽章闪烁）。 */
@@ -348,7 +341,7 @@ const FormalSectionMoreCard = memo(function FormalSectionMoreCard({
   );
 });
 
-const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
+const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -423,33 +416,19 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
           );
         })()}
       </td>
-      <td className="px-3 py-3 border-b border-gray-50 whitespace-nowrap">
-        {(() => {
-          const avg = getTeacherAvg?.(s.id, s.teacherId)?.avg ?? null;
-          if (avg === null || avg === undefined) return <span className="text-xs text-gray-300">—</span>;
-          return (
-            <span className="inline-flex items-baseline gap-0.5 tabular-nums">
-              <span className="text-amber-500 text-[11px]">★</span>
-              <span className="text-[13px] font-semibold text-gray-700">{avg.toFixed(1)}</span>
-            </span>
-          );
-        })()}
-      </td>
     </tr>
   );
 });
 
-// 折叠组「组头」行（11 列：前 5 列课程级信息，中间 colSpan=5 显示「N 个班级」，末列最高评分）。点击切换展开。
-const FormalGroupHeaderRow = memo(function FormalGroupHeaderRow({ group, expanded, selectedPlan, getTeacherAvg, onToggle }: {
+// 折叠组「组头」行（10 列：前 5 列课程级信息，中间 colSpan=5 显示「N 个班级」）。点击切换展开。
+const FormalGroupHeaderRow = memo(function FormalGroupHeaderRow({ group, expanded, selectedPlan, onToggle }: {
   group: FormalGroup; expanded: boolean; selectedPlan: string;
-  getTeacherAvg?: (courseId: string, teacherId: string) => { avg: number; count: number } | null;
   onToggle: () => void;
 }) {
   const { sections, course, id } = group;
   const head = sections[0];
   const inPlan = !!course && isInPlan(course, selectedPlan);
   const tags = course ? compactTags(displayTags(course, selectedPlan)) : compactTags(head.tags);
-  const bestAvg = Math.max(...sections.map((s) => getTeacherAvg?.(s.id, s.teacherId)?.avg ?? -1));
   return (
     <tr
       onClick={onToggle}
@@ -495,16 +474,6 @@ const FormalGroupHeaderRow = memo(function FormalGroupHeaderRow({ group, expande
           <span className="text-gray-400">· {expanded ? "点击收起" : "点击展开"}</span>
         </span>
       </td>
-      <td className="px-3 py-3 border-b border-gray-50 whitespace-nowrap">
-        {bestAvg >= 0 ? (
-          <span className="inline-flex items-baseline gap-0.5 tabular-nums" title="该课各班级最高评分">
-            <span className="text-amber-500 text-[11px]">★</span>
-            <span className="text-[13px] font-semibold text-gray-700">{bestAvg.toFixed(1)}</span>
-          </span>
-        ) : (
-          <span className="text-xs text-gray-300">—</span>
-        )}
-      </td>
     </tr>
   );
 });
@@ -522,7 +491,6 @@ const FormalGroupFragment = memo(function FormalGroupFragment({ group, expanded,
         group={group}
         expanded={expanded}
         selectedPlan={rowProps.selectedPlan}
-        getTeacherAvg={rowProps.getTeacherAvg}
         onToggle={() => onToggle(group.id)}
       />
       {visibleSections.map((s) => (
@@ -541,7 +509,7 @@ const FormalGroupFragment = memo(function FormalGroupFragment({ group, expanded,
 });
 
 // 一张「班级」卡（mobile）。
-const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection }) {
+const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -606,9 +574,6 @@ const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, cou
             );
           })()}
         </InfoRow>
-      </div>
-      <div className="mt-2">
-        <StarRating rating={getTeacherAvg?.(s.id, s.teacherId)?.avg ?? null} />
       </div>
     </div>
   );
@@ -679,9 +644,9 @@ const FormalGroupCard = memo(function FormalGroupCard({ group, expanded, onToggl
 });
 
 export function CourseTable({
-  courses, selectedId, onSelect, sortAsc, setSortAsc, ratingSortAsc, setRatingSortAsc,
+  courses, selectedId, onSelect, sortAsc, setSortAsc,
   enrollmentSortAsc, setEnrollmentSortAsc,
-  stickyTop = 0, getCourseAvg, getTeacherAvg, selectedPlan = "",
+  stickyTop = 0, selectedPlan = "",
   getEnrollment, isEnrollmentChanged, liveEnrollmentStatus,
   dataSource, onChangeDataSource,
   formalGroups = [], defaultExpandFormal = false, formalAvailable = false, formalLoading = false,
@@ -710,32 +675,21 @@ export function CourseTable({
   // 行/卡片共享 props 收敛为稳定对象 —— 配合 memo 让「切换一个组」只重渲染该组，不波及其余 50 组。
   const rowProps = useMemo(
     () => ({
-      selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg,
+      selectedPlan, coursesById, scheduleFilter, selectedSectionKey,
       getEnrollment, enrollmentStale: liveEnrollmentStatus?.stale,
       isEnrollmentChanged, enrollmentChangedAt: liveEnrollmentStatus?.lastUpdateAt ?? null,
       onSelectSection,
     }),
-    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getTeacherAvg, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection],
+    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection],
   );
   // formal 列表里所有班级（扁平），供空态判断（替代旧 formalSections）。
   const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);
   const handleSort = () => {
-    setRatingSortAsc(null);
     setEnrollmentSortAsc(null);
     setSortAsc(!sortAsc);
   };
 
-  const handleRatingSort = () => {
-    setEnrollmentSortAsc(null);
-    if (ratingSortAsc === null) {
-      setRatingSortAsc(false);
-    } else {
-      setRatingSortAsc(!ratingSortAsc);
-    }
-  };
-
   const handleEnrollmentSort = () => {
-    setRatingSortAsc(null);
     // 首次点击默认余量从多到少；再次点击切为从少到多。
     setEnrollmentSortAsc(enrollmentSortAsc === null ? false : !enrollmentSortAsc);
   };
@@ -820,27 +774,26 @@ export function CourseTable({
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              {/* 列宽（顺序）：课程号8 / 课程名称13 / 学分5 / 开课学院9 / 标签12 /
-                 任课教师8 / 上课时间10 / 班级名称11 / 教室代号7 / 已选容量9 / 评分8 (%)。
-                 已选/容量原来只有 5%，装不下「120/106」徽章(min-w 52px) → 溢出挤压评分列；
-                 加宽到 9% 让徽章与评分各自归位。注意：<colgroup> 只能含 <col>，勿加行内注释。 */}
+              {/* 列宽（顺序）：课程号8 / 课程名称15 / 学分5 / 开课学院10 / 标签13 /
+                 任课教师9 / 上课时间11 / 班级名称12 / 教室代号8 / 已选容量9 (%)。
+                 评分列已移除（评分只在详情页与 /ratings 子页面展示）。
+                 注意：<colgroup> 只能含 <col>，勿加行内注释。 */}
               <colgroup>
                 <col style={{ width: "8%" }} />
-                <col style={{ width: "13%" }} />
+                <col style={{ width: "15%" }} />
                 <col style={{ width: "5%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "13%" }} />
                 <col style={{ width: "9%" }} />
+                <col style={{ width: "11%" }} />
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "8%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "7%" }} />
                 <col style={{ width: "9%" }} />
-                <col style={{ width: "8%" }} />
               </colgroup>
               <thead className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
                 <tr>
                   {FORMAL_HEADERS.map((h) => {
-                    // 学分 / 评分 列与预选共用排序状态，点击切升降序
+                    // 学分列与预选共用排序状态，点击切升降序
                     if (h === "学分") {
                       return (
                         <th
@@ -849,29 +802,12 @@ export function CourseTable({
                           className="px-3 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
                         >
                           <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
-                            ratingSortAsc === null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
+                            enrollmentSortAsc === null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
                           }`}>
                             学分
-                            <span className={ratingSortAsc === null ? "text-red-500" : "text-gray-400"}>{sortAsc ? "↑" : "↓"}</span>
+                            <span className={enrollmentSortAsc === null ? "text-red-500" : "text-gray-400"}>{sortAsc ? "↑" : "↓"}</span>
                           </span>
-                          <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc === null ? "bg-red-400" : "bg-transparent"}`} />
-                        </th>
-                      );
-                    }
-                    if (h === "评分") {
-                      return (
-                        <th
-                          key={h}
-                          onClick={handleRatingSort}
-                          className="px-3 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
-                        >
-                          <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
-                            ratingSortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
-                          }`}>
-                            评分
-                            <span className={ratingSortAsc !== null ? "text-red-500" : "text-gray-400"}>{ratingSortAsc === null ? "↕" : ratingSortAsc ? "↑" : "↓"}</span>
-                          </span>
-                          <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
+                          <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${enrollmentSortAsc === null ? "bg-red-400" : "bg-transparent"}`} />
                         </th>
                       );
                     }
@@ -967,16 +903,16 @@ export function CourseTable({
           </div>
         ) : (
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-            {/* 列宽：课程号 / 课程名称 / 学分 / 开课学院 / 标签 / 教师 / 评分 (+ 模拟选课加车列)。
+            {/* 列宽：课程号 / 课程名称 / 学分 / 开课学院 / 标签 / 教师 (+ 模拟选课加车列)。
+               评分列已移除（评分只在详情页与 /ratings 子页面展示）。
                固定布局避免长课名（如"教育实践 (含专题见习、教育实习、实践研习)"）把右侧顶出。 */}
             <colgroup>
-              <col style={{ width: simMode ? "9%"  : "10%" }} />
-              <col style={{ width: simMode ? "24%" : "26%" }} />
-              <col style={{ width: simMode ? "6%"  : "7%"  }} />
-              <col style={{ width: simMode ? "15%" : "16%" }} />
-              <col style={{ width: simMode ? "14%" : "15%" }} />
-              <col style={{ width: simMode ? "12%" : "12%" }} />
+              <col style={{ width: simMode ? "11%" : "12%" }} />
+              <col style={{ width: simMode ? "30%" : "32%" }} />
+              <col style={{ width: simMode ? "7%"  : "8%"  }} />
+              <col style={{ width: simMode ? "19%" : "20%" }} />
               <col style={{ width: simMode ? "14%" : "14%" }} />
+              <col style={{ width: simMode ? "13%" : "14%" }} />
               {simMode && <col style={{ width: "6%" }} />}
             </colgroup>
             <thead className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
@@ -984,26 +920,15 @@ export function CourseTable({
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">课程号</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">课程名称</th>
                 <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleSort}>
-                  <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
-                    ratingSortAsc === null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
-                  }`}>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors text-red-600">
                     学分
-                    <span className={ratingSortAsc === null ? "text-red-500" : "text-gray-400"}>{sortAsc ? "↑" : "↓"}</span>
+                    <span className="text-red-500">{sortAsc ? "↑" : "↓"}</span>
                   </span>
-                  <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc === null ? "bg-red-400" : "bg-transparent"}`} />
+                  <span className="mt-1 block h-0.5 w-5 rounded-full transition-colors bg-red-400" />
                 </th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">开课学院</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">标签</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">教师</th>
-                <th className="pl-3 pr-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleRatingSort}>
-                  <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
-                    ratingSortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
-                  }`}>
-                    评分
-                    <span className={ratingSortAsc !== null ? "text-red-500" : "text-gray-400"}>{ratingSortAsc === null ? "↕" : ratingSortAsc ? "↑" : "↓"}</span>
-                  </span>
-                  <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${ratingSortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
-                </th>
                 {simMode && <th className="w-12 bg-gray-50 border-b border-gray-100" aria-label="加入待选清单" />}
               </tr>
             </thead>
@@ -1061,9 +986,6 @@ export function CourseTable({
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-500 max-w-[150px] truncate border-b border-gray-50">
                       {c.teachers.map((t) => t.name).join(", ") || "—"}
-                    </td>
-                    <td className="pl-3 pr-5 py-4 border-b border-gray-50">
-                      <StarRating rating={getCourseAvg?.(c.id) ?? null} />
                     </td>
                     {simMode && (
                       <td className="px-3 py-4 border-b border-gray-50 text-right">
@@ -1129,7 +1051,7 @@ export function CourseTable({
                   type="button"
                   onClick={handleSort}
                   className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
-                    ratingSortAsc === null && enrollmentSortAsc === null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
+                    enrollmentSortAsc === null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
                   学分 <span className="text-[10px]">{sortAsc ? "↑" : "↓"}</span>
@@ -1142,15 +1064,6 @@ export function CourseTable({
                   }`}
                 >
                   余量 <span className="text-[10px]">{enrollmentSortAsc === null ? "↕" : enrollmentSortAsc ? "↑" : "↓"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRatingSort}
-                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
-                    ratingSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
-                  }`}
-                >
-                  评分 {ratingSortAsc !== null && <span className="text-[10px]">{ratingSortAsc ? "↑" : "↓"}</span>}
                 </button>
               </div>
               <div className="space-y-2">
@@ -1187,27 +1100,10 @@ export function CourseTable({
               <span className="text-[11px] text-gray-400 shrink-0">排序</span>
               <button
                 onClick={handleSort}
-                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
-                  ratingSortAsc === null
-                    ? "bg-red-50 text-red-500"
-                    : "bg-gray-100 text-gray-500"
-                }`}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors bg-red-50 text-red-500"
               >
                 学分
                 <span className="text-[10px]">{sortAsc ? "↑" : "↓"}</span>
-              </button>
-              <button
-                onClick={handleRatingSort}
-                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
-                  ratingSortAsc !== null
-                    ? "bg-red-50 text-red-500"
-                    : "bg-gray-100 text-gray-500"
-                }`}
-              >
-                评分
-                {ratingSortAsc !== null && (
-                  <span className="text-[10px]">{ratingSortAsc ? "↑" : "↓"}</span>
-                )}
               </button>
             </div>
             {/* Cards */}
@@ -1244,8 +1140,7 @@ export function CourseTable({
                         {c.teachers.map((t) => t.name).join(", ")}
                       </p>
                     )}
-                    <div className="mt-2 flex items-center justify-between">
-                      <StarRating rating={getCourseAvg?.(c.id) ?? null} />
+                    <div className="mt-2 flex items-center justify-end">
                       {simMode && (
                         <button
                           onClick={(e) => { e.stopPropagation(); onToggleCart?.(c.id); }}

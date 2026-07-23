@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { Link } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
 import { useCourseFilter } from "../hooks/useCourseFilter";
 import { useFormalData } from "../hooks/useFormalData";
-import { useAllRatings } from "../hooks/useRatings";
+import { useAllReviews } from "../hooks/useReviews";
 import { useSimMode } from "../hooks/useSimMode";
 import { useCart } from "../hooks/useCart";
 import { useChosenSections } from "../hooks/useChosenSections";
@@ -117,7 +118,8 @@ function SidebarDisclaimer() {
 
 export function HomePage() {
   const { courses, loading, error, allDepts, allCredits, allPlans, courseTypes, subTags } = useCourseData();
-  const { getCourseAvg, getTeacherAvg } = useAllRatings();
+  // overall 聚合仍供正选排序候补 / AI ratingOf 使用（列表 UI 已不再显示星级）。
+  const { getTeacherOverall } = useAllReviews();
   const formal = useFormalData();
   // 运行时配置（public/app_config.json）：实时人数学期等；加载完成后自动重渲染。
   const appConfig = useAppConfig();
@@ -164,7 +166,7 @@ export function HomePage() {
   // 它们不在当学期 catalog 里，学生预选阶段实际选不到，不应出现在预选列表。
   // coursesById/cartCourses 仍用 courses 全集（正选 任意选修 tag 派生需要它们）。
   const preCourses = useMemo(() => courses.filter((c) => c.inPre !== false), [courses]);
-  const filter = useCourseFilter(preCourses, getCourseAvg, sim.mode === "sim" ? credit.takenCids : undefined);
+  const filter = useCourseFilter(preCourses, sim.mode === "sim" ? credit.takenCids : undefined);
   // 桥接：filter.filters.plan 变更 → 同步到 currentPlan（多一次 render，仅 plan 切换时发生）。
   useEffect(() => {
     if (filter.filters.plan !== currentPlan) setCurrentPlan(filter.filters.plan);
@@ -639,13 +641,9 @@ export function HomePage() {
     return counts;
   }, [contentFilteredSections]);
 
-  // 正选/补退选排序：已选/容量按「余量 = 容量 - 已选」排；评分与学分沿用原口径。
-  // 仅当「按余量排序」实际启用时，实时快照更新才会触发这里重新分组和排序（见下方依赖数组）。
-  // 评分用 section 教师的具体分（getTeacherAvg），与列表显示口径一致 —— 不能用课程平均（getCourseAvg），
-  // 否则同课不同老师的几行排序会完全一样、且与单元格显示的星数对不上。
+  // 正选/补退选排序：已选/容量按「余量 = 容量 - 已选」排；学分沿用原口径。
+  // 评分列/评分排序已随评价系统 V2 移除（评分只在详情页与 /ratings 子页面展示）。
   // 同课程号折叠：按 s.id 分组 → 组内排序 → 组间排序。
-  //   组内：评分排序时按该 section 教师分，否则按学分（同课相同）→ className 稳定。
-  //   组间：评分排序用组内最高分作键，否则用该课学分；方向跟随 sortAsc / ratingSortAsc。
   // 同课程号折叠开关：默认开启；关闭则回退到「一行一个班级」的扁平模式。
   const FOLD_KEY = "jxnu_fold_groups";
   const [foldGroups, setFoldGroups] = useState<boolean>(() => {
@@ -669,11 +667,6 @@ export function HomePage() {
         if (bRemaining === null) return -1;
         if (aRemaining !== bRemaining) return filter.enrollmentSortAsc ? aRemaining - bRemaining : bRemaining - aRemaining;
       }
-      if (filter.ratingSortAsc !== null) {
-        const aAvg = getTeacherAvg(a.id, a.teacherId)?.avg ?? -1;
-        const bAvg = getTeacherAvg(b.id, b.teacherId)?.avg ?? -1;
-        if (aAvg !== bAvg) return filter.ratingSortAsc ? aAvg - bAvg : bAvg - aAvg;
-      }
       const cmp = a.credits - b.credits;
       return filter.sortAsc ? cmp : -cmp;
     };
@@ -692,11 +685,6 @@ export function HomePage() {
     const sortSections = (arr: FormalSection[]) =>
       [...arr].sort((a, b) => {
         if (filter.enrollmentSortAsc !== null) return cmpSections(a, b) || a.className.localeCompare(b.className);
-        if (filter.ratingSortAsc !== null) {
-          const aAvg = getTeacherAvg(a.id, a.teacherId)?.avg ?? -1;
-          const bAvg = getTeacherAvg(b.id, b.teacherId)?.avg ?? -1;
-          if (aAvg !== bAvg) return filter.ratingSortAsc ? aAvg - bAvg : bAvg - aAvg;
-        }
         return a.className.localeCompare(b.className);
       });
     const groups: FormalGroup[] = [];
@@ -714,9 +702,6 @@ export function HomePage() {
         if (known.length === 0) return Number.NaN;
         return filter.enrollmentSortAsc ? Math.min(...known) : Math.max(...known);
       }
-      if (filter.ratingSortAsc !== null) {
-        return Math.max(...g.sections.map((s) => getTeacherAvg(s.id, s.teacherId)?.avg ?? -1));
-      }
       return g.sections[0]?.credits ?? 0;
     };
     return groups.sort((a, b) => {
@@ -727,13 +712,13 @@ export function HomePage() {
       const cmp = aKey - bKey;
       const asc = filter.enrollmentSortAsc !== null
         ? filter.enrollmentSortAsc
-        : filter.ratingSortAsc !== null ? filter.ratingSortAsc : filter.sortAsc;
+        : filter.sortAsc;
       return asc ? cmp : -cmp;
     });
     // 按余量排序时才需要跟着实时人数重排；否则不把 getEnrollment 放进依赖，
     // 理由同上（避免每次轮询都重新分组+排序全量班级）。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleFormalSections, filter.sortAsc, filter.ratingSortAsc, filter.enrollmentSortAsc, getTeacherAvg, filter.enrollmentSortAsc !== null ? liveEnrollment.getEnrollment : null, coursesById, foldGroups]);
+  }, [visibleFormalSections, filter.sortAsc, filter.enrollmentSortAsc, filter.enrollmentSortAsc !== null ? liveEnrollment.getEnrollment : null, coursesById, foldGroups]);
 
   // 正选/补退选共用入口单独分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
   // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。
@@ -909,7 +894,6 @@ export function HomePage() {
     setHintsDismissed(true);
     changeDataSource("formal");
     setSemesterByDS((prev) => ({ ...prev, formal: quickRatingSemester }));
-    filter.setRatingSortAsc(false);
     setFormalPage(1);
     setSelected(null);
     setSelectedSection(null);
@@ -964,6 +948,18 @@ export function HomePage() {
               <span className="text-xs hidden sm:inline shrink-0" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
             </div>
             <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
+              {/* 课程评价子页面入口 */}
+              <Link
+                to="/ratings"
+                title="课程评价"
+                className="shrink-0 h-8 rounded-lg px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 bg-white/20 text-white hover:bg-white/30 transition-colors"
+              >
+                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3.5z" />
+                </svg>
+                <span className="hidden sm:inline">课程评价</span>
+                <span className="sm:hidden">评价</span>
+              </Link>
               <button
                 type="button"
                 onClick={handleQuickRatePreviousSemester}
@@ -1333,13 +1329,9 @@ export function HomePage() {
             onSelect={handleSelect}
             sortAsc={filter.sortAsc}
             setSortAsc={filter.setSortAsc}
-            ratingSortAsc={filter.ratingSortAsc}
-            setRatingSortAsc={filter.setRatingSortAsc}
             enrollmentSortAsc={filter.enrollmentSortAsc}
             setEnrollmentSortAsc={filter.setEnrollmentSortAsc}
             stickyTop={tableStickyTop}
-            getCourseAvg={getCourseAvg}
-            getTeacherAvg={getTeacherAvg}
             getEnrollment={liveEnrollment.getEnrollment}
             isEnrollmentChanged={liveEnrollment.isEnrollmentChanged}
             liveEnrollmentStatus={liveEnrollment.status}
@@ -1480,7 +1472,7 @@ export function HomePage() {
           planCoursesReady={planCourses.ready}
           takenCids={credit.takenCids}
           cartIds={cart.ids}
-          ratingOf={getTeacherAvg}
+          ratingOf={getTeacherOverall}
           remainingOf={remainingOf}
         />
         </Suspense>

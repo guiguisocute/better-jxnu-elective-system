@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { Course, FormalSection } from "../types";
 import { parseSchedule, unselectedIncludeSlotsFromSchedule } from "../lib/scheduleParse";
 import { sectionOptionKey } from "../lib/schedulePlacement";
@@ -6,14 +7,11 @@ import { formatSemesterLabel } from "../lib/term";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
 import { SectionScheduleGrid } from "./SectionScheduleGrid";
 import { TagBadge } from "./TagBadge";
-import { StarRating } from "./StarRating";
-import { StarRatingInput } from "./StarRatingInput";
-import { ConfirmModal } from "./ConfirmModal";
 import { CopyIdButton } from "./CopyIdButton";
 import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
-import { useRatings } from "../hooks/useRatings";
-import { getVoterId } from "../lib/voter";
-import { checkMyRating, deleteMyRating, removeOptimistic } from "../lib/ratingsStore";
+import { useCourseReviews } from "../hooks/useReviews";
+import { DimensionBars } from "./ratings/DimensionBars";
+import { RatingSheet } from "./ratings/RatingSheet";
 
 interface Props {
   section: FormalSection;
@@ -54,11 +52,8 @@ export function FormalSectionDetail({
   simMode = false, cartStatus = "none", onToggleCart, onSwitchChosenSection, onRequestEnableSim,
   enrolled = null, enrollmentStale = false,
 }: Props) {
-  const { getAvg, applyOptimistic, refresh } = useRatings(section.id);
-  const [rating, setRating] = useState(0);
-  const [editing, setEditing] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [myRating, setMyRating] = useState<number | null>(null);
+  const { getDims, refresh } = useCourseReviews(section.id);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [plansExpanded, setPlansExpanded] = useState(false);
 
   const teacherId = section.teacherId;
@@ -99,48 +94,7 @@ export function FormalSectionDetail({
     ? unselectedIncludeSlotsFromSchedule(classSchedule, scheduleFilter)
     : [];
 
-  useEffect(() => {
-    if (!hasTeacherId) return;
-    const voterId = getVoterId();
-    checkMyRating(section.id, teacherId, voterId).then((result) => {
-      if (result.rated && result.rating !== null) {
-        setMyRating(result.rating);
-      } else {
-        setMyRating(null);
-      }
-    });
-  }, [section.id, teacherId, hasTeacherId]);
-
-  const handleSubmit = () => {
-    if (!hasTeacherId || rating === 0) return;
-    applyOptimistic(teacherId, rating);
-    setMyRating(rating);
-    setEditing(false);
-    setShowModal(false);
-    fetch("/api/ratings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        courseId: section.id,
-        teacherId,
-        rating,
-        voterId: getVoterId(),
-      }),
-    }).then(() => refresh(section.id)).catch(() => {});
-  };
-
-  const handleDelete = () => {
-    if (!hasTeacherId) return;
-    const voterId = getVoterId();
-    removeOptimistic(section.id, teacherId);
-    setMyRating(null);
-    setEditing(false);
-    deleteMyRating(section.id, teacherId, voterId)
-      .then(() => refresh(section.id))
-      .catch(() => {});
-  };
-
-  const avg = hasTeacherId ? getAvg(teacherId) : null;
+  const dims = hasTeacherId ? getDims(teacherId) : null;
 
   return (
     <div className="h-full flex flex-col">
@@ -431,13 +385,13 @@ export function FormalSectionDetail({
             </div>
           )}
 
-          {/* 任课教师（单个） */}
+          {/* 任课教师（单个）：多维度评价 */}
           <div>
             <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
               任课教师
             </h3>
             <p className="text-[11px] text-gray-400 leading-relaxed mb-3">
-              以下评分均为用户主观评价，仅反映其对任课教师在本课程中表现的个人看法，不代表作者立场，仅供参考
+              以下评分均为用户匿名主观评价，仅反映其对任课教师在本课程中表现的个人看法，不代表作者立场，仅供参考
             </p>
             <div className="bg-gray-50 rounded-xl px-4 py-3">
               <div className="flex items-center gap-3.5">
@@ -454,50 +408,22 @@ export function FormalSectionDetail({
                 </div>
                 {hasTeacherId && (
                   <button
-                    onClick={() => {
-                      const next = !editing;
-                      setEditing(next);
-                      if (next) setRating(myRating ?? 0);
-                    }}
-                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors self-center"
-                    style={{
-                      backgroundColor: editing ? "#FEE2E2" : myRating != null ? "#FEF3C7" : "#FEE2E2",
-                      color: editing ? "#DC2626" : myRating != null ? "#D97706" : "#DC2626",
-                    }}
+                    onClick={() => setSheetOpen(true)}
+                    className="shrink-0 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors self-center"
                   >
-                    {editing ? "收起" : myRating != null ? "修改评分" : "评分"}
+                    ✎ 写评价
                   </button>
                 )}
               </div>
-              <div className="flex items-center mt-2 pl-[52px]">
-                <StarRating rating={avg?.avg_rating ?? null} count={avg?.count} />
-              </div>
-              {editing && hasTeacherId && (
-                <div className="mt-3 pl-[52px]">
-                  <StarRatingInput value={rating} onChange={setRating} />
-                  <div className="flex gap-2 mt-2.5">
-                    <button
-                      onClick={() => setEditing(false)}
-                      className="flex-1 py-1.5 rounded-lg border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
-                    >
-                      取消
-                    </button>
-                    {myRating != null && (
-                      <button
-                        onClick={handleDelete}
-                        className="flex-1 py-1.5 rounded-lg border border-red-200 text-[11px] text-red-500 font-medium hover:bg-red-50 transition-colors"
-                      >
-                        撤销评分
-                      </button>
-                    )}
-                    <button
-                      onClick={() => rating > 0 && setShowModal(true)}
-                      disabled={rating === 0}
-                      className="flex-1 py-1.5 rounded-lg bg-red-500 text-white text-[11px] font-medium hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      提交评分
-                    </button>
-                  </div>
+              {hasTeacherId && (
+                <div className="mt-3">
+                  <DimensionBars dims={dims} compact />
+                  <Link
+                    to={`/ratings?view=teacher&teacher=${encodeURIComponent(teacherId)}`}
+                    className="inline-block mt-2.5 text-[11px] text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    查看这位老师的全部评价 →
+                  </Link>
                 </div>
               )}
             </div>
@@ -519,14 +445,18 @@ export function FormalSectionDetail({
         </div>
       </div>
 
-      <ConfirmModal
-        open={showModal}
-        teacherName={teacherName}
-        rating={rating}
-        existingRating={myRating}
-        onConfirm={handleSubmit}
-        onCancel={() => setShowModal(false)}
-      />
+      {sheetOpen && hasTeacherId && (
+        <RatingSheet
+          target={{
+            teacherId,
+            teacherName: teacherName || teacherId,
+            courseOptions: [{ id: section.id, name: section.name || section.id }],
+            initialCourseId: section.id,
+          }}
+          onClose={() => setSheetOpen(false)}
+          onSubmitted={() => void refresh()}
+        />
+      )}
     </div>
   );
 }

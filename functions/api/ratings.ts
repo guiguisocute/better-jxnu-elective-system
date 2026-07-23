@@ -2,11 +2,10 @@ interface Env {
   DB: D1Database;
 }
 
-// GET /api/ratings?courseId=xxx — get average ratings for all teachers of a course
-// POST /api/ratings — submit a rating { courseId, teacherId, rating, voterId }
-// DELETE /api/ratings — delete a rating { courseId, teacherId, voterId }
+// 兼容期端点（评价系统 V2 后前端已切换到 /api/reviews*，此处只服务未刷新的旧客户端）。
+// 内部改读写 reviews.overall（总体评分维度），不再碰旧 ratings 表，避免双写不一致。
+// GET /api/ratings?courseId=xxx / POST { courseId, teacherId, rating, voterId } / DELETE 同 body
 
-// 畸形 JSON body → null（调用方回 400），不再抛到运行时变 500。
 async function readBody<T>(request: Request): Promise<T | null> {
   try {
     return await request.json<T>();
@@ -15,7 +14,6 @@ async function readBody<T>(request: Request): Promise<T | null> {
   }
 }
 
-// id 类字段：非空字符串 + 长度上限（防超长垃圾写库；正常 courseId/teacherId 不超过 16，voterId 是 UUID=36）。
 function isValidId(v: unknown): v is string {
   return typeof v === "string" && v.length > 0 && v.length <= 64;
 }
@@ -31,7 +29,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     const { results } = await env.DB.prepare(
-      "SELECT teacher_id, AVG(rating) as avg_rating, COUNT(*) as count FROM ratings WHERE course_id = ? GROUP BY teacher_id"
+      "SELECT teacher_id, AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE course_id = ? AND overall IS NOT NULL GROUP BY teacher_id"
     ).bind(courseId).all();
 
     return Response.json(results, {
@@ -61,12 +59,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     try {
       await env.DB.prepare(
-        "INSERT INTO ratings (course_id, teacher_id, rating, voter_id) VALUES (?, ?, ?, ?) ON CONFLICT(course_id, teacher_id, voter_id) DO UPDATE SET rating = excluded.rating"
-      ).bind(courseId, teacherId, rating, voterId).run();
+        "INSERT INTO reviews (course_id, teacher_id, voter_id, overall) VALUES (?, ?, ?, ?) ON CONFLICT(course_id, teacher_id, voter_id) DO UPDATE SET overall = excluded.overall, updated_at = datetime('now')"
+      ).bind(courseId, teacherId, voterId, rating).run();
 
-      // Return updated average for this teacher
       const avg = await env.DB.prepare(
-        "SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM ratings WHERE teacher_id = ? AND course_id = ?"
+        "SELECT AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE teacher_id = ? AND course_id = ? AND overall IS NOT NULL"
       ).bind(teacherId, courseId).first<{ avg_rating: number; count: number }>();
 
       return Response.json({ ok: true, avgRating: avg?.avg_rating ?? rating, count: avg?.count ?? 1 });
@@ -92,13 +89,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     try {
+      // 只撤销总体评分维度；整行仅当其余维度也全空时才删（保留用户的其他维度评价）。
       await env.DB.prepare(
-        "DELETE FROM ratings WHERE course_id = ? AND teacher_id = ? AND voter_id = ?"
+        "UPDATE reviews SET overall = NULL, overall_c = NULL, updated_at = datetime('now') WHERE course_id = ? AND teacher_id = ? AND voter_id = ?"
+      ).bind(courseId, teacherId, voterId).run();
+      await env.DB.prepare(
+        "DELETE FROM reviews WHERE course_id = ? AND teacher_id = ? AND voter_id = ? AND overall IS NULL AND assess IS NULL AND attendance IS NULL AND difficulty IS NULL AND teaching IS NULL"
       ).bind(courseId, teacherId, voterId).run();
 
-      // Return updated average for this teacher (may be null if no ratings left)
       const avg = await env.DB.prepare(
-        "SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM ratings WHERE teacher_id = ? AND course_id = ?"
+        "SELECT AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE teacher_id = ? AND course_id = ? AND overall IS NOT NULL"
       ).bind(teacherId, courseId).first<{ avg_rating: number | null; count: number }>();
 
       return Response.json({

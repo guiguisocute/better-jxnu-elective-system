@@ -56,20 +56,22 @@ type cloudflareEnvelope struct {
 }
 
 type CloudflarePagesClient struct {
-	accountID string
-	apiToken  string
-	project   string
-	baseURL   string
-	http      *http.Client
+	accountID    string
+	apiToken     string
+	project      string
+	d1DatabaseID string
+	baseURL      string
+	http         *http.Client
 }
 
 func NewCloudflarePagesClient(env Environment) *CloudflarePagesClient {
 	return &CloudflarePagesClient{
-		accountID: strings.TrimSpace(env.CFAccountID),
-		apiToken:  strings.TrimSpace(env.CFAPIToken),
-		project:   strings.TrimSpace(env.CFPagesProject),
-		baseURL:   cloudflareAPIBase,
-		http:      &http.Client{Timeout: 60 * time.Second},
+		accountID:    strings.TrimSpace(env.CFAccountID),
+		apiToken:     strings.TrimSpace(env.CFAPIToken),
+		project:      strings.TrimSpace(env.CFPagesProject),
+		d1DatabaseID: strings.TrimSpace(env.CFD1DatabaseID),
+		baseURL:      cloudflareAPIBase,
+		http:         &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
@@ -114,6 +116,46 @@ func (c *CloudflarePagesClient) CreateProductionDeployment(ctx context.Context) 
 
 func (c *CloudflarePagesClient) projectPath() string {
 	return "/accounts/" + url.PathEscape(c.accountID) + "/pages/projects/" + url.PathEscape(c.project)
+}
+
+// D1Ready reports whether the account, API token, and D1 database ID are all
+// present. Querying D1 needs an API Token with Account / D1 / Edit permission.
+func (c *CloudflarePagesClient) D1Ready() bool {
+	return c != nil && c.accountID != "" && c.apiToken != "" && c.d1DatabaseID != ""
+}
+
+// D1Query runs a single parameterized statement against the bound D1 database
+// and returns the first statement's result rows plus the number of rows it
+// changed. SQL is always parameterized — never string-concatenated. The D1
+// /query endpoint returns result as an array of per-statement objects.
+func (c *CloudflarePagesClient) D1Query(ctx context.Context, sql string, params []any) ([]map[string]any, int, error) {
+	if !c.D1Ready() {
+		return nil, 0, errors.New("Cloudflare D1 凭据未配置")
+	}
+	if params == nil {
+		params = []any{}
+	}
+	payload := map[string]any{"sql": sql, "params": params}
+	var result []struct {
+		Results []map[string]any `json:"results"`
+		Success bool             `json:"success"`
+		Meta    struct {
+			Changes int `json:"changes"`
+		} `json:"meta"`
+	}
+	path := "/accounts/" + url.PathEscape(c.accountID) + "/d1/database/" + url.PathEscape(c.d1DatabaseID) + "/query"
+	if err := c.do(ctx, http.MethodPost, path, payload, &result); err != nil {
+		return nil, 0, err
+	}
+	if len(result) == 0 {
+		return nil, 0, nil
+	}
+	for _, item := range result {
+		if !item.Success {
+			return nil, 0, errors.New("D1 查询未成功执行")
+		}
+	}
+	return result[0].Results, result[0].Meta.Changes, nil
 }
 
 func (c *CloudflarePagesClient) do(ctx context.Context, method, path string, payload any, out any) error {

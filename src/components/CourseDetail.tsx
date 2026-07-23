@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { Course } from "../types";
 import { TagBadge } from "./TagBadge";
-import { StarRating } from "./StarRating";
-import { StarRatingInput } from "./StarRatingInput";
-import { ConfirmModal } from "./ConfirmModal";
 import { CopyIdButton } from "./CopyIdButton";
-import { useRatings } from "../hooks/useRatings";
-import { getVoterId } from "../lib/voter";
-import { checkMyRating, deleteMyRating, removeOptimistic } from "../lib/ratingsStore";
+import { useCourseReviews } from "../hooks/useReviews";
+import { DimensionBars } from "./ratings/DimensionBars";
+import { RatingSheet, type RatingSheetTarget } from "./ratings/RatingSheet";
 import { formatSemesterLabel } from "../lib/term";
 
 interface Props {
@@ -22,12 +20,9 @@ interface Props {
 }
 
 export function CourseDetail({ course, onClose, simMode = false, inCart = false, onToggleCart, onRequestEnableSim }: Props) {
-  const { getAvg, applyOptimistic, refresh } = useRatings(course.id);
-  const [ratingTarget, setRatingTarget] = useState<{ teacherId: string; name: string; rating: number } | null>(null);
-  const [showModal, setShowModal] = useState(false);
+  const { getDims, refresh } = useCourseReviews(course.id);
+  const [sheet, setSheet] = useState<RatingSheetTarget | null>(null);
   const [plansExpanded, setPlansExpanded] = useState(false);
-  // Track which teachers the current user has already rated
-  const [myRatings, setMyRatings] = useState<Record<string, number>>({});
 
   // 培养方案归属：按年级分组，2025→2022 倒序
   const plans = course.plans ?? [];
@@ -40,53 +35,6 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
   const degreeMajorCount = new Set(
     plans.filter((p) => p.isDegree).map((p) => `${p.year}|${p.major}|${p.direction}`)
   ).size;
-
-  // On mount, check which teachers the current user has already rated
-  useEffect(() => {
-    const voterId = getVoterId();
-    for (const t of course.teachers) {
-      checkMyRating(course.id, t.id, voterId).then((result) => {
-        if (result.rated && result.rating !== null) {
-          setMyRatings((prev) => ({ ...prev, [t.id]: result.rating! }));
-        }
-      });
-    }
-  }, [course.id, course.teachers]);
-
-  const handleSubmit = () => {
-    if (!ratingTarget) return;
-    applyOptimistic(ratingTarget.teacherId, ratingTarget.rating);
-    // Mark as my rating locally
-    setMyRatings((prev) => ({ ...prev, [ratingTarget.teacherId]: ratingTarget.rating }));
-    setRatingTarget(null);
-    setShowModal(false);
-    fetch("/api/ratings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        courseId: course.id,
-        teacherId: ratingTarget.teacherId,
-        rating: ratingTarget.rating,
-        voterId: getVoterId(),
-      }),
-    }).then(() => refresh(course.id)).catch(() => {});
-  };
-
-  const handleDelete = (teacherId: string) => {
-    const voterId = getVoterId();
-    // Remove from local state immediately
-    removeOptimistic(course.id, teacherId);
-    setMyRatings((prev) => {
-      const next = { ...prev };
-      delete next[teacherId];
-      return next;
-    });
-    setRatingTarget(null);
-    // Send delete request to server
-    deleteMyRating(course.id, teacherId, voterId)
-      .then(() => refresh(course.id))
-      .catch(() => {});
-  };
 
   return (
     <div className="h-full flex flex-col">
@@ -314,13 +262,11 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
                 任课教师 ({course.teachers.length})
               </h3>
               <p className="text-[11px] text-gray-400 leading-relaxed mb-3">
-                以下评分均为用户主观评价，仅反映其对任课教师在本课程中表现的个人看法，不代表作者立场，仅供参考
+                以下评分均为用户匿名主观评价，仅反映其对任课教师在本课程中表现的个人看法，不代表作者立场，仅供参考
               </p>
               <div className="space-y-2">
                 {course.teachers.map((t, i) => {
-                  const avg = getAvg(t.id);
-                  const isRating = ratingTarget?.teacherId === t.id;
-                  const hasMyRating = t.id in myRatings;
+                  const dims = getDims(t.id);
                   return (
                     <div key={i} className="bg-gray-50 rounded-xl px-4 py-3">
                       <div className="flex items-center gap-3.5">
@@ -336,53 +282,29 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
                             教号 {t.id} · {t.dept}
                           </div>
                         </div>
-                        {/* Rating button — show "修改评分" only if current user has rated */}
                         <button
-                          onClick={() => setRatingTarget(isRating ? null : { teacherId: t.id, name: t.name, rating: hasMyRating ? myRatings[t.id] : 0 })}
-                          className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors self-center"
-                          style={{
-                            backgroundColor: isRating ? "#FEE2E2" : hasMyRating ? "#FEF3C7" : "#FEE2E2",
-                            color: isRating ? "#DC2626" : hasMyRating ? "#D97706" : "#DC2626",
-                          }}
+                          onClick={() =>
+                            setSheet({
+                              teacherId: t.id,
+                              teacherName: t.name,
+                              courseOptions: [{ id: course.id, name: course.name }],
+                              initialCourseId: course.id,
+                            })
+                          }
+                          className="shrink-0 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors self-center"
                         >
-                          {isRating ? "收起" : hasMyRating ? "修改评分" : "评分"}
+                          ✎ 写评价
                         </button>
                       </div>
-                      <div className="flex items-center mt-2 pl-[52px]">
-                        <StarRating rating={avg?.avg_rating ?? null} count={avg?.count} />
+                      <div className="mt-3">
+                        <DimensionBars dims={dims} compact />
+                        <Link
+                          to={`/ratings?view=teacher&teacher=${encodeURIComponent(t.id)}`}
+                          className="inline-block mt-2.5 text-[11px] text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          查看这位老师的全部评价 →
+                        </Link>
                       </div>
-                      {/* Inline rating input */}
-                      {isRating && (
-                        <div className="mt-3 pl-[52px]">
-                          <StarRatingInput
-                            value={ratingTarget.rating}
-                            onChange={(v) => setRatingTarget({ ...ratingTarget, rating: v })}
-                          />
-                          <div className="flex gap-2 mt-2.5">
-                            <button
-                              onClick={() => setRatingTarget(null)}
-                              className="flex-1 py-1.5 rounded-lg border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
-                            >
-                              取消
-                            </button>
-                            {hasMyRating && (
-                              <button
-                                onClick={() => handleDelete(t.id)}
-                                className="flex-1 py-1.5 rounded-lg border border-red-200 text-[11px] text-red-500 font-medium hover:bg-red-50 transition-colors"
-                              >
-                                撤销评分
-                              </button>
-                            )}
-                            <button
-                              onClick={() => ratingTarget.rating > 0 && setShowModal(true)}
-                              disabled={ratingTarget.rating === 0}
-                              className="flex-1 py-1.5 rounded-lg bg-red-500 text-white text-[11px] font-medium hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              提交评分
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -412,14 +334,13 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
         </div>
       </div>
 
-      <ConfirmModal
-        open={showModal}
-        teacherName={ratingTarget?.name ?? ""}
-        rating={ratingTarget?.rating ?? 0}
-        existingRating={ratingTarget ? (myRatings[ratingTarget.teacherId] ?? null) : null}
-        onConfirm={handleSubmit}
-        onCancel={() => setShowModal(false)}
-      />
+      {sheet && (
+        <RatingSheet
+          target={sheet}
+          onClose={() => setSheet(null)}
+          onSubmitted={() => void refresh()}
+        />
+      )}
     </div>
   );
 }

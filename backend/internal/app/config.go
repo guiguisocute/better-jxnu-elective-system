@@ -239,6 +239,7 @@ type Environment struct {
 	CFAccountID      string
 	CFAPIToken       string
 	CFPagesProject   string
+	CFD1DatabaseID   string
 	GitSSHCommand    string
 	PythonExecutable string
 }
@@ -260,6 +261,7 @@ func LoadEnvironment() Environment {
 		CFAccountID:      os.Getenv("CF_ACCOUNT_ID"),
 		CFAPIToken:       os.Getenv("CF_API_TOKEN"),
 		CFPagesProject:   envOr("CF_PAGES_PROJECT", "jxnu-elective-plus"),
+		CFD1DatabaseID:   envOr("CF_D1_DATABASE_ID", "fa430b25-33a9-46d5-bd0c-52442971bac7"),
 		GitSSHCommand:    os.Getenv("GIT_SSH_COMMAND"),
 		PythonExecutable: envOr("PYTHON", "python3"),
 	}

@@ -2,8 +2,8 @@ interface Env {
   DB: D1Database;
 }
 
-// GET /api/ratings/check?courseId=xxx&teacherId=xxx&voterId=xxx
-// Returns { rated: boolean, rating: number | null }
+// 兼容期端点：GET /api/ratings/check?courseId=xxx&teacherId=xxx&voterId=xxx
+// 读 reviews.overall。Returns { rated: boolean, rating: number | null }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
@@ -16,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const row = await context.env.DB.prepare(
-    "SELECT rating FROM ratings WHERE course_id = ? AND teacher_id = ? AND voter_id = ?"
+    "SELECT overall AS rating FROM reviews WHERE course_id = ? AND teacher_id = ? AND voter_id = ? AND overall IS NOT NULL"
   ).bind(courseId, teacherId, voterId).first<{ rating: number }>();
 
   return Response.json({

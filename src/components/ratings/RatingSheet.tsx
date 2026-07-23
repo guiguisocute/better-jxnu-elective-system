@@ -1,0 +1,302 @@
+import { useEffect, useMemo, useState } from "react";
+import type { Dimension, ReviewSubmit } from "../../lib/reviewDimensions";
+import {
+  DIMENSIONS,
+  DIMENSION_COLORS,
+  DIMENSION_LABELS,
+  DIMENSION_STAR_TEXT,
+  starTextFor,
+} from "../../lib/reviewDimensions";
+import { fetchMyReview, submitReview } from "../../lib/reviewsStore";
+import {
+  getAvatarSeed,
+  setAvatarSeed,
+  randomAvatarSeed,
+  renderAvatar,
+  getNickname,
+  setNickname,
+} from "../../lib/avatar";
+import { getVoterId } from "../../lib/voter";
+import { StarRatingInput } from "../StarRatingInput";
+
+export interface RatingSheetTarget {
+  teacherId: string;
+  teacherName: string;
+  /** 可评的课程（该教师开的课）；多于一门时出现课程选择 */
+  courseOptions: { id: string; name: string }[];
+  initialCourseId?: string;
+}
+
+interface Props {
+  target: RatingSheetTarget;
+  onClose: () => void;
+  /** 提交成功后回调（父层刷新评语流/聚合） */
+  onSubmitted?: (courseId: string) => void;
+}
+
+type Draft = {
+  scores: Partial<Record<Dimension, number>>;
+  comments: Partial<Record<Dimension, string>>;
+};
+
+const COMMENT_FIELD: Record<Dimension, keyof ReviewSubmit> = {
+  overall: "overallC",
+  assess: "assessC",
+  attendance: "attendanceC",
+  difficulty: "difficultyC",
+  teaching: "teachingC",
+};
+
+// 匿名写评价面板（设计稿「写评价」按钮弹出）：头像/昵称 → 5 维度星级（每档实时文案 +
+// 每维度可选评语）→ 匿名发布。每一项都可不填，但至少要给一个维度打分。
+export function RatingSheet({ target, onClose, onSubmitted }: Props) {
+  const [courseId, setCourseId] = useState(
+    target.initialCourseId ?? target.courseOptions[0]?.id ?? ""
+  );
+  const [seed, setSeed] = useState(getAvatarSeed);
+  const [nickname, setNick] = useState(getNickname);
+  const [draft, setDraft] = useState<Draft>({ scores: {}, comments: {} });
+  const [openComments, setOpenComments] = useState<Partial<Record<Dimension, boolean>>>({});
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [existing, setExisting] = useState(false);
+
+  const av = renderAvatar(seed);
+  const hasScore = useMemo(
+    () => DIMENSIONS.some((d) => (draft.scores[d] ?? 0) > 0),
+    [draft.scores]
+  );
+
+  // 已提交过 → 回填（覆盖式编辑）
+  useEffect(() => {
+    if (!courseId) return;
+    let cancelled = false;
+    setLoading(true);
+    setExisting(false);
+    setDraft({ scores: {}, comments: {} });
+    setOpenComments({});
+    fetchMyReview(courseId, target.teacherId, getVoterId())
+      .then((mine) => {
+        if (cancelled || !mine) return;
+        const scores: Draft["scores"] = {};
+        const comments: Draft["comments"] = {};
+        const open: Partial<Record<Dimension, boolean>> = {};
+        for (const d of DIMENSIONS) {
+          const v = mine[d];
+          if (typeof v === "number") scores[d] = v;
+          const c = mine[`${d}C` as keyof typeof mine];
+          if (typeof c === "string" && c) {
+            comments[d] = c;
+            open[d] = true;
+          }
+        }
+        setDraft({ scores, comments });
+        setOpenComments(open);
+        setExisting(true);
+        if (mine.nickname) setNick(mine.nickname);
+        if (mine.avatar) setSeed(mine.avatar);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId, target.teacherId]);
+
+  const handleSubmit = async () => {
+    if (!courseId || !hasScore || submitting) return;
+    setSubmitting(true);
+    setError("");
+    setAvatarSeed(seed);
+    setNickname(nickname);
+    const payload: ReviewSubmit = {
+      courseId,
+      teacherId: target.teacherId,
+      voterId: getVoterId(),
+      avatar: seed,
+      nickname: nickname.trim() || null,
+    };
+    for (const d of DIMENSIONS) {
+      const score = draft.scores[d];
+      payload[d] = score && score > 0 ? score : null;
+      const comment = (draft.comments[d] ?? "").trim();
+      (payload[COMMENT_FIELD[d]] as string | null) =
+        score && score > 0 && comment ? comment.slice(0, 500) : null;
+    }
+    const ok = await submitReview(payload);
+    setSubmitting(false);
+    if (ok) {
+      onSubmitted?.(courseId);
+      onClose();
+    } else {
+      setError("提交失败，请稍后再试（本地开发无后端时不可用）");
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-lg max-h-[92vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* header */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="text-[15px] font-bold text-gray-900">
+              {existing ? "修改评价" : "写评价"} · {target.teacherName}
+            </h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              匿名发布 · 每个维度都可以只评你在意的
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="关闭"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* 课程选择（多课程教师） */}
+          {target.courseOptions.length > 1 ? (
+            <div>
+              <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">评价哪门课？</label>
+              <select
+                value={courseId}
+                onChange={(e) => setCourseId(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-800 bg-white"
+              >
+                {target.courseOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}（{c.id}）
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            target.courseOptions[0] && (
+              <p className="text-[12px] text-gray-500">
+                课程：<span className="text-gray-800 font-medium">{target.courseOptions[0].name}</span>
+              </p>
+            )
+          )}
+
+          {/* 匿名身份 */}
+          <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-3.5 py-3">
+            <span
+              className="w-11 h-11 rounded-full flex items-center justify-center text-2xl shrink-0 select-none"
+              style={{ backgroundColor: av.bg }}
+              aria-hidden
+            >
+              {av.emoji}
+            </span>
+            <div className="flex-1 min-w-0">
+              <input
+                value={nickname}
+                onChange={(e) => setNick(e.target.value.slice(0, 20))}
+                placeholder="匿名昵称（可不填）"
+                className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-[13px] bg-white"
+              />
+            </div>
+            <button
+              onClick={() => setSeed(randomAvatarSeed())}
+              className="shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 bg-white border border-gray-200 hover:text-red-500 hover:border-red-200 transition-colors"
+            >
+              换一个
+            </button>
+          </div>
+
+          {loading && <p className="text-[12px] text-gray-400 text-center">正在读取你之前的评价…</p>}
+
+          {/* 5 维度 */}
+          {DIMENSIONS.map((d) => {
+            const color = DIMENSION_COLORS[d];
+            const score = draft.scores[d] ?? 0;
+            const open = !!openComments[d];
+            return (
+              <div key={d} className="rounded-xl ring-1 ring-gray-100 px-3.5 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-semibold text-gray-800 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color.bar }} aria-hidden />
+                    {DIMENSION_LABELS[d]}
+                  </span>
+                  {score > 0 ? (
+                    <button
+                      onClick={() =>
+                        setDraft((prev) => {
+                          const scores = { ...prev.scores };
+                          delete scores[d];
+                          return { ...prev, scores };
+                        })
+                      }
+                      className="text-[11px] text-gray-400 hover:text-gray-600"
+                    >
+                      清除
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-gray-300">不评</span>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <StarRatingInput
+                    value={score}
+                    onChange={(v) => setDraft((prev) => ({ ...prev, scores: { ...prev.scores, [d]: v } }))}
+                    size={24}
+                  />
+                  <span className={`text-[12px] font-semibold ${score > 0 ? color.text : "text-gray-300"}`}>
+                    {score > 0 ? starTextFor(d, score) : `1★ ${DIMENSION_STAR_TEXT[d][0]} → 5★ ${DIMENSION_STAR_TEXT[d][4]}`}
+                  </span>
+                </div>
+                {score > 0 &&
+                  (open ? (
+                    <textarea
+                      value={draft.comments[d] ?? ""}
+                      onChange={(e) =>
+                        setDraft((prev) => ({ ...prev, comments: { ...prev.comments, [d]: e.target.value.slice(0, 500) } }))
+                      }
+                      placeholder={`关于${DIMENSION_LABELS[d]}想说的…（可不填）`}
+                      rows={2}
+                      maxLength={500}
+                      className="mt-2 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-[12px] leading-relaxed resize-y"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setOpenComments((prev) => ({ ...prev, [d]: true }))}
+                      className="mt-2 text-[11px] text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      + 写一句{DIMENSION_LABELS[d]}评语
+                    </button>
+                  ))}
+              </div>
+            );
+          })}
+
+          {error && <p className="text-[12px] text-red-500 text-center">{error}</p>}
+        </div>
+
+        {/* footer */}
+        <div className="px-5 py-3.5 border-t border-gray-100 shrink-0 flex items-center gap-3">
+          <p className="flex-1 text-[11px] text-gray-400 leading-snug">
+            重新提交会覆盖你之前对该老师这门课的评价
+          </p>
+          <button
+            onClick={handleSubmit}
+            disabled={!hasScore || !courseId || submitting}
+            className="shrink-0 px-5 py-2.5 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white text-[13px] font-bold shadow-md shadow-rose-200/70 hover:from-red-600 hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+          >
+            {submitting ? "发布中…" : "匿名发布"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
