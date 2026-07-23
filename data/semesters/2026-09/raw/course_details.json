@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-07-23T10:55:34Z",
+ "fetchedAt": "2026-07-23T11:36:47Z",
  "courses": [
   {
    "courseId": "002166",
@@ -1096,6 +1096,96 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195611",
    "fetchedAt": "2026-07-23T10:55:34Z"
+  },
+  {
+   "courseId": "269558",
+   "courseName": "视觉素养与设计过程",
+   "courseNameIdentity": "视觉素养与设计过程",
+   "credits": 4,
+   "classId": "20250089",
+   "courseSiteId": "195583",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195583",
+   "fetchedAt": "2026-07-23T11:36:40Z"
+  },
+  {
+   "courseId": "269559",
+   "courseName": "广告创意与表现Ⅰ",
+   "courseNameIdentity": "广告创意与表现Ⅰ",
+   "englishName": "Advertising design",
+   "credits": 3,
+   "description": "广告设计课程涉及视觉传达的基础、视觉广告的创意与表现、平面设计与制作的流程与方法、广告媒体的运用等方面的理论和实践。",
+   "classId": "20240064",
+   "courseSiteId": "195553",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195553",
+   "fetchedAt": "2026-07-23T11:36:41Z"
+  },
+  {
+   "courseId": "269562",
+   "courseName": "素描（含透视）",
+   "courseNameIdentity": "素描（含透视）",
+   "credits": 4,
+   "classId": "20250089",
+   "courseSiteId": "195637",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195637",
+   "fetchedAt": "2026-07-23T11:36:43Z"
+  },
+  {
+   "courseId": "269565",
+   "courseName": "信息与图标设计",
+   "courseNameIdentity": "信息与图标设计",
+   "credits": 3,
+   "classId": "20230037",
+   "courseSiteId": "195596",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195596",
+   "fetchedAt": "2026-07-23T11:36:44Z"
+  },
+  {
+   "courseId": "269566",
+   "courseName": "高级排版空间设计",
+   "courseNameIdentity": "高级排版空间设计",
+   "credits": 4,
+   "classId": "20240064",
+   "courseSiteId": "195543",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195543",
+   "fetchedAt": "2026-07-23T11:36:45Z"
+  },
+  {
+   "courseId": "269570",
+   "courseName": "平面设计史",
+   "courseNameIdentity": "平面设计史",
+   "credits": 4,
+   "classId": "20240064",
+   "courseSiteId": "195571",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195571",
+   "fetchedAt": "2026-07-23T11:36:46Z"
+  },
+  {
+   "courseId": "269729",
+   "courseName": "英语视听Ⅰ",
+   "courseNameIdentity": "英语视听Ⅰ（中外）",
+   "credits": 2,
+   "classId": "20260062",
+   "courseSiteId": "195614",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195614",
+   "fetchedAt": "2026-07-23T11:36:39Z"
+  },
+  {
+   "courseId": "292002",
+   "courseName": "生物化学实验（药学）",
+   "courseNameIdentity": "生物化学实验（药学）",
+   "credits": 1,
+   "classId": "005289$1",
+   "courseSiteId": "193937",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193937",
+   "fetchedAt": "2026-07-23T11:36:47Z"
   }
  ]
 }
