@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-07-23T08:45:58Z",
+ "fetchedAt": "2026-07-23T09:50:18Z",
  "courses": [
   {
    "courseId": "002166",
@@ -539,6 +539,142 @@
    "fetchedAt": "2026-07-23T08:45:58Z"
   },
   {
+   "courseId": "259214",
+   "courseName": "民事诉讼法学",
+   "courseNameIdentity": "民事诉讼法学",
+   "englishName": "Civil Procedural Law",
+   "credits": 3,
+   "description": "民事诉讼法学是法学科学体系中的一门基础学科，是教育部高等学校法学教育指导委员会确定的法学专业本科生十四门核心课程之一。民事诉讼法学教学在整个法学专业教育中占有重要地位，是法学专业学生专业素质培养的一门必修课程。该课程主要讲授民事诉讼的基本原则、诉讼参加人、基本制度、管辖、证据、财产保全和先予执行、法院调解、诉讼费用、诉权、诉讼期间和送达、对妨害民事诉讼的强制措施，第一审普通程序、简易程序、审判监督程序、特别程序、督促程序、公示催告程序、企业法人破产还债程序、执行程序以及得到民事诉讼程序等内容。",
+   "classId": "20241021",
+   "courseSiteId": "195529",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195529",
+   "fetchedAt": "2026-07-23T09:49:55Z"
+  },
+  {
+   "courseId": "259378",
+   "courseName": "法理学",
+   "courseNameIdentity": "法理学（3学分）",
+   "credits": 3,
+   "classId": "20250190",
+   "courseSiteId": "195538",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195538",
+   "fetchedAt": "2026-07-23T09:49:57Z"
+  },
+  {
+   "courseId": "259410",
+   "courseName": "公共管理名著导读",
+   "courseNameIdentity": "公共管理名著导读",
+   "englishName": "An Introduction to Classics in Public Administration",
+   "credits": 2,
+   "description": "《公共管理名著导读》是行政管理专业的专业任选课，课程时数为36学时。该课程主要讲授西方公共管理研究所依赖的知识基础和工具性学科，重点讲授政治科学、制度经济学、公共管理学、社会研究方法等知识，强调政治学、经济学、社会学、管理学等学科框架和综合知识。通过对西方公共管理学经典名著的导读，理解公共管理（主要含行政管理类）相关概念、范畴和原理，掌握公共管理学基本知识、基本逻辑和研究方法，学会阅读、思考和写作，拓宽知识视野、熟络基本方法，从而为专业学习和论文写作打下坚实的基础。",
+   "classId": "005273$2",
+   "courseSiteId": "195551",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195551",
+   "fetchedAt": "2026-07-23T09:49:58Z"
+  },
+  {
+   "courseId": "259673",
+   "courseName": "法理学",
+   "courseNameIdentity": "法理学（双专）",
+   "credits": 2,
+   "classId": "20261001",
+   "courseSiteId": "195570",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195570",
+   "fetchedAt": "2026-07-23T09:49:59Z"
+  },
+  {
+   "courseId": "259674",
+   "courseName": "宪法学",
+   "courseNameIdentity": "宪法学（双专）",
+   "credits": 2,
+   "classId": "20261001",
+   "courseSiteId": "195593",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195593",
+   "fetchedAt": "2026-07-23T09:50:00Z"
+  },
+  {
+   "courseId": "259675",
+   "courseName": "中国法制史",
+   "courseNameIdentity": "中国法制史（双专）",
+   "credits": 2,
+   "classId": "20261001",
+   "courseSiteId": "195627",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195627",
+   "fetchedAt": "2026-07-23T09:50:01Z"
+  },
+  {
+   "courseId": "259676",
+   "courseName": "民法学",
+   "courseNameIdentity": "民法学Ⅰ（双专）",
+   "credits": 3,
+   "classId": "20261001",
+   "courseSiteId": "195561",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195561",
+   "fetchedAt": "2026-07-23T09:50:02Z"
+  },
+  {
+   "courseId": "259681",
+   "courseName": "民事诉讼法学",
+   "courseNameIdentity": "民事诉讼法学（双专）",
+   "credits": 2,
+   "classId": "20251007",
+   "courseSiteId": "195567",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195567",
+   "fetchedAt": "2026-07-23T09:50:03Z"
+  },
+  {
+   "courseId": "259682",
+   "courseName": "刑法学",
+   "courseNameIdentity": "刑法学Ⅱ分论（双专）",
+   "credits": 2,
+   "classId": "20251007",
+   "courseSiteId": "195602",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195602",
+   "fetchedAt": "2026-07-23T09:50:04Z"
+  },
+  {
+   "courseId": "259683",
+   "courseName": "刑事诉讼法学",
+   "courseNameIdentity": "刑事诉讼法学（双专）",
+   "credits": 2,
+   "classId": "20251007",
+   "courseSiteId": "195601",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195601",
+   "fetchedAt": "2026-07-23T09:50:05Z"
+  },
+  {
+   "courseId": "259758",
+   "courseName": "党史党建",
+   "courseNameIdentity": "党史党建",
+   "credits": 1,
+   "classId": "20250190",
+   "courseSiteId": "195537",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195537",
+   "fetchedAt": "2026-07-23T09:50:07Z"
+  },
+  {
+   "courseId": "259759",
+   "courseName": "党章党规",
+   "courseNameIdentity": "党章党规",
+   "credits": 1,
+   "classId": "20250190",
+   "courseSiteId": "195554",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195554",
+   "fetchedAt": "2026-07-23T09:50:09Z"
+  },
+  {
    "courseId": "259772",
    "courseName": "大数据和人工智能（2分）",
    "courseNameIdentity": "大数据和人工智能（2分）",
@@ -561,6 +697,69 @@
    "fetchedAt": "2026-07-23T07:46:02Z"
   },
   {
+   "courseId": "260216",
+   "courseName": "大学物理实验",
+   "courseNameIdentity": "大学物理实验",
+   "englishName": "Experiments of University Physics",
+   "credits": 1,
+   "description": "课程内容是以知识点为基础的体系架构，包括：概念、知识点、原理、方法、应用。课程具体内容包含了力学、光学、电学等10余个实验，内容全面，实验类型有验证性实验、综合型实验和设计型实验，能够全面地培养和提高学生基本的科学实验素养。",
+   "classId": "006198$2",
+   "courseSiteId": "192016",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192016",
+   "fetchedAt": "2026-07-23T09:50:10Z"
+  },
+  {
+   "courseId": "260266",
+   "courseName": "线性代数基础",
+   "courseNameIdentity": "线性代数基础",
+   "englishName": "Basic linear algebra",
+   "credits": 3,
+   "description": "线性代数课程高等院校物理学专业任选课程，由于线性问题广泛存在于科学技术的各个领域，某些非线性问题在一定条件下可以转化为线性问题，尤其在计算机日益普及的今天，解大型线性方程组、求矩阵的特征值与特征向量等已经成为科技人员常遇到的课题，因此要求学生具备本课程有关的基本知识，并熟练地掌握它的方法。线性代数反映在大纲的基本内容主要是行列式、矩阵、线性方程组、向量空间、二次型这五块。线性代数课程对学生的逻辑推理、抽象分析、空间想象等能力的培养具有重要的作用。如何以线性代数课程为载体，培养学生的综合分析能力及主动探索、创新的意识。",
+   "classId": "005428$1",
+   "courseSiteId": "194568",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194568",
+   "fetchedAt": "2026-07-23T09:50:11Z"
+  },
+  {
+   "courseId": "260588",
+   "courseName": "电工实训（电子信息）",
+   "courseNameIdentity": "电工实训（电子信息）",
+   "credits": 1,
+   "classId": "003812$2",
+   "courseSiteId": "192318",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192318",
+   "fetchedAt": "2026-07-23T09:50:12Z"
+  },
+  {
+   "courseId": "262004",
+   "courseName": "高级语言程序设计",
+   "courseNameIdentity": "高级语言程序设计",
+   "englishName": "Advanced Language Programming",
+   "credits": 5,
+   "description": "本课程是为计算机信息工程学院所有专业学生开设的一门程序设计语言的必修专业基础课程，讲述C语言程序设计及基础算法设计。课程的教学目的在于培养学生学会分析问题的方法和基本问题的解决能力，初步了解程序设计的技巧和方法、掌握C语言的基本内容及程序设计的基本方法与编程技巧，培养学生掌握用计算机处理问题的思维方法，为进一步学习和应用计算机语言打下坚实的基础。并能够运用Visual C++ 6.0 Code::Blocks集成开发工具编写一些小程序，为后续开发程序和后继课程的学习打下一个坚实的基础。",
+   "classId": "20260020",
+   "courseSiteId": "192591",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192591",
+   "fetchedAt": "2026-07-23T09:50:13Z"
+  },
+  {
+   "courseId": "262379",
+   "courseName": "ICPC程序设计竞赛进阶",
+   "courseNameIdentity": "ICPC程序设计竞赛进阶",
+   "englishName": "Advanced Course of ICPC Programming Competition",
+   "credits": 3,
+   "description": "“ICPC程序设计竞赛进阶”是一门专业任选课，在培养学生编程能力课程体系中极其重要。通过该课程的学习，学生能够通过准备和参与程序设计竞赛的方式，深入学习进阶算法思想。本课程能够激发学生学习算法和程序设计的兴趣，激励学生运用计算机编程技术和技能解决实际问题，培养团队合作意识、挑战精神和创新潜力。本课程主要培养学生以下几种能力：逻辑推理、数学建模、编程实现及英语阅读能力。为学习其余相关课程和参加程序设计竞赛奠定基础。",
+   "classId": "002013$1",
+   "courseSiteId": "195544",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195544",
+   "fetchedAt": "2026-07-23T09:50:14Z"
+  },
+  {
    "courseId": "262572",
    "courseName": "高级语言程序设计",
    "courseNameIdentity": "高级语言程序设计（中外）",
@@ -572,6 +771,45 @@
    "fetchedAt": "2026-07-23T07:46:03Z"
   },
   {
+   "courseId": "263246",
+   "courseName": "建筑结构",
+   "courseNameIdentity": "建筑结构（3分）",
+   "englishName": "Building structure",
+   "credits": 3,
+   "description": "本课程主要介绍建筑材料的力学性能、多高层结构布置及设计计算方法、建筑结构选型的基本原则和房屋抗震设计的基本知识。",
+   "classId": "20241022",
+   "courseSiteId": "192966",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192966",
+   "fetchedAt": "2026-07-23T09:50:15Z"
+  },
+  {
+   "courseId": "263376",
+   "courseName": "建筑材料学",
+   "courseNameIdentity": "建筑材料学（2分）",
+   "englishName": "Building Materials",
+   "credits": 2,
+   "description": "本课程是土木工程专业本科学习的一门重要的专业基础课程，它主要 围绕土木工程材料的基本性能、工程应用和性能评价三条主线，培养学生了解土木工程材料工程应用的思维方式和性能研究方法，对常用建筑材料的产源、成分、构造、性能和应用等方面，作扼要的论述和介绍，使初学者具备建筑材料使用的基本知识，为学生今后从事建筑施工管理工作打下基础。",
+   "classId": "20250193",
+   "courseSiteId": "192961",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192961",
+   "fetchedAt": "2026-07-23T09:50:16Z"
+  },
+  {
+   "courseId": "264127",
+   "courseName": "新媒体概论",
+   "courseNameIdentity": "新媒体概论",
+   "englishName": "Introduction New Media",
+   "credits": 2,
+   "description": "《新媒体概论》这门课程概括地介绍三个方面的内容：其一，关于新媒体历史的历时性回顾；其二，关于新媒体的本体性界说；其三，关于当下新媒体与社会的共时性分析。第一部分，关于新媒体历史的历史性回顾，涉及人类社会的四次传播革命、新媒体的兴起和发展历程、当前的新媒体革命即第四次传播革命在人类社会传播史上乃至人类历史上的重要意义。第二部分，关于新媒体的本体性界说，包括新媒体的内涵、外延、本质、特征、具体形态与类型等内容。第三部分，关于当下新媒体与社会的共时性分析，涵盖了新媒体条件下传媒产业格局重构与媒介融合、新闻生产的转变、民主政治的实现、网络亚文化与社会思潮、经济转型与新的经济逻辑、新媒体伦理与治理、网络媒介素养等问题。",
+   "classId": "005402$1",
+   "courseSiteId": "195636",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195636",
+   "fetchedAt": "2026-07-23T09:50:17Z"
+  },
+  {
    "courseId": "264683",
    "courseName": "智能广告视觉设计",
    "courseNameIdentity": "智能广告视觉设计",
@@ -581,6 +819,19 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195619",
    "fetchedAt": "2026-07-23T07:46:04Z"
+  },
+  {
+   "courseId": "2650090",
+   "courseName": "艺术考察（美术学院）",
+   "courseNameIdentity": "艺术考察（美术学院）",
+   "englishName": "Art review",
+   "credits": 4,
+   "description": "艺术史的学习除了文献，还需实地考察。学生在老师带领下对于一系列文物、遗址、文化群落等的考察过程中，书本和文献中学到的知识得以证实，新的兴趣点和问题被提出来。这就是艺术考察不可被替代的价值之所在。",
+   "classId": "20230110",
+   "courseSiteId": "194840",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194840",
+   "fetchedAt": "2026-07-23T09:50:18Z"
   },
   {
    "courseId": "266336",
