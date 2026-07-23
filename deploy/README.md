@@ -1,170 +1,170 @@
-# 实时授课人数服务（test）
+# VPS Go 后端部署与管理
 
-`tools/kkap_monitor.py` 读取教务处公开的 `Public_Kkap.aspx`，不需要 CAS、账号或密码。
-`tools/kkap_service.py` 在后台每 30 秒抓取一次，去重多时段行后从内存提供只读 JSON：
+VPS 后端已经收敛为一个 Go 二进制 `jxnu-backend`。它同时负责：
 
-- `GET /healthz`：最近刷新时间、状态、条数和错误。
-- `GET /api/enrollments`：`[课程名, 班级名, 教师, 已选人数]` 紧凑数组。
+- `127.0.0.1:8787`：公开实时人数、公开运行配置和健康检查；
+- `127.0.0.1:8788`：Cloudflare Pages Function 调用的学号实时课表；
+- `127.0.0.1:8790`：只允许通过 SSH 隧道访问的中文管理面板；
+- `jxnu-backend sync`：每小时抓开课安排与容量、执行安全闸、运行 `build_data.py`、提交并推送。
 
-服务失败时继续提供最后一次成功快照；前端异步刷新，不会阻塞课程浏览。
+常驻层不再运行 `kkap_service.py`、`live_service.py` 或 `admin_service.py`。Python 只保留为构建期数据流水线；`build_data.py` 的字段优先级和幂等规则不在这次迁移中改变。
 
-## VPS 目录
+## 进入管理面板
+
+在自己的电脑上运行，并保持这个终端窗口打开：
+
+```bash
+ssh -L 8790:127.0.0.1:8790 29HK
+```
+
+浏览器打开：
 
 ```text
-~/apps/jxnu-kkap/
-├── kkap_monitor.py
-├── kkap_service.py
-└── kkap.env
+http://127.0.0.1:8790
 ```
 
-`kkap.env` 以 `deploy/kkap.env.example` 为模板。测试阶段 CORS 只允许：
-
-- `https://test.better-jxnu-elective-system.pages.dev`
-- 本地 Vite 的 `localhost:5173` / `127.0.0.1:5173`
-
-用户级 systemd 单元安装到 `~/.config/systemd/user/kkap-realtime.service`：
+输入安装时生成或从旧面板迁移的管理密码。忘记密码时，在 VPS 上查看：
 
 ```bash
-systemctl --user daemon-reload
-systemctl --user enable --now kkap-realtime.service
-sudo loginctl enable-linger "$USER"
-curl http://127.0.0.1:8787/healthz
+grep '^ADMIN_PASSWORD=' ~/apps/jxnu-backend/backend.env
 ```
 
-如果当前账号不能执行 `loginctl enable-linger`，使用仓库内 `run-kkap.sh` 配合用户 crontab：
+面板只监听 VPS 回环地址，公网域名无法打开它；即使 Caddy 配错，也没有管理路由暴露在 8787/8788 上。
+
+## 面板里的四个日常选项
+
+“日常设置”页只展示业务语义，不再要求维护者理解 env 键名：
+
+| 面板选项 | 实际作用 | 生效方式 |
+| --- | --- | --- |
+| 网站默认打开哪个阶段 | 新会话默认显示预选 / 正选 / 补退选；用户主动切换后仍尊重用户选择 | 立即生效 |
+| 实时人数显示在哪个学期 | 同时决定后端快照的 `semester` 和前端在哪个学期开启轮询 | 立即刷新并生效 |
+| 每小时把新数据写入哪个学期 | 决定同步任务写入 `data/semesters/<学期>/raw/` 的目录 | 下一轮同步生效 |
+| 查学号时使用哪一学期的实时课表 | 自动跟随教务，或后端真实切换到指定教务学期；指定后不计入更晚的预建学期 | 清缓存后立即生效 |
+
+学号学期既能从下拉列表选，也能直接输入将来新增的值，例如 `27-28第1学期`。后端会校验该学期是否真实出现在教务下拉框；不存在时返回明确错误，Cloudflare Function 会照旧回落 D1 快照。
+
+“高级设置”折叠了刷新频率、容量开关/阶段、礼貌延迟、异常数据安全闸和 CORS 白名单。学校关闭选课期间保持“容量抓取”关闭；开选后再开启。关闭只跳过无法验证的联网探测，不会删除或覆盖上一份容量数据。
+
+## 本地构建与首次部署
+
+VPS 不需要安装 Go。在开发机仓库根目录交叉编译：
 
 ```bash
-@reboot /home/guiguisocute/apps/jxnu-kkap/run-kkap.sh # jxnu-kkap
+mkdir -p dist
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go build -C backend -trimpath -ldflags="-s -w" -o ../dist/jxnu-backend ./cmd/jxnu-backend
+scp dist/jxnu-backend 29HK:/tmp/jxnu-backend
 ```
 
-`run-kkap.sh` 使用 `flock` 保证只运行一个实例；首次部署时用 `nohup setsid` 启动同一脚本。
-
-## 域名与反代
-
-Caddy 配置见 `deploy/Caddyfile.getxk`。Debian VPS 首次部署：
+然后登录 VPS：
 
 ```bash
-sudo apt-get install -y caddy
-sudo install -o root -g root -m 0644 Caddyfile /etc/caddy/Caddyfile
-sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 443/udp
-sudo systemctl restart caddy
+cd ~/better-jxnu-elective-system
+git pull --ff-only
+./deploy/install-backend.sh /tmp/jxnu-backend
 ```
 
-TCP 80/443 用于 HTTP/HTTPS 和自动签发证书，UDP 443 用于 HTTP/3。
+安装脚本会：
 
-在 Cloudflare 为 `jxnu-publish.asia` 新增记录：
+1. 复制二进制、配置模板和三个 user-systemd 单元；
+2. 首次安装时从旧 `jxnu-live` / `jxnu-kkap` / `jxnu-admin` env 安全迁移凭据；
+3. 停止占用旧端口的 Python 服务并启动 Go 服务；
+4. 检查 8787、8788、8790；任一失败会自动恢复旧服务；
+5. 新服务健康后禁用旧 Python 单元，但保留原文件以便人工回滚。
+
+如果 VPS 已安装合适版本的 Go，也可以直接运行 `./deploy/install-backend.sh`，脚本会在 VPS 构建。
+
+## 升级
+
+重复执行同一流程即可。`backend.env` 与 `config.json` 不会被覆盖：
+
+```bash
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go build -C backend -trimpath -ldflags="-s -w" -o ../dist/jxnu-backend ./cmd/jxnu-backend
+scp dist/jxnu-backend 29HK:/tmp/jxnu-backend
+ssh 29HK 'cd ~/better-jxnu-elective-system && git pull --ff-only && ./deploy/install-backend.sh /tmp/jxnu-backend'
+```
+
+## 配置文件
 
 ```text
-Type: A
-Name: getxk
-IPv4: <VPS 公网 IP>
-Proxy: 首次签发证书时 DNS only（灰云）；验证 HTTPS 后可切换 Proxied（橙云）
-TTL: Auto
+~/apps/jxnu-backend/
+├── jxnu-backend       # 单个静态二进制
+├── backend.env        # 密码/密钥/账号，chmod 600
+├── config.json        # 面板维护的普通业务设置，chmod 600
+├── last_sync.json     # 最近一次同步状态
+└── sync.lock          # 管理面板与 timer 的跨进程互斥锁
 ```
 
-等待 DNS 生效后验证：
+- `backend.env` 模板：[`backend.env.example`](backend.env.example)
+- `config.json` 模板：[`backend.config.example.json`](backend.config.example.json)
+
+普通设置不要再写进 env。面板保存 `config.json` 时使用临时文件 + `fsync` + 原子替换，三个服务会热读取或在下一次任务开始时读取，无需重启。
+
+修改账号、密码或密钥后才需要重启：
+
+```bash
+chmod 600 ~/apps/jxnu-backend/backend.env
+systemctl --user restart jxnu-backend.service
+```
+
+`LIVE_SECRET` 仍须与 Cloudflare Pages 的同名 secret 一致。
+
+## 服务、日志与手动操作
+
+```bash
+systemctl --user status jxnu-backend.service
+systemctl --user status jxnu-sync.timer
+systemctl --user list-timers jxnu-sync.timer
+journalctl --user -u jxnu-backend.service -n 100 --no-pager
+journalctl --user -u jxnu-sync.service -n 100 --no-pager
+```
+
+手动同步优先点面板“任务 → 立即同步一次”，也可以运行：
+
+```bash
+systemctl --user start jxnu-sync.service
+```
+
+同步仍有三道闸：公开开课行数、构建后教学班数、容量可见课程数。容量阶段不对或教务登录失败时只保留旧容量，不阻止公开开课安排更新；仓库非干净或 `git pull --ff-only` 失败时直接停止，绝不强推。
+
+## HTTP 契约
+
+| 路径 | 端口 | 说明 |
+| --- | --- | --- |
+| `GET /healthz` | 8787 | 实时人数状态；无首份快照时 503 |
+| `GET /api/enrollments` | 8787 | 与旧前端兼容的紧凑人数数组，支持 ETag/gzip/CORS |
+| `GET /api/config` | 8787 | 无敏感运行配置；前端读取失败时回落静态 `app_config.json` |
+| `GET /healthz` | 8788 | 学号服务、登录、缓存、学期状态 |
+| `GET /student-record?sid=` | 8788 | 需 `X-Live-Secret`；响应形状与旧服务/D1 完全兼容 |
+| 管理面板 | 8790 | 登录、CSRF、8 小时内存会话，仅回环 |
+
+## Caddy
+
+现有 [`Caddyfile.getxk`](Caddyfile.getxk) 不需要改路径：
+
+- `/live/*` 反代到 `127.0.0.1:8788`；
+- 其他公开请求反代到 `127.0.0.1:8787`。
+
+验证：
 
 ```bash
 curl https://getxk.jxnu-publish.asia/healthz
+curl https://getxk.jxnu-publish.asia/api/config
 curl -H 'Origin: https://test.better-jxnu-elective-system.pages.dev' \
   -I https://getxk.jxnu-publish.asia/api/enrollments
 ```
 
-正式站启用前，再把正式 Pages 域名加入 `KKAP_ALLOWED_ORIGINS`；测试阶段不要加入。
+Go HTTP 层只记录结构化服务事件，不再把公网扫描的每个 404/501 写入 journal。
 
----
+## 回滚到旧 Python 服务
 
-## 开课安排 + 实时容量安全增量同步（sync-schedule）
-
-无登录抓 `Public_Kkap.aspx`（开课安排/增班）→ 复用旧 enrichment → 真账号登录 xk 实抓教学班容量
-（`tools/crawl_capacity.py`）→ `build_data.py` → 校验 → 仅在有变化时 `git push`（触发 CF Pages 部署）。
-VPS 全自动，每小时一次，不再手动「油猴 + 构建 + 提交」/手动跑容量爬虫。
-
-**为什么安全**
-- 开课安排 base 是 Public_Kkap 的**当前全量快照**，全替换、不累加陈旧行（根治旧版「无脑加超集」）。
-- 教号(UserNum)等 enrichment 从上一份已提交的 `formal_schedule.json` 按 `(课程号,班级号,教师)` **复用**，只有全新教学班才缺（教号走姓名兜底，实测仅个位数差异）。
-- 容量爬取失败（登录挂了/网络问题）或可见课程数过少（选课阶段变了导致 `Step` 前缀失配，见 `tools/crawl_capacity.py` 头部注释）时，**丢弃当次容量结果、保留仓库里上一份**，不影响开课安排那部分照常 push。
-- 三道闸：开课安排抓取行数 `< --min-rows(6000)` 拒绝输出；`git pull --ff-only` 分叉就放弃（不强推，保你手动改动）；产物 `formal_sections < 7000` 回滚不推。
-
-**一次性部署（VPS）**
-```bash
-# 1) 仓库已加 Deploy Key(写)，用 SSH remote 克隆到家目录
-git clone git@github.com:guiguisocute/better-jxnu-elective-system.git ~/better-jxnu-elective-system
-cd ~/better-jxnu-elective-system
-git config user.email "vps@jxnu-publish.asia" && git config user.name "jxnu-vps"
-
-# 2) 容量爬取凭据：复制模板到 kkap.env 同目录（仓库外，不随 git 同步），填真账号密码
-cp deploy/sync.env.example ~/apps/jxnu-kkap/sync.env
-chmod 600 ~/apps/jxnu-kkap/sync.env
-vi ~/apps/jxnu-kkap/sync.env   # XK_USERNAME / XK_PASSWORD / XK_STEP
-
-# 3) 装 timer（每小时一次；选课季可调密，也可临时改稀）
-mkdir -p ~/.config/systemd/user
-cp deploy/kkap-schedule.service deploy/kkap-schedule.timer ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now kkap-schedule.timer
-
-# 4) 手动验证一次
-./deploy/sync-schedule.sh
-systemctl --user list-timers | grep kkap-schedule
-```
-
-**选课阶段变了、容量长期被跳过时**：先用 `python3 tools/crawl_capacity.py --probe 3` 核对 `Default_config.aspx`
-回显的当前阶段和实际能拿到数据的 `Step` 前缀，改 `~/apps/jxnu-kkap/sync.env` 里的 `XK_STEP` 即可，不用改代码。
-
----
-
-## 管理面板（jxnu-admin）
-
-`tools/admin_service.py` 是部署在 VPS 上的运维配置 WebUI（单文件、Python 3.11 标准库、零第三方依赖；
-仅 Cloudflare API 部分可选用系统级 requests）。只绑 `127.0.0.1:8790`，**不暴露公网**。
-
-能干什么：总览各服务状态与六个学期旋钮的一致性检查 / 切换当前学期（isCurrent）/
-编辑 `data/build_config.json` / 白名单编辑三个 env 文件（kkap / sync / live）/
-重启服务、手动触发同步、探测容量阶段 / 改 Cloudflare Pages 环境变量并触发部署 / 看 journalctl 日志。
-所有仓库写操作走 `repo_op`（停 kkap-schedule.timer → 等 service 空闲 → flock sync.lock →
-`git pull --ff-only` → 改文件 → `build_data.py` + sanity → commit/push → 恢复 timer），与每小时同步互斥。
-
-### 安装（VPS 上，幂等可重跑）
+仅在新服务无法启动且安装脚本未自动恢复时使用：
 
 ```bash
-cd ~/better-jxnu-elective-system && git pull --ff-only
-./deploy/install-admin.sh
+systemctl --user disable --now jxnu-backend.service jxnu-sync.timer
+systemctl --user enable --now kkap-realtime.service jxnu-live.service jxnu-admin.service kkap-schedule.timer
 ```
 
-首次运行会生成 `~/apps/jxnu-admin/admin.env`（600 权限）并 **echo 一个随机 ADMIN_PASSWORD——立刻保存**。
-之后重跑只更新 `admin_service.py` 与 unit 并重启，不动 admin.env。
-
-### 访问（SSH 隧道）
-
-```bash
-ssh -L 8790:127.0.0.1:8790 <VPS别名>   # <VPS别名> = 本地 ~/.ssh/config 里配好的主机别名（含跳板/密钥）
-```
-
-保持该连接，然后浏览器打开 `http://127.0.0.1:8790`，用 admin.env 里的 `ADMIN_PASSWORD` 登录。
-
-### admin.env 键说明
-
-| 键 | 说明 |
-| --- | --- |
-| `ADMIN_BIND` / `ADMIN_PORT` | 监听地址/端口，默认 `127.0.0.1:8790`，别改成公网地址 |
-| `ADMIN_PASSWORD` | 登录密码（必填；安装脚本自动生成随机值） |
-| `REPO_DIR` | 仓库 clone 位置，repo_op 的 git / build_data.py 在此执行 |
-| `KKAP_ENV` / `SYNC_ENV` / `LIVE_ENV` | 三个服务 env 文件路径（面板做白名单键编辑，写回后 chmod 600） |
-| `SYNC_LOCK` | 与每小时同步互斥的 flock 锁文件路径 |
-| `CF_ACCOUNT_ID` / `CF_API_TOKEN` / `CF_PAGES_PROJECT` | Cloudflare Pages API（可空；不配则 /ai 页只显示指引） |
-
-### Cloudflare API Token 创建指引
-
-dash.cloudflare.com → 右上角 **My Profile** → **API Tokens** → **Create Token** → **Create Custom Token**：
-
-- Permissions：`Account / Cloudflare Pages / Edit`
-- Account Resources：选自己的账号
-- 建好后把 token 填进 `admin.env` 的 `CF_API_TOKEN`，Account ID（dashboard 任意域概览页右侧栏）填 `CF_ACCOUNT_ID`，
-  然后 `systemctl --user restart jxnu-admin`。
-
-注意：面板里改 `LIVE_SECRET` 必须 **VPS 侧（live.env）与 Cloudflare 侧（/ai 页）两边同步**，
-否则学号实时导入会回落 D1 快照；Cloudflare 环境变量改完需触发新部署（/ai 页有按钮）才生效。
+旧服务目录和旧 user unit 在确认新后端稳定前不要删除。

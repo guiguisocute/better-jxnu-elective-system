@@ -44,13 +44,16 @@ const FORMAL_AUTO_EXPAND_GROUP_LIMIT = 30;
 // 若默认展开会导致一进页面就被抽屉+毛玻璃遮罩糊脸。
 const SIDEBAR_INLINE_MIN_W = 1700;
 
-function loadDataSource(): DataSource {
+function storedDataSource(): DataSource | null {
+  if (typeof window === "undefined") return null;
+  const v = sessionStorage.getItem(DATA_SOURCE_KEY);
+  return v === "pre" || v === "formal" || v === "addDrop" ? v : null;
+}
+
+function loadDataSource(fallback: DataSource): DataSource {
   // 默认进「正选」（学期由下方兜底 effect 落到最新 = 2026-09）；
   // 同会话内已切到预选/补退选的选择仍被 sessionStorage 尊重。
-  if (typeof window === "undefined") return "formal";
-  const v = sessionStorage.getItem(DATA_SOURCE_KEY);
-  if (v === "pre" || v === "formal" || v === "addDrop") return v;
-  return "formal";
+  return storedDataSource() ?? fallback;
 }
 
 // 按学校学期惯例算"当前学期"key：月份 2-7 → 03（春），其余 → 09（秋）；1 月归上一年的 09。
@@ -119,7 +122,16 @@ export function HomePage() {
   const appConfig = useAppConfig();
 
   // 数据源切换：预选 / 正选 / 补退选。初值从 sessionStorage 恢复。
-  const [dataSource, setDataSource] = useState<DataSource>(() => loadDataSource());
+  const hadSavedDataSource = useRef(storedDataSource() !== null);
+  const [dataSource, setDataSource] = useState<DataSource>(() => loadDataSource(appConfig.defaultDataSource));
+  const changeDataSource = useCallback((next: DataSource) => {
+    hadSavedDataSource.current = true;
+    setDataSource(next);
+  }, []);
+  useEffect(() => {
+    // 动态 VPS 配置通常在首屏后到达；仅当用户没有历史选择、也尚未主动切换时应用默认值。
+    if (!hadSavedDataSource.current) setDataSource(appConfig.defaultDataSource);
+  }, [appConfig.defaultDataSource]);
   useEffect(() => {
     sessionStorage.setItem(DATA_SOURCE_KEY, dataSource);
   }, [dataSource]);
@@ -894,7 +906,7 @@ export function HomePage() {
     schedule.clear();
     setQuickRatingActive(true);
     setHintsDismissed(true);
-    setDataSource("formal");
+    changeDataSource("formal");
     setSemesterByDS((prev) => ({ ...prev, formal: quickRatingSemester }));
     filter.setRatingSortAsc(false);
     setFormalPage(1);
@@ -905,7 +917,7 @@ export function HomePage() {
     setMobileSection(null);
     if (showMobileFilter) closeMobileFilter();
     window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
-  }, [closeMobileFilter, filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule, showMobileFilter]);
+  }, [changeDataSource, closeMobileFilter, filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule, showMobileFilter]);
 
   if (loading) {
     return (
@@ -1333,7 +1345,7 @@ export function HomePage() {
             selectedPlan={filter.filters.plan}
             dataSource={dataSource}
             onChangeDataSource={(v) => {
-              setDataSource(v);
+              changeDataSource(v);
               // 任意点击数据源 tab（含已选中的红色「正选」）都退出快速评价，回到正常列表。
               setQuickRatingActive(false);
             }}

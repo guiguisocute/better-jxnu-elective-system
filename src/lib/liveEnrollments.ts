@@ -4,6 +4,15 @@ export const LIVE_ENROLLMENT_API = (
   import.meta.env.VITE_KKAP_API_URL || "https://getxk.jxnu-publish.asia/api/enrollments"
 ).replace(/\/$/, "");
 
+/**
+ * VPS Go 后端公开的无敏感运行配置。默认由实时人数 URL 同源推导；如部署路径特殊，
+ * 可用 VITE_BACKEND_CONFIG_URL 单独覆盖。后端不可达时 appConfig 会回落静态产物。
+ */
+export const BACKEND_CONFIG_API = (
+  import.meta.env.VITE_BACKEND_CONFIG_URL
+  || LIVE_ENROLLMENT_API.replace(/\/api\/enrollments$/, "/api/config")
+).replace(/\/$/, "");
+
 export const LIVE_ENROLLMENT_SEMESTER = import.meta.env.VITE_KKAP_SEMESTER || "2026-09";
 
 export type LiveEnrollmentItem = [courseName: string, className: string, teacher: string, enrolled: number];

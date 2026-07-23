@@ -15,6 +15,7 @@
 [![Apache ECharts](https://img.shields.io/badge/Apache_ECharts-6-AA344D?style=for-the-badge&logo=apacheecharts&logoColor=white)](https://echarts.apache.org/)
 [![ESLint](https://img.shields.io/badge/ESLint-10-4B32C3?style=for-the-badge&logo=eslint&logoColor=white)](https://eslint.org/)
 [![Python](https://img.shields.io/badge/Python-Data_Pipeline-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Go](https://img.shields.io/badge/Go-VPS_Backend-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
 
 [![Cloudflare Pages](https://img.shields.io/badge/Cloudflare_Pages-Hosting-F38020?style=for-the-badge&logo=cloudflarepages&logoColor=white)](https://pages.cloudflare.com/)
 [![Cloudflare D1](https://img.shields.io/badge/Cloudflare_D1-Database-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/d1/)
@@ -60,6 +61,25 @@ python build_data.py   # 由 data/master_raw + data/semesters/<sem>/raw 生成 p
 
 前端托管于 **Cloudflare Pages**（从 `main` 分支自动部署）；教师评分与学号档案存于 **Cloudflare D1**，通过 Pages Functions（`functions/api/`）读写。
 
+VPS 上的实时人数、学号实时课表、管理面板和自动同步由单个 Go 后端提供。完整部署说明见 [`deploy/README.md`](deploy/README.md)。
+
+### 进入 VPS 管理面板
+
+在本机运行并保持终端打开：
+
+```bash
+ssh -L 8790:127.0.0.1:8790 29HK
+```
+
+然后访问 [http://127.0.0.1:8790](http://127.0.0.1:8790)，输入安装时生成或从旧面板迁移的管理密码。面板的“日常设置”可直接选择：
+
+- 网站默认显示预选、正选或补退选；
+- 实时人数对应学期；
+- 自动同步写入学期；
+- 学号实时课表自动跟随或指定的教务学期（支持直接输入新增学期）。
+
+这些设置热更新，不需要手改多个 env 或逐个重启服务。面板只监听 VPS 的 `127.0.0.1`，不能从公网直接访问。
+
 ## 技术栈
 
-React 19 · TypeScript 6 · Vite 8 · Tailwind CSS 4 · React Router 7 · Apache ECharts 6 · ESLint 10 · Cloudflare Pages Functions + D1 · Python 数据流水线
+React 19 · TypeScript 6 · Vite 8 · Tailwind CSS 4 · React Router 7 · Apache ECharts 6 · ESLint 10 · Go VPS 后端 · Cloudflare Pages Functions + D1 · Python 构建期数据流水线

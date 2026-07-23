@@ -1,0 +1,18 @@
+[Unit]
+Description=JXNU elective Go backend (enrollment + live schedule + admin)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/better-jxnu-elective-system
+EnvironmentFile=%h/apps/jxnu-backend/backend.env
+ExecStart=%h/apps/jxnu-backend/jxnu-backend serve
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

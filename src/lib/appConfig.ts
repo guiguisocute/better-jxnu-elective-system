@@ -3,7 +3,7 @@
 // fetch 失败 / 产物缺失（如 npm run dev 未跑过 build_data）→ 静默回落 DEFAULTS，
 // DEFAULTS 与历史编译期常量完全等价，保证默认行为不变。
 import { useSyncExternalStore } from "react";
-import { LIVE_ENROLLMENT_SEMESTER } from "./liveEnrollments";
+import { BACKEND_CONFIG_API, LIVE_ENROLLMENT_SEMESTER } from "./liveEnrollments";
 import { setTestSemesters } from "./term";
 
 export interface AppFeatureFlags {
@@ -14,6 +14,8 @@ export interface AppFeatureFlags {
 }
 
 export interface AppConfig {
+  /** 新会话默认进入的选课阶段；用户在当前会话主动切换后优先尊重用户选择。 */
+  defaultDataSource: "pre" | "formal" | "addDrop";
   /** 测试学期集合（正选/补退选视图加「（测试）」后缀），加载成功后注入 term.ts。 */
   testSemesters: string[];
   /** 实时人数只在该学期开启（HomePage 的 enabled 比较）。 */
@@ -22,6 +24,7 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
+  defaultDataSource: "formal",
   testSemesters: [],
   liveEnrollmentSemester: LIVE_ENROLLMENT_SEMESTER,
   featureFlags: { studentImport: true, aiPick: true },
@@ -61,14 +64,19 @@ async function readJson(res: Response): Promise<unknown> {
 }
 
 /** 逐字段校验回落：产物字段缺失/类型不对时用 DEFAULTS 对应项，绝不让坏值进 store。 */
-function normalize(raw: unknown): AppConfig {
-  const d = APP_CONFIG_DEFAULTS;
+function normalize(raw: unknown, d: AppConfig = APP_CONFIG_DEFAULTS): AppConfig {
   if (!raw || typeof raw !== "object") return d;
   const data = raw as Record<string, unknown>;
   const flags = (
     data.featureFlags && typeof data.featureFlags === "object" ? data.featureFlags : {}
   ) as Record<string, unknown>;
   return {
+    defaultDataSource:
+      data.defaultDataSource === "pre"
+      || data.defaultDataSource === "formal"
+      || data.defaultDataSource === "addDrop"
+        ? data.defaultDataSource
+        : d.defaultDataSource,
     testSemesters: Array.isArray(data.testSemesters)
       ? data.testSemesters.filter((s): s is string => typeof s === "string")
       : d.testSemesters,
@@ -92,16 +100,18 @@ export function loadAppConfig(): void {
   if (loadStarted) return;
   loadStarted = true;
   void (async () => {
-    try {
-      const res = await fetch("/app_config.json", { cache: "no-cache" });
-      const raw = await readJson(res);
-      if (raw == null) return; // 无产物 / 非 JSON → 静默用 DEFAULTS，零报错
-      snapshot = normalize(raw);
-      setTestSemesters(snapshot.testSemesters); // 注入 term.ts 的测试学期集合
-      notify();
-    } catch {
-      // 网络异常同样静默回落 DEFAULTS
-    }
+    // 静态产物负责测试学期/功能开关；VPS 运行配置覆盖两个日常字段，保存后无需
+    // 等待 Cloudflare Pages 重新构建。任一来源失败都独立回落，不互相拖累。
+    const [staticResult, runtimeResult] = await Promise.allSettled([
+      fetch("/app_config.json", { cache: "no-cache" }).then(readJson),
+      fetch(BACKEND_CONFIG_API, { cache: "no-cache", headers: { Accept: "application/json" } }).then(readJson),
+    ]);
+    const staticRaw = staticResult.status === "fulfilled" ? staticResult.value : null;
+    const runtimeRaw = runtimeResult.status === "fulfilled" ? runtimeResult.value : null;
+    const staticConfig = normalize(staticRaw);
+    snapshot = normalize(runtimeRaw, staticConfig);
+    setTestSemesters(snapshot.testSemesters); // 注入 term.ts 的测试学期集合
+    notify();
   })();
 }
 

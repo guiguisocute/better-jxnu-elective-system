@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "defaultDataSource": "formal",
+  "liveEnrollmentSemester": "2026-09",
+  "scheduleSyncSemester": "2026-09",
+  "studentScheduleTerm": "",
+  "enrollmentRefreshSeconds": 30,
+  "studentCacheSeconds": 600,
+  "capacityEnabled": false,
+  "capacityStep": "Step3",
+  "capacityDelayMilliseconds": 100,
+  "minScheduleRows": 6000,
+  "minFormalSections": 7000,
+  "minCapacityVisible": 300,
+  "allowedOrigins": [
+    "https://xk.jxnu-publish.asia",
+    "https://test.better-jxnu-elective-system.pages.dev",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+  ]
+}
