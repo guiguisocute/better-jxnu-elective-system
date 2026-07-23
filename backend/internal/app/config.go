@@ -28,37 +28,55 @@ var (
 // RuntimeConfig contains the ordinary operational choices that should take
 // effect immediately. Secrets stay in the systemd EnvironmentFile.
 type RuntimeConfig struct {
-	Version                   int      `json:"version"`
-	DefaultDataSource         string   `json:"defaultDataSource"`
-	LiveEnrollmentSemester    string   `json:"liveEnrollmentSemester"`
-	ScheduleSyncSemester      string   `json:"scheduleSyncSemester"`
-	StudentScheduleTerm       string   `json:"studentScheduleTerm"`
-	EnrollmentRefreshSeconds  int      `json:"enrollmentRefreshSeconds"`
-	StudentCacheSeconds       int      `json:"studentCacheSeconds"`
-	CapacityEnabled           bool     `json:"capacityEnabled"`
-	CapacityStep              string   `json:"capacityStep"`
-	CapacityDelayMilliseconds int      `json:"capacityDelayMilliseconds"`
-	MinScheduleRows           int      `json:"minScheduleRows"`
-	MinFormalSections         int      `json:"minFormalSections"`
-	MinCapacityVisible        int      `json:"minCapacityVisible"`
-	AllowedOrigins            []string `json:"allowedOrigins"`
+	Version                            int      `json:"version"`
+	DefaultDataSource                  string   `json:"defaultDataSource"`
+	LiveEnrollmentSemester             string   `json:"liveEnrollmentSemester"`
+	ScheduleSyncSemester               string   `json:"scheduleSyncSemester"`
+	StudentScheduleTerm                string   `json:"studentScheduleTerm"`
+	EnrollmentRefreshSeconds           int      `json:"enrollmentRefreshSeconds"`
+	StudentCacheSeconds                int      `json:"studentCacheSeconds"`
+	CapacityEnabled                    bool     `json:"capacityEnabled"`
+	CapacityStep                       string   `json:"capacityStep"`
+	CapacityDelayMilliseconds          int      `json:"capacityDelayMilliseconds"`
+	MinScheduleRows                    int      `json:"minScheduleRows"`
+	MinFormalSections                  int      `json:"minFormalSections"`
+	MinCapacityVisible                 int      `json:"minCapacityVisible"`
+	AllowedOrigins                     []string `json:"allowedOrigins"`
+	AutoSyncEnabled                    bool     `json:"autoSyncEnabled"`
+	AutoSyncIntervalMinutes            int      `json:"autoSyncIntervalMinutes"`
+	CourseDetailsEnabled               bool     `json:"courseDetailsEnabled"`
+	CourseDetailsVerifyTrackedEveryRun bool     `json:"courseDetailsVerifyTrackedEveryRun"`
+	CourseDetailsRefreshHours          int      `json:"courseDetailsRefreshHours"`
+	CourseDetailsMaxPerRun             int      `json:"courseDetailsMaxPerRun"`
+	CourseDetailsDelayMilliseconds     int      `json:"courseDetailsDelayMilliseconds"`
+	CourseDetailCourseIDs              []string `json:"courseDetailCourseIds"`
 }
 
 func DefaultRuntimeConfig() RuntimeConfig {
 	return RuntimeConfig{
-		Version:                   1,
-		DefaultDataSource:         "formal",
-		LiveEnrollmentSemester:    "2026-09",
-		ScheduleSyncSemester:      "2026-09",
-		StudentScheduleTerm:       "",
-		EnrollmentRefreshSeconds:  30,
-		StudentCacheSeconds:       600,
-		CapacityEnabled:           false,
-		CapacityStep:              "Step3",
-		CapacityDelayMilliseconds: 100,
-		MinScheduleRows:           6000,
-		MinFormalSections:         7000,
-		MinCapacityVisible:        300,
+		Version:                            1,
+		DefaultDataSource:                  "formal",
+		LiveEnrollmentSemester:             "2026-09",
+		ScheduleSyncSemester:               "2026-09",
+		StudentScheduleTerm:                "",
+		EnrollmentRefreshSeconds:           30,
+		StudentCacheSeconds:                600,
+		CapacityEnabled:                    false,
+		CapacityStep:                       "Step3",
+		CapacityDelayMilliseconds:          100,
+		MinScheduleRows:                    6000,
+		MinFormalSections:                  7000,
+		MinCapacityVisible:                 300,
+		AutoSyncEnabled:                    true,
+		AutoSyncIntervalMinutes:            60,
+		CourseDetailsEnabled:               true,
+		CourseDetailsVerifyTrackedEveryRun: true,
+		CourseDetailsRefreshHours:          168,
+		CourseDetailsMaxPerRun:             30,
+		CourseDetailsDelayMilliseconds:     300,
+		CourseDetailCourseIDs: []string{
+			"252599", "255006", "255301", "255543", "259772", "259773", "262572", "264683", "266336",
+		},
 		AllowedOrigins: []string{
 			"https://xk.jxnu-publish.asia",
 			"https://test.better-jxnu-elective-system.pages.dev",
@@ -100,6 +118,26 @@ func (c RuntimeConfig) Validate() error {
 	}
 	if c.MinScheduleRows < 1 || c.MinFormalSections < 1 || c.MinCapacityVisible < 0 {
 		return errors.New("同步安全阈值不合法")
+	}
+	if c.AutoSyncIntervalMinutes < 15 || c.AutoSyncIntervalMinutes > 1440 {
+		return errors.New("自动构建间隔须为 15–1440 分钟")
+	}
+	if c.CourseDetailsRefreshHours < 1 || c.CourseDetailsRefreshHours > 24*365 {
+		return errors.New("课程详情普通缓存周期须为 1–8760 小时")
+	}
+	if c.CourseDetailsMaxPerRun < 1 || c.CourseDetailsMaxPerRun > 200 {
+		return errors.New("每轮课程详情抓取上限须为 1–200 门")
+	}
+	if c.CourseDetailsDelayMilliseconds < 100 || c.CourseDetailsDelayMilliseconds > 10000 {
+		return errors.New("课程详情请求间隔须为 100–10000 毫秒")
+	}
+	if len(c.CourseDetailCourseIDs) > 200 {
+		return errors.New("固定核查课程号不能超过 200 个")
+	}
+	for _, courseID := range c.CourseDetailCourseIDs {
+		if !courseIDPattern.MatchString(courseID) {
+			return fmt.Errorf("固定核查课程号不合法：%s", courseID)
+		}
 	}
 	for _, origin := range c.AllowedOrigins {
 		if !strings.HasPrefix(origin, "http://") && !strings.HasPrefix(origin, "https://") {
@@ -222,7 +260,45 @@ func (s *ConfigStore) Save(cfg RuntimeConfig) error {
 
 func cloneConfig(cfg RuntimeConfig) RuntimeConfig {
 	cfg.AllowedOrigins = append([]string(nil), cfg.AllowedOrigins...)
+	cfg.CourseDetailCourseIDs = append([]string(nil), cfg.CourseDetailCourseIDs...)
 	return cfg
+}
+
+func ParseAutomationForm(values map[string]string, current RuntimeConfig) (RuntimeConfig, error) {
+	next := cloneConfig(current)
+	next.AutoSyncEnabled = values["autoSyncEnabled"] == "on" || values["autoSyncEnabled"] == "true"
+	next.CourseDetailsEnabled = values["courseDetailsEnabled"] == "on" || values["courseDetailsEnabled"] == "true"
+	next.CourseDetailsVerifyTrackedEveryRun = values["courseDetailsVerifyTrackedEveryRun"] == "on" || values["courseDetailsVerifyTrackedEveryRun"] == "true"
+	var err error
+	if next.AutoSyncIntervalMinutes, err = parseInt(values, "autoSyncIntervalMinutes"); err != nil {
+		return current, err
+	}
+	if next.CourseDetailsRefreshHours, err = parseInt(values, "courseDetailsRefreshHours"); err != nil {
+		return current, err
+	}
+	if next.CourseDetailsMaxPerRun, err = parseInt(values, "courseDetailsMaxPerRun"); err != nil {
+		return current, err
+	}
+	if next.CourseDetailsDelayMilliseconds, err = parseInt(values, "courseDetailsDelayMilliseconds"); err != nil {
+		return current, err
+	}
+	ids := strings.FieldsFunc(values["courseDetailCourseIDs"], func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == ' ' || r == '\t'
+	})
+	next.CourseDetailCourseIDs = next.CourseDetailCourseIDs[:0]
+	seen := map[string]bool{}
+	for _, courseID := range ids {
+		courseID = strings.TrimSpace(courseID)
+		if courseID != "" && !seen[courseID] {
+			seen[courseID] = true
+			next.CourseDetailCourseIDs = append(next.CourseDetailCourseIDs, courseID)
+		}
+	}
+	sort.Strings(next.CourseDetailCourseIDs)
+	if err := next.Validate(); err != nil {
+		return current, err
+	}
+	return next, nil
 }
 
 func atomicWrite(path string, raw []byte, mode os.FileMode) error {

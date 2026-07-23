@@ -50,9 +50,10 @@ better-jxnu-elective-system/
 │   ├── semesters/                         ← 每学期一份目录（目录名 = 学期 key = YYYY-MM）
 │   │   ├── 2025-09/
 │   │   │   ├── meta.json                  ← 学期元信息（label="YYYY-MM"、起止日期、抓取时间戳）
-│   │   │   └── raw/                       ← 5 份学期级 raw
+│   │   │   └── raw/                       ← 学期级 raw
 │   │   │       ├── preselect_catalog.json ← 预选界面所有课（cid + 候选 teachers）
 │   │   │       ├── formal_schedule.json   ← 正选开课安排（section 级：班级/教师/教室/时间）
+│   │   │       ├── course_details.json    ← CAS 后 CourseInfor 课程级补充信息（Go 后端限速核查）
 │   │   │       ├── formal_actual.json     ← 正选时选课系统实际可选（暂无）
 │   │   │       ├── addDrop_schedule.json  ← 补退选开课安排（裁剪版）
 │   │   │       └── addDrop_actual.json    ← 补退选实际可选（暂无）
@@ -103,13 +104,13 @@ better-jxnu-elective-system/
 | 字段 | 来源优先级 | 备注 |
 |------|----------|------|
 | 课程号 cid | 任何 raw 出现即收录 | 主键 |
-| 课程名 | training_plan > preselect_catalog > formal_schedule | training_plan 命名最规范 |
-| 课程英文名 | formal_schedule `课程信息.课程英文名称`（最新非空值） | 同一 cid 跨现有学期无冲突；进入英文搜索索引 |
-| 学分 | training_plan > preselect_catalog | catalog 偶有 0 值，已知补全场景 |
+| 课程名 | training_plan > preselect_catalog > course_details > formal_schedule | training_plan 命名最规范；详情页只补空值 |
+| 课程英文名 | course_details > formal_schedule `课程信息.课程英文名称`（最新非空值） | 同一 cid 跨现有学期无冲突；进入英文搜索索引 |
+| 学分 | training_plan > preselect_catalog > course_details > formal_schedule | CAS 课程简介页补公开课表缺失值，不覆盖培养方案/catalog 的非零真值 |
 | 课程性质（专业主干/限选 等） | **仅** training_plan | 其他 raw 没这字段 |
 | 学位课 isDegree | **仅** training_plan（`学位课程` 字段非空） | 同上 |
 | 开课学院 dept | preselect_catalog > formal_schedule.单位名称 | training_plan 无此字段 |
-| 简介 desc | preselect_catalog > formal_schedule `课程信息.内容简介` | catalog 通常更完整，formal 只补空值 |
+| 简介 desc | preselect_catalog > course_details > formal_schedule `课程信息.内容简介` | catalog 通常更完整，其余来源只补空值 |
 | 先修说明 | **仅** preselect_catalog | 培养方案有简版 `先修课程说明`，但 catalog 的更完整 |
 | 标签 公选课 / 公共必修课 | **派生**（cid 前缀规则） | 不依赖 raw |
 | 师课绑定（teachers per course） | formal_schedule（actual）> preselect_catalog（candidates） | catalog 列的是候选；schedule 是真实授课 |

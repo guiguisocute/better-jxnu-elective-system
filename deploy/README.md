@@ -5,7 +5,7 @@ VPS 后端已经收敛为一个 Go 二进制 `jxnu-backend`。它同时负责：
 - `127.0.0.1:8787`：公开实时人数、公开运行配置和健康检查；
 - `127.0.0.1:8788`：Cloudflare Pages Function 调用的学号实时课表；
 - `127.0.0.1:8790`：只允许通过 SSH 隧道访问的中文管理面板；
-- `jxnu-backend sync`：每小时抓开课安排与容量、执行安全闸、运行 `build_data.py`、提交并推送。
+- `jxnu-backend sync --scheduled`：timer 每 15 分钟检查一次面板配置；到达实际间隔后抓开课安排/课程详情/容量、执行安全闸、运行 `build_data.py`、提交并推送。
 
 常驻层不再运行 `kkap_service.py`、`live_service.py` 或 `admin_service.py`。Python 只保留为构建期数据流水线；`build_data.py` 的字段优先级和幂等规则不在这次迁移中改变。
 
@@ -45,6 +45,12 @@ grep '^ADMIN_PASSWORD=' ~/apps/jxnu-backend/backend.env
 学号学期既能从下拉列表选，也能直接输入将来新增的值，例如 `27-28第1学期`。后端会校验该学期是否真实出现在教务下拉框；不存在时返回明确错误，Cloudflare Function 会照旧回落 D1 快照。
 
 “高级设置”折叠了刷新频率、容量开关/阶段、礼貌延迟、异常数据安全闸和 CORS 白名单。学校关闭选课期间保持“容量抓取”关闭；开选后再开启。关闭只跳过无法验证的联网探测，不会删除或覆盖上一份容量数据。
+
+“自动构建”页提供完整调度设置：总开关、实际构建间隔、CAS 课程详情补全开关、重点课程每轮复核、普通缺失课程缓存周期、单轮上限和请求间隔。timer 自身只做 15 分钟一次的轻量唤醒，未到配置周期时不会访问学校网站；“立即完整构建一次”始终绕过调度开关。
+
+课程详情补全链路为 `CourseSetting.aspx → CourseInfor.aspx`，复用同一个已验证应用级 Cookie 的 CAS 会话。结果落在 `data/semesters/<sem>/raw/course_details.json`，只补 training plan / catalog 的空值，绝不覆盖它们已有的非零学分。重点课程默认包含 `252599`、`255006`、`255301`、`255543`、`259772`、`259773`、`262572`、`264683`、`266336`；系统还会自动发现公开课表中没有内嵌课程信息的其他课程并分批补齐。
+
+“日志”页只读展示 `jxnu-backend.service`、`jxnu-sync.service`、`jxnu-sync.timer`，来源、时间范围和行数全部使用后端白名单，不接受任意 unit 或 shell 参数。
 
 “AI 配置”页直接管理 Cloudflare Pages production 的“AI 帮我选”设置：
 
@@ -104,7 +110,7 @@ ssh 29HK 'cd ~/better-jxnu-elective-system && git pull --ff-only && ./deploy/ins
 ├── jxnu-backend       # 单个静态二进制
 ├── backend.env        # 密码/密钥/账号，chmod 600
 ├── config.json        # 面板维护的普通业务设置，chmod 600
-├── last_sync.json     # 最近一次同步状态
+├── last_sync.json     # 最近一次同步状态（含详情缓存数量）
 └── sync.lock          # 管理面板与 timer 的跨进程互斥锁
 ```
 
@@ -132,7 +138,7 @@ journalctl --user -u jxnu-backend.service -n 100 --no-pager
 journalctl --user -u jxnu-sync.service -n 100 --no-pager
 ```
 
-手动同步优先点面板“任务 → 立即同步一次”，也可以运行：
+手动同步优先点面板“自动构建 → 立即完整构建一次”，也可以运行：
 
 ```bash
 systemctl --user start jxnu-sync.service

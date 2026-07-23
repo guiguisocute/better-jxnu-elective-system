@@ -25,6 +25,7 @@ type SyncStatus struct {
 	Semester        string `json:"semester,omitempty"`
 	FormalSections  int    `json:"formalSections,omitempty"`
 	CapacityVisible int    `json:"capacityVisible,omitempty"`
+	CourseDetails   int    `json:"courseDetails,omitempty"`
 }
 
 type SyncRunner struct {
@@ -32,6 +33,11 @@ type SyncRunner struct {
 	config     *ConfigStore
 	logger     *slog.Logger
 	statusPath string
+}
+
+type CourseDetailCommandResult struct {
+	Path  string                   `json:"path"`
+	Stats CourseDetailRefreshStats `json:"stats"`
 }
 
 func NewSyncRunner(env Environment, config *ConfigStore, logger *slog.Logger) *SyncRunner {
@@ -44,18 +50,44 @@ func (s *SyncRunner) Status() SyncStatus {
 	}
 	return status
 }
+
+func (s *SyncRunner) RefreshCourseDetailsOnly(ctx context.Context) (CourseDetailCommandResult, error) {
+	cfg := s.config.Get()
+	if s.env.XKUsername == "" || s.env.XKPassword == "" {
+		return CourseDetailCommandResult{}, errors.New("未配置教务账号，无法核查课程详情")
+	}
+	semester := cfg.ScheduleSyncSemester
+	rawPath := filepath.Join(s.env.RepoDir, "data", "semesters", semester, "raw", "formal_schedule.json")
+	detailPath := filepath.Join(s.env.RepoDir, "data", "semesters", semester, "raw", "course_details.json")
+	var rows []ScheduleRow
+	if err := readJSONFile(rawPath, &rows); err != nil {
+		return CourseDetailCommandResult{}, fmt.Errorf("读取开课安排: %w", err)
+	}
+	var old CourseDetailSnapshot
+	_ = readJSONFile(detailPath, &old)
+	details, stats := RefreshCourseDetails(ctx, NewJWCClient(s.env.XKUsername, s.env.XKPassword), semester, rows, old, cfg, s.logger)
+	if stats.Updated+stats.Refreshed > 0 {
+		if err := WriteJSON(detailPath, details, 0o644); err != nil {
+			return CourseDetailCommandResult{}, err
+		}
+	}
+	return CourseDetailCommandResult{Path: detailPath, Stats: stats}, nil
+}
 func (s *SyncRunner) setStatus(status SyncStatus) {
 	if err := WriteJSON(s.statusPath, status, 0o600); err != nil {
 		s.logger.Error("写同步状态失败", "error", err)
 	}
 }
-func (s *SyncRunner) Run(ctx context.Context) error {
+func (s *SyncRunner) Run(ctx context.Context, scheduled bool) error {
+	cfg := s.config.Get()
+	if scheduled && !s.scheduledDue(cfg, time.Now()) {
+		return nil
+	}
 	lock, err := tryFileLock(s.env.SyncLockPath)
 	if err != nil {
 		return err
 	}
 	defer lock.Close()
-	cfg := s.config.Get()
 	status := SyncStatus{State: "running", StartedAt: time.Now().UTC().Format(time.RFC3339), Message: "正在拉取教务数据", Semester: cfg.ScheduleSyncSemester}
 	s.setStatus(status)
 	fail := func(runErr error) error {
@@ -76,6 +108,7 @@ func (s *SyncRunner) Run(ctx context.Context) error {
 	semester := cfg.ScheduleSyncSemester
 	rawPath := filepath.Join(s.env.RepoDir, "data", "semesters", semester, "raw", "formal_schedule.json")
 	capacityPath := filepath.Join(s.env.RepoDir, "data", "semesters", semester, "raw", "xk_capacity.json")
+	detailPath := filepath.Join(s.env.RepoDir, "data", "semesters", semester, "raw", "course_details.json")
 	client := NewEnrollmentService(s.config, s.logger).client
 	rows, err := FetchPublicSchedule(ctx, client)
 	if err != nil {
@@ -88,6 +121,20 @@ func (s *SyncRunner) Run(ctx context.Context) error {
 	s.logger.Info("复用开课 enrichment", "reused", reused, "missing", missing)
 	if err = WriteJSON(rawPath, rows, 0o644); err != nil {
 		return fail(err)
+	}
+	if cfg.CourseDetailsEnabled && s.env.XKUsername != "" && s.env.XKPassword != "" && buildSupportsCourseDetails(s.env.RepoDir) {
+		var oldDetails CourseDetailSnapshot
+		_ = readJSONFile(detailPath, &oldDetails)
+		details, detailStats := RefreshCourseDetails(ctx, NewJWCClient(s.env.XKUsername, s.env.XKPassword), semester, rows, oldDetails, cfg, s.logger)
+		status.CourseDetails = detailsCount(details)
+		s.logger.Info("课程详情核查完成", "candidates", detailStats.Candidates, "attempted", detailStats.Attempted, "updated", detailStats.Updated, "refreshed", detailStats.Refreshed, "unchanged", detailStats.Unchanged, "failed", detailStats.Failed, "cached", detailStats.Cached)
+		if detailStats.Updated+detailStats.Refreshed > 0 {
+			if err = WriteJSON(detailPath, details, 0o644); err != nil {
+				return fail(err)
+			}
+		}
+	} else if cfg.CourseDetailsEnabled && !buildSupportsCourseDetails(s.env.RepoDir) {
+		s.logger.Warn("远端 build_data.py 尚未支持 course_details，暂跳过详情核查，避免产生无法消费的 raw")
 	}
 	if cfg.CapacityEnabled && s.env.XKUsername != "" && s.env.XKPassword != "" {
 		visibleProgress := 0
@@ -114,7 +161,8 @@ func (s *SyncRunner) Run(ctx context.Context) error {
 		s.rollback()
 		return fail(fmt.Errorf("build_data.py: %w", err))
 	}
-	changed, err := s.commandExit(ctx, 30*time.Second, "git", "diff", "--quiet", "--", "public", "data/master")
+	relDetail := filepath.ToSlash(filepath.Join("data", "semesters", semester, "raw", "course_details.json"))
+	changed, err := s.commandExit(ctx, 30*time.Second, "git", "diff", "--quiet", "--", "public", "data/master", relDetail)
 	if err != nil {
 		s.rollback()
 		return fail(err)
@@ -144,6 +192,9 @@ func (s *SyncRunner) Run(ctx context.Context) error {
 	relRaw := filepath.ToSlash(filepath.Join("data", "semesters", semester, "raw", "formal_schedule.json"))
 	relCapacity := filepath.ToSlash(filepath.Join("data", "semesters", semester, "raw", "xk_capacity.json"))
 	paths := []string{"public", relRaw, "data/master"}
+	if _, statErr := os.Stat(detailPath); statErr == nil {
+		paths = append(paths, relDetail)
+	}
 	if _, statErr := os.Stat(capacityPath); statErr == nil {
 		paths = append(paths, relCapacity)
 	}
@@ -168,6 +219,30 @@ func (s *SyncRunner) Run(ctx context.Context) error {
 	status.Message = "同步完成并已推送，Cloudflare Pages 将自动部署"
 	s.setStatus(status)
 	return nil
+}
+
+func (s *SyncRunner) scheduledDue(cfg RuntimeConfig, now time.Time) bool {
+	if !cfg.AutoSyncEnabled {
+		s.logger.Info("自动构建已关闭，跳过本轮 timer")
+		return false
+	}
+	status := s.Status()
+	last := status.StartedAt
+	if last == "" {
+		last = status.FinishedAt
+	}
+	if parsed, err := time.Parse(time.RFC3339, last); err == nil && now.Sub(parsed) < time.Duration(cfg.AutoSyncIntervalMinutes)*time.Minute {
+		s.logger.Info("自动构建尚未到间隔，跳过本轮 timer", "intervalMinutes", cfg.AutoSyncIntervalMinutes)
+		return false
+	}
+	return true
+}
+
+func detailsCount(snapshot CourseDetailSnapshot) int { return len(snapshot.Courses) }
+
+func buildSupportsCourseDetails(repoDir string) bool {
+	raw, err := os.ReadFile(filepath.Join(repoDir, "build_data.py"))
+	return err == nil && bytes.Contains(raw, []byte(`"course_details"`))
 }
 
 func (s *SyncRunner) command(ctx context.Context, timeout time.Duration, name string, args ...string) (string, error) {

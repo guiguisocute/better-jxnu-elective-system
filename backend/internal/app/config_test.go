@@ -56,3 +56,22 @@ func TestConfigStoreRoundTrip(t *testing.T) {
 		t.Fatalf("round trip mismatch\n%#v\n%#v", cfg, reopened.Get())
 	}
 }
+
+func TestParseAutomationForm(t *testing.T) {
+	cfg, err := ParseAutomationForm(map[string]string{
+		"autoSyncEnabled": "on", "autoSyncIntervalMinutes": "120",
+		"courseDetailsEnabled": "on", "courseDetailsVerifyTrackedEveryRun": "on",
+		"courseDetailsRefreshHours": "72", "courseDetailsMaxPerRun": "40",
+		"courseDetailsDelayMilliseconds": "500",
+		"courseDetailCourseIDs":          "259772\n259773, 259772",
+	}, DefaultRuntimeConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.AutoSyncEnabled || cfg.AutoSyncIntervalMinutes != 120 || !cfg.CourseDetailsEnabled || !cfg.CourseDetailsVerifyTrackedEveryRun {
+		t.Fatalf("unexpected automation config: %#v", cfg)
+	}
+	if !reflect.DeepEqual(cfg.CourseDetailCourseIDs, []string{"259772", "259773"}) {
+		t.Fatalf("course ids = %v", cfg.CourseDetailCourseIDs)
+	}
+}

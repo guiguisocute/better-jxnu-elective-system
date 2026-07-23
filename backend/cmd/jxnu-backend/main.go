@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
@@ -23,8 +24,41 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	syncRunner := app.NewSyncRunner(env, store, logger)
+	if len(os.Args) > 1 && os.Args[1] == "inspect-course" {
+		if len(os.Args) != 5 {
+			logger.Error("用法: jxnu-backend inspect-course <班级号> <课程号> <学期时间>")
+			os.Exit(2)
+		}
+		inspection, inspectErr := app.NewJWCClient(env.XKUsername, env.XKPassword).InspectCourseSetting(ctx, os.Args[2], os.Args[3], os.Args[4])
+		if inspectErr != nil {
+			logger.Error("检查课程设置页失败", "error", inspectErr)
+			os.Exit(1)
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(inspection); err != nil {
+			logger.Error("输出检查结果失败", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "course-details" {
+		result, detailErr := syncRunner.RefreshCourseDetailsOnly(ctx)
+		if detailErr != nil {
+			logger.Error("核查课程详情失败", "error", detailErr)
+			os.Exit(1)
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(result); err != nil {
+			logger.Error("输出课程详情结果失败", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "sync" {
-		if err := syncRunner.Run(ctx); err != nil {
+		scheduled := len(os.Args) > 2 && os.Args[2] == "--scheduled"
+		if err := syncRunner.Run(ctx, scheduled); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return
 			}

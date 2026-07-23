@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -48,12 +49,14 @@ func (a *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("/", a.auth(a.dashboard))
 	mux.HandleFunc("/settings", a.auth(a.settings))
 	mux.HandleFunc("/operations", a.auth(a.operations))
+	mux.HandleFunc("/logs", a.auth(a.logs))
 	mux.HandleFunc("/ai", a.auth(a.aiSettings))
 	mux.HandleFunc("/advanced", a.auth(a.advanced))
 	mux.HandleFunc("/action/save-daily", a.auth(a.saveDaily))
 	mux.HandleFunc("/action/save-advanced", a.auth(a.saveAdvanced))
 	mux.HandleFunc("/action/sync", a.auth(a.startSync))
 	mux.HandleFunc("/action/refresh-enrollment", a.auth(a.refreshEnrollment))
+	mux.HandleFunc("/action/save-automation", a.auth(a.saveAutomation))
 	mux.HandleFunc("/action/save-ai", a.auth(a.saveAI))
 	mux.HandleFunc("/action/redeploy-ai", a.auth(a.redeployAI))
 	mux.HandleFunc("/action/save-cloudflare", a.auth(a.saveCloudflareConnection))
@@ -170,7 +173,13 @@ func (a *AdminServer) settings(w http.ResponseWriter, r *http.Request, session a
 }
 func (a *AdminServer) operations(w http.ResponseWriter, r *http.Request, session adminSession) {
 	status := a.syncRunner.Status()
-	body := fmt.Sprintf(`<section class="hero"><div><p class="eyebrow">任务与检查</p><h1>数据同步</h1><p>定时任务每小时运行；这里只在需要立刻刷新时手动启动。</p></div></section><section class="card"><h2>最近一次任务：%s</h2><p>%s</p><dl class="facts"><div><dt>开始</dt><dd>%s</dd></div><div><dt>结束</dt><dd>%s</dd></div><div><dt>目标学期</dt><dd>%s</dd></div><div><dt>产物教学班</dt><dd>%d</dd></div></dl><form method="post" action="/action/sync">%s<button class="button primary">立即同步一次</button></form></section><section class="card"><h2>实时人数</h2><p>不必重启服务；可立即丢弃等待时间并重新抓一份。</p><form method="post" action="/action/refresh-enrollment">%s<button class="button">立即刷新人数</button></form></section>`, syncStateLabel(status.State), template.HTMLEscapeString(status.Message), emptyDash(status.StartedAt), emptyDash(status.FinishedAt), emptyDash(status.Semester), status.FormalSections, csrf(session), csrf(session))
+	cfg := a.config.Get()
+	body := fmt.Sprintf(`<section class="hero"><div><p class="eyebrow">任务与检查</p><h1>自动构建与数据同步</h1><p>timer 每 15 分钟检查一次；是否执行以及实际周期由下方配置决定。</p></div><a class="button" href="/logs?source=sync">查看同步日志</a></section>
+<section class="card"><h2>最近一次任务：%s</h2><p>%s</p><dl class="facts"><div><dt>开始</dt><dd>%s</dd></div><div><dt>结束</dt><dd>%s</dd></div><div><dt>目标学期</dt><dd>%s</dd></div><div><dt>产物教学班</dt><dd>%d</dd></div><div><dt>课程详情缓存</dt><dd>%d 门</dd></div></dl><form method="post" action="/action/sync">%s<button class="button primary">立即完整构建一次</button></form></section>
+<form method="post" action="/action/save-automation" class="stack">%s<section class="card"><h2>自动构建调度</h2><label class="inline"><input type="checkbox" name="autoSyncEnabled" %s> 启用自动构建</label>%s<p class="hint">系统级 timer 固定每 15 分钟轻量唤醒一次；未到配置间隔时直接退出，不访问学校网站。手动构建不受开关和间隔限制。</p></section>
+<section class="card"><h2>登录后课程详情核查</h2><label class="inline"><input type="checkbox" name="courseDetailsEnabled" %s> 自动补齐公开课表缺少的课程信息</label><label class="inline"><input type="checkbox" name="courseDetailsVerifyTrackedEveryRun" %s> 每次构建都复核下方重点课程</label><div class="grid three">%s%s%s</div><div class="field"><label>重点核查课程号</label><textarea name="courseDetailCourseIDs" rows="6">%s</textarea><p class="hint">一行一个。系统还会自动发现没有内嵌课程信息的其他课程，并按每轮上限逐步补齐；失败会保留旧缓存，不阻断公开课表构建。</p></div></section><button class="button primary" type="submit">保存自动构建配置</button></form>
+<section class="card"><h2>实时人数</h2><p>不必重启服务；可立即丢弃等待时间并重新抓一份。</p><form method="post" action="/action/refresh-enrollment">%s<button class="button">立即刷新人数</button></form></section>`,
+		syncStateLabel(status.State), template.HTMLEscapeString(status.Message), emptyDash(status.StartedAt), emptyDash(status.FinishedAt), emptyDash(status.Semester), status.FormalSections, status.CourseDetails, csrf(session), csrf(session), checked(cfg.AutoSyncEnabled), numberInput("autoSyncIntervalMinutes", "实际构建间隔（分钟）", strconv.Itoa(cfg.AutoSyncIntervalMinutes), 15, 1440), checked(cfg.CourseDetailsEnabled), checked(cfg.CourseDetailsVerifyTrackedEveryRun), numberInput("courseDetailsRefreshHours", "普通课程复核周期（小时）", strconv.Itoa(cfg.CourseDetailsRefreshHours), 1, 8760), numberInput("courseDetailsMaxPerRun", "每轮最多核查课程", strconv.Itoa(cfg.CourseDetailsMaxPerRun), 1, 200), numberInput("courseDetailsDelayMilliseconds", "每门间隔（毫秒）", strconv.Itoa(cfg.CourseDetailsDelayMilliseconds), 100, 10000), template.HTMLEscapeString(strings.Join(cfg.CourseDetailCourseIDs, "\n")), csrf(session))
 	a.render(w, "任务", body, &session)
 }
 func (a *AdminServer) advanced(w http.ResponseWriter, r *http.Request, session adminSession) {
@@ -214,6 +223,31 @@ func (a *AdminServer) saveAdvanced(w http.ResponseWriter, r *http.Request, sessi
 	}
 	a.enrollment.Wake()
 	a.result(w, "高级设置已生效", "无需重启服务。", true, &session)
+}
+
+func (a *AdminServer) saveAutomation(w http.ResponseWriter, r *http.Request, session adminSession) {
+	if !a.validPost(w, r, session) {
+		return
+	}
+	cfg, err := ParseAutomationForm(map[string]string{
+		"autoSyncEnabled":                    r.Form.Get("autoSyncEnabled"),
+		"autoSyncIntervalMinutes":            r.Form.Get("autoSyncIntervalMinutes"),
+		"courseDetailsEnabled":               r.Form.Get("courseDetailsEnabled"),
+		"courseDetailsVerifyTrackedEveryRun": r.Form.Get("courseDetailsVerifyTrackedEveryRun"),
+		"courseDetailsRefreshHours":          r.Form.Get("courseDetailsRefreshHours"),
+		"courseDetailsMaxPerRun":             r.Form.Get("courseDetailsMaxPerRun"),
+		"courseDetailsDelayMilliseconds":     r.Form.Get("courseDetailsDelayMilliseconds"),
+		"courseDetailCourseIDs":              r.Form.Get("courseDetailCourseIDs"),
+	}, a.config.Get())
+	if err != nil {
+		a.result(w, "保存失败", err.Error(), false, &session)
+		return
+	}
+	if err := a.config.Save(cfg); err != nil {
+		a.result(w, "保存失败", err.Error(), false, &session)
+		return
+	}
+	a.result(w, "自动构建配置已生效", "下一次 timer 唤醒会读取新配置；手动构建可立即验证。", true, &session)
 }
 func (a *AdminServer) startSync(w http.ResponseWriter, r *http.Request, session adminSession) {
 	if !a.validPost(w, r, session) {
@@ -286,12 +320,12 @@ func (a *AdminServer) renderStatus(w http.ResponseWriter, title, body string, st
 func layoutHTML(title, body string, session *adminSession) string {
 	nav := ""
 	if session != nil {
-		nav = `<nav><a href="/">总览</a><a href="/settings">日常设置</a><a href="/operations">任务</a><a href="/ai">AI 配置</a><a href="/advanced">高级</a><form method="post" action="/logout"><input type="hidden" name="csrf" value="` + session.CSRF + `"><button class="link">退出</button></form></nav>`
+		nav = `<nav><a href="/">总览</a><a href="/settings">日常设置</a><a href="/operations">自动构建</a><a href="/logs">日志</a><a href="/ai">AI 配置</a><a href="/advanced">高级</a><form method="post" action="/logout"><input type="hidden" name="csrf" value="` + session.CSRF + `"><button class="link">退出</button></form></nav>`
 	}
 	return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>` + template.HTMLEscapeString(title) + ` · JXNU 后端</title><style>` + adminCSS + `</style></head><body><header><strong>JXNU 后端</strong>` + nav + `</header><main>` + body + `</main><footer>Go ` + runtime.Version() + ` · 面板仅监听 VPS 回环地址</footer></body></html>`
 }
 
-const adminCSS = `:root{font-family:Inter,"Microsoft YaHei",system-ui,sans-serif;color:#201a1a;background:#f7f4f1}*{box-sizing:border-box}body{margin:0}header{height:64px;padding:0 max(20px,calc((100% - 1100px)/2));display:flex;align-items:center;justify-content:space-between;background:#701c23;color:#fff}nav{display:flex;align-items:center;gap:6px}nav a,.link{color:#fff;text-decoration:none;background:transparent;border:0;padding:9px 10px;font:inherit;cursor:pointer}nav a:hover,.link:hover{background:#ffffff20;border-radius:8px}nav form{margin:0}main{max-width:1100px;margin:0 auto;padding:32px 20px 80px}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:8px 0 28px}.hero h1{font-size:34px;margin:4px 0}.hero p{margin:5px 0;color:#6b6060}.eyebrow{color:#9a333d!important;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.grid{display:grid;gap:16px}.three{grid-template-columns:repeat(3,1fr)}.card{background:#fff;border:1px solid #e8dfda;border-radius:16px;padding:22px;box-shadow:0 5px 18px #5f292908;margin-bottom:16px}.card h2{font-size:18px;margin:0 0 12px}.big{font-size:25px;font-weight:750;margin:6px 0!important}.status{display:block;width:10px;height:10px;border-radius:50%;background:#c0363f;float:right}.status.ok{background:#2f9e62}.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.facts div{background:#faf7f5;border-radius:10px;padding:12px}.facts dt{color:#776c68;font-size:12px}.facts dd{margin:5px 0 0;font-weight:700}.stack{display:grid;gap:4px}.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.choice{border:1px solid #ddd2cc;border-radius:12px;padding:13px;display:flex;gap:10px;align-items:flex-start}.choice b{display:block}.choice small{color:#776c68}.hint{color:#776c68;font-size:13px;line-height:1.65}label.inline{display:inline-flex;align-items:center;gap:7px;margin:5px 18px 12px 0}input,select,textarea{width:100%;border:1px solid #cfc4be;border-radius:9px;padding:11px;background:#fff;font:inherit}input[type=radio]{width:auto}.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.prompt{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.6}.button{display:inline-block;border:0;border-radius:9px;padding:11px 17px;text-decoration:none;background:#5c5654;color:#fff;font:inherit;cursor:pointer}.primary{background:#8b2631}.actions{display:flex;justify-content:flex-end;margin:8px 0 22px}.badge{display:inline-block;border-radius:999px;padding:4px 9px;background:#e5f5eb;color:#17653b;font-size:12px}.badge.warn{background:#fff1cf;color:#895d08}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#7c2630}.success{border-left:5px solid #2f9e62}.error{border-left:5px solid #c0363f}.login{max-width:430px;margin:12vh auto}.login .button{width:100%;margin-top:10px}footer{text-align:center;color:#998e88;font-size:12px;padding:30px}@media(max-width:760px){header{height:auto;padding:14px 18px;align-items:flex-start;gap:12px}nav{flex-wrap:wrap;justify-content:flex-end}.hero{align-items:flex-start;flex-direction:column}.three,.choices,.facts{grid-template-columns:1fr}.hero h1{font-size:28px}main{padding-top:22px}}`
+const adminCSS = `:root{font-family:Inter,"Microsoft YaHei",system-ui,sans-serif;color:#201a1a;background:#f7f4f1}*{box-sizing:border-box}body{margin:0}header{height:64px;padding:0 max(20px,calc((100% - 1100px)/2));display:flex;align-items:center;justify-content:space-between;background:#701c23;color:#fff}nav{display:flex;align-items:center;gap:6px}nav a,.link{color:#fff;text-decoration:none;background:transparent;border:0;padding:9px 10px;font:inherit;cursor:pointer}nav a:hover,.link:hover{background:#ffffff20;border-radius:8px}nav form{margin:0}main{max-width:1100px;margin:0 auto;padding:32px 20px 80px}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:8px 0 28px}.hero h1{font-size:34px;margin:4px 0}.hero p{margin:5px 0;color:#6b6060}.eyebrow{color:#9a333d!important;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.grid{display:grid;gap:16px}.three{grid-template-columns:repeat(3,1fr)}.card{background:#fff;border:1px solid #e8dfda;border-radius:16px;padding:22px;box-shadow:0 5px 18px #5f292908;margin-bottom:16px}.card h2{font-size:18px;margin:0 0 12px}.big{font-size:25px;font-weight:750;margin:6px 0!important}.status{display:block;width:10px;height:10px;border-radius:50%;background:#c0363f;float:right}.status.ok{background:#2f9e62}.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.facts div{background:#faf7f5;border-radius:10px;padding:12px}.facts dt{color:#776c68;font-size:12px}.facts dd{margin:5px 0 0;font-weight:700}.stack{display:grid;gap:4px}.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.choice{border:1px solid #ddd2cc;border-radius:12px;padding:13px;display:flex;gap:10px;align-items:flex-start}.choice b{display:block}.choice small{color:#776c68}.hint{color:#776c68;font-size:13px;line-height:1.65}label.inline{display:inline-flex;align-items:center;gap:7px;margin:5px 18px 12px 0}input,select,textarea{width:100%;border:1px solid #cfc4be;border-radius:9px;padding:11px;background:#fff;font:inherit}input[type=radio]{width:auto}.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.prompt{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.6}.button{display:inline-block;border:0;border-radius:9px;padding:11px 17px;text-decoration:none;background:#5c5654;color:#fff;font:inherit;cursor:pointer}.primary{background:#8b2631}.actions{display:flex;justify-content:flex-end;margin:8px 0 22px}.badge{display:inline-block;border-radius:999px;padding:4px 9px;background:#e5f5eb;color:#17653b;font-size:12px}.badge.warn{background:#fff1cf;color:#895d08}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#7c2630}.log-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.log-view{margin:0;max-height:65vh;overflow:auto;border-radius:10px;background:#171515;color:#ece7e4;padding:16px;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.success{border-left:5px solid #2f9e62}.error{border-left:5px solid #c0363f}.login{max-width:430px;margin:12vh auto}.login .button{width:100%;margin-top:10px}footer{text-align:center;color:#998e88;font-size:12px;padding:30px}@media(max-width:760px){header{height:auto;padding:14px 18px;align-items:flex-start;gap:12px}nav{flex-wrap:wrap;justify-content:flex-end}.hero{align-items:flex-start;flex-direction:column}.three,.choices,.facts{grid-template-columns:1fr}.hero h1{font-size:28px}main{padding-top:22px}}`
 
 func loginHTML(message string) string {
 	errorHTML := ""

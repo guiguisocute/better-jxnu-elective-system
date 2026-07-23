@@ -67,6 +67,9 @@ RAW_STAGES = (
     # xk 正选/补退选实时容量（爬虫 tools/crawl_capacity.py 产出，需真实学生账号登录 Step{N}/ChangeClass.aspx）：
     # {semester, fetched_at, config, courses:[{kch, blocked, classes:[{bjh,className,teacher,enrolled,remaining,full}]}]}
     "xk_capacity",
+    # 登录教务后从 wsktNew/CourseSetting.aspx → CourseInfor.aspx 抓到的课程级补充信息。
+    # Go 后端只对公开课表缺少 课程信息 的课程做限速核查；build 仍只读落盘快照，保持幂等。
+    "course_details",
 )
 
 # ============ 构建期配置（data/build_config.json，后台 GUI 唯一写入点） ============
@@ -323,7 +326,7 @@ def build_major_requirements(raw_plans: list) -> list:
 def _parse_credits(raw: str):
     """学分字符串 → number：整数返回 int，含小数返回 float（保留 0.5 学分精度）。"""
     try:
-        v = float((raw or "").strip())
+        v = float(str(raw or "").strip())
     except (ValueError, TypeError):
         return 0
     return int(v) if v.is_integer() else v
@@ -373,8 +376,9 @@ def build_master(semesters: dict, training_plan: list) -> dict:
     """
     plans_by_id, natures_by_id, degree_ids, credits_by_id, names_by_id = parse_training_plan(training_plan)
 
-    # 收集每学期的 catalog（cid → row）与 schedule meta（cid → {name, dept}）
+    # 收集每学期的 catalog、CAS 课程详情与 schedule meta。
     catalog_per_sem: dict = {}
+    detail_per_sem: dict = {}
     sch_meta_per_sem: dict = {}
     for sem, data in semesters.items():
         cat_map: dict = {}
@@ -383,6 +387,17 @@ def build_master(semesters: dict, training_plan: list) -> dict:
             if cid and cid not in cat_map:
                 cat_map[cid] = c
         catalog_per_sem[sem] = cat_map
+
+        detail_map: dict = {}
+        detail_snapshot = data.get("course_details") or {}
+        detail_rows = detail_snapshot.get("courses", []) if isinstance(detail_snapshot, dict) else []
+        for detail in detail_rows:
+            if not isinstance(detail, dict):
+                continue
+            cid = (detail.get("courseId") or "").strip()
+            if cid and cid not in detail_map:
+                detail_map[cid] = detail
+        detail_per_sem[sem] = detail_map
 
         sch_map: dict = {}
         for rows in (data.get("formal_schedule") or [], data.get("addDrop_schedule") or []):
@@ -429,6 +444,8 @@ def build_master(semesters: dict, training_plan: list) -> dict:
     cids: set = set(plans_by_id.keys())
     for m in catalog_per_sem.values():
         cids.update(m.keys())
+    for m in detail_per_sem.values():
+        cids.update(m.keys())
     for m in sch_meta_per_sem.values():
         cids.update(m.keys())
 
@@ -438,6 +455,7 @@ def build_master(semesters: dict, training_plan: list) -> dict:
     courses = []
     for cid in sorted(cids):
         cat_row = next((catalog_per_sem[s][cid] for s in sems_desc if cid in catalog_per_sem[s]), None)
+        detail_row = next((detail_per_sem[s][cid] for s in sems_desc if cid in detail_per_sem[s]), None)
         sch_rows = [sch_meta_per_sem[s][cid] for s in sems_desc if cid in sch_meta_per_sem[s]]
 
         def latest_schedule_value(field: str, default=""):
@@ -447,6 +465,7 @@ def build_master(semesters: dict, training_plan: list) -> dict:
         name = (
             names_by_id.get(cid)
             or (cat_row.get("课程名称", "") if cat_row else "")
+            or ((detail_row.get("courseNameIdentity") or detail_row.get("courseName") or "") if detail_row else "")
             or latest_schedule_value("name")
         )
 
@@ -457,6 +476,8 @@ def build_master(semesters: dict, training_plan: list) -> dict:
                 credits = int(cat_row.get("学分", "0") or 0)
             except ValueError:
                 credits = 0
+        if credits == 0 and detail_row:
+            credits = _parse_credits(detail_row.get("credits"))
         if credits == 0:
             credits = latest_schedule_value("credits", 0)
 
@@ -486,9 +507,13 @@ def build_master(semesters: dict, training_plan: list) -> dict:
         if is_degree and "学位课" not in tags:
             tags.append("学位课")
 
-        english_name = latest_schedule_value("englishName")
-        # catalog 简介通常更完整；没有时再用最新正式课表的 课程信息.内容简介 补齐。
-        desc = (cat_row.get("简介", "") if cat_row else "") or latest_schedule_value("desc")
+        english_name = ((detail_row.get("englishName") or "") if detail_row else "") or latest_schedule_value("englishName")
+        # catalog 简介通常更完整；没有时依次用 CAS 课程简介页、正式课表内嵌课程信息补齐。
+        desc = (
+            (cat_row.get("简介", "") if cat_row else "")
+            or ((detail_row.get("description") or "") if detail_row else "")
+            or latest_schedule_value("desc")
+        )
         prereqId = (cat_row.get("先修课程号", "") if cat_row else "") or ""
         prereqDesc = (cat_row.get("先修课程说明", "") if cat_row else "") or ""
 

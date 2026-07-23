@@ -1,10 +1,10 @@
 [Unit]
-Description=每小时同步 JXNU 开课安排与容量
+Description=按后端配置检查 JXNU 数据是否需要自动构建
 
 [Timer]
 OnBootSec=10min
-OnUnitActiveSec=1h
-RandomizedDelaySec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=2min
 Persistent=true
 
 [Install]
