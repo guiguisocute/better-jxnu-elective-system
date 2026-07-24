@@ -108,27 +108,6 @@ func (c *CloudflarePagesClient) PatchProductionEnv(ctx context.Context, updates 
 	return c.do(ctx, http.MethodPatch, c.projectPath(), payload, &ignored)
 }
 
-// DeleteProductionEnv removes the given production env keys. Cloudflare's PATCH
-// contract deletes a variable only when its key is sent with a JSON null value
-// (omitting it preserves it) — PatchProductionEnv can't express null, so this is
-// a separate path used by the Turnstile off switch.
-func (c *CloudflarePagesClient) DeleteProductionEnv(ctx context.Context, keys []string) error {
-	if len(keys) == 0 {
-		return errors.New("没有需要删除的环境变量")
-	}
-	envVars := make(map[string]any, len(keys))
-	for _, key := range keys {
-		envVars[key] = nil
-	}
-	payload := map[string]any{
-		"deployment_configs": map[string]any{
-			"production": map[string]any{"env_vars": envVars},
-		},
-	}
-	var ignored CloudflarePagesProject
-	return c.do(ctx, http.MethodPatch, c.projectPath(), payload, &ignored)
-}
-
 func (c *CloudflarePagesClient) CreateProductionDeployment(ctx context.Context) (CloudflareDeployment, error) {
 	var deployment CloudflareDeployment
 	err := c.do(ctx, http.MethodPost, c.projectPath()+"/deployments", nil, &deployment)

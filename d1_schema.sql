@@ -33,6 +33,17 @@ CREATE TABLE IF NOT EXISTS student_records (
   updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- 站点级开关（key-value）。评价系统运营开关都放这里，改完即生效、不需重新部署：
+--   review_moderation   = 'on'|'off'  审核模式（新评价是否先进 pending）
+--   turnstile_site_key  = <明文站点密钥>  非空 = 前端渲染 Turnstile 挂件（/api/reviews/config 下发）
+--   turnstile_secret    = <服务端密钥>    非空 = POST /api/reviews 强制 siteverify
+-- 为什么 turnstile 不用 Pages 环境变量：仓库带 wrangler.toml 时每次 git 构建会清掉不在 [vars]
+-- 里的明文变量，而本仓库每小时被数据同步 push→构建一次，明文站点密钥最多活一小时。
+CREATE TABLE IF NOT EXISTS app_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 -- AI帮我选 用量记账（functions/api/ai/recommend.ts）。
 -- 配额原子预扣：INSERT .. ON CONFLICT DO UPDATE SET calls=calls+1 RETURNING calls，先扣再判防并发绕过。
 -- scope = 'voter:<uuid>'（per 用户日配额）| 'site'（全站日 calls 上限 + token 熔断）。

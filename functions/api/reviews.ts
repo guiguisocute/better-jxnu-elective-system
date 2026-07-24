@@ -1,6 +1,7 @@
 interface Env {
   DB: D1Database;
-  /** Cloudflare Turnstile 服务端密钥（pages secret）。配置后发表评价必须携带有效 token。 */
+  /** 兼容兜底（本地 .dev.vars 开发用）。生产密钥在 D1 app_settings.turnstile_secret ——
+   *  Pages 明文环境变量会被每小时的 git 构建按 wrangler.toml 清洗，不能作为开关载体。 */
   TURNSTILE_SECRET?: string;
 }
 
@@ -71,9 +72,24 @@ function rowToDims(row: AggRow): Record<string, { avg: number; count: number }> 
   return dims;
 }
 
-/** Turnstile 人机校验：TURNSTILE_SECRET 已配置时强制。未配置 = 功能关闭直接放行。 */
+/** Turnstile 服务端密钥：D1 app_settings.turnstile_secret 优先（面板即改即生效），
+ *  空/表缺失时回落环境变量（本地开发）。返回空串 = 功能关闭。 */
+async function turnstileSecret(env: Env): Promise<string> {
+  try {
+    const row = await env.DB
+      .prepare("SELECT value FROM app_settings WHERE key = 'turnstile_secret'")
+      .first<{ value: string }>();
+    const v = row?.value?.trim();
+    if (v) return v;
+  } catch {
+    /* 表缺失 → 回落 env */
+  }
+  return env.TURNSTILE_SECRET?.trim() ?? "";
+}
+
+/** Turnstile 人机校验：密钥已配置时强制。未配置 = 功能关闭直接放行。 */
 async function verifyTurnstile(env: Env, token: unknown, ip: string | null): Promise<boolean> {
-  const secret = env.TURNSTILE_SECRET?.trim();
+  const secret = await turnstileSecret(env);
   if (!secret) return true;
   if (typeof token !== "string" || token.length === 0 || token.length > 2048) return false;
   try {
