@@ -372,14 +372,38 @@ export function RatingsPage() {
 
   const hasSelection = !!(selTeacher || selCourse);
   const teacherLabelOf = (tid: string) => teacherIndex.get(tid)?.name ?? tid;
-  /** 广场卡片标识行：评 xxx（老师）的《xxxx》（课程）——老师名与课程名加底框强调 */
+  const ratingEntityHref = (targetView: ViewMode, id: string) => {
+    const search = new URLSearchParams();
+    search.set("view", targetView);
+    search.set(targetView, id);
+    return `/ratings?${search.toString()}`;
+  };
+  const ratingEntityLinkClass =
+    "rounded bg-gray-100 px-1 py-px font-medium text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200";
+  const teacherLinkOf = (tid: string) => (
+    <Link
+      to={ratingEntityHref("teacher", tid)}
+      onClick={() => setMobileFeed(false)}
+      className={ratingEntityLinkClass}
+      title={`查看${teacherLabelOf(tid)}老师的全部评价`}
+    >
+      {teacherLabelOf(tid)}
+    </Link>
+  );
+  const courseLinkOf = (cid: string) => (
+    <Link
+      to={ratingEntityHref("course", cid)}
+      onClick={() => setMobileFeed(false)}
+      className={ratingEntityLinkClass}
+      title={`查看《${courseNameOf(cid)}》的全部评价`}
+    >
+      {courseNameOf(cid)}
+    </Link>
+  );
+  /** 广场卡片标识行：老师名与课程名分别链接到对应评价专页。 */
   const feedLabelOf = (r: ReviewRow) => (
     <>
-      评{" "}
-      <span className="rounded bg-gray-100 px-1 py-px text-gray-500">{teacherLabelOf(r.teacherId)}</span>{" "}
-      老师 的《
-      <span className="rounded bg-gray-100 px-1 py-px text-gray-500">{courseNameOf(r.courseId)}</span>
-      》
+      评价 {teacherLinkOf(r.teacherId)} 老师的《{courseLinkOf(r.courseId)}》
     </>
   );
   const sortedFeed = useMemo(() => sortRows(feed.rows ?? [], sort), [feed.rows, sort]);
@@ -773,8 +797,8 @@ export function RatingsPage() {
                         hot={r.id === hotId}
                         courseLabel={
                           view === "teacher"
-                            ? courseNameOf(r.courseId)
-                            : `${teacherIndex.get(r.teacherId)?.name ?? r.teacherId} 老师`
+                            ? courseLinkOf(r.courseId)
+                            : <>{teacherLinkOf(r.teacherId)} 老师</>
                         }
                         onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
                         onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
