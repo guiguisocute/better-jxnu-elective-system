@@ -257,7 +257,7 @@ export async function reportReview(
   reviewId: number,
   voterId: string,
   reason: string,
-  captchaToken: string,
+  captchaToken = "",
 ): Promise<ReportReviewResult> {
   try {
     const res = await fetch("/api/reviews/report", {
