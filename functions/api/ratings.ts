@@ -29,7 +29,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     const { results } = await env.DB.prepare(
-      "SELECT teacher_id, AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE course_id = ? AND overall IS NOT NULL GROUP BY teacher_id"
+      "SELECT teacher_id, AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE course_id = ? AND overall IS NOT NULL AND status = 'approved' GROUP BY teacher_id"
     ).bind(courseId).all();
 
     return Response.json(results, {
@@ -63,7 +63,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       ).bind(courseId, teacherId, voterId, rating).run();
 
       const avg = await env.DB.prepare(
-        "SELECT AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE teacher_id = ? AND course_id = ? AND overall IS NOT NULL"
+        "SELECT AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE teacher_id = ? AND course_id = ? AND overall IS NOT NULL AND status = 'approved'"
       ).bind(teacherId, courseId).first<{ avg_rating: number; count: number }>();
 
       return Response.json({ ok: true, avgRating: avg?.avg_rating ?? rating, count: avg?.count ?? 1 });
@@ -98,7 +98,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       ).bind(courseId, teacherId, voterId).run();
 
       const avg = await env.DB.prepare(
-        "SELECT AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE teacher_id = ? AND course_id = ? AND overall IS NOT NULL"
+        "SELECT AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE teacher_id = ? AND course_id = ? AND overall IS NOT NULL AND status = 'approved'"
       ).bind(teacherId, courseId).first<{ avg_rating: number | null; count: number }>();
 
       return Response.json({

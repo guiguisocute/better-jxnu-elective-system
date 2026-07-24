@@ -45,6 +45,18 @@ function aggSelect(): string {
 
 type AggRow = { teacher_id: string } & Record<string, number | string | null>;
 
+/** 审核模式开关（app_settings.review_moderation = 'on'）；表不存在/无记录 = 关闭 */
+async function moderationEnabled(db: D1Database): Promise<boolean> {
+  try {
+    const row = await db
+      .prepare("SELECT value FROM app_settings WHERE key = 'review_moderation'")
+      .first<{ value: string }>();
+    return row?.value === "on";
+  } catch {
+    return false;
+  }
+}
+
 function rowToDims(row: AggRow): Record<string, { avg: number; count: number }> {
   const dims: Record<string, { avg: number; count: number }> = {};
   for (const d of DIMS) {
@@ -67,7 +79,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return Response.json({ error: "courseId required" }, { status: 400 });
     }
     const { results } = await env.DB.prepare(
-      `SELECT teacher_id, ${aggSelect()} FROM reviews WHERE course_id = ? GROUP BY teacher_id`
+      `SELECT teacher_id, ${aggSelect()} FROM reviews WHERE course_id = ? AND status = 'approved' GROUP BY teacher_id`
     )
       .bind(courseId)
       .all<AggRow>();
@@ -125,32 +137,37 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     try {
+      // 审核模式开启时新提交（含覆盖修改）先落 pending，审核通过后才公开
+      const pending = await moderationEnabled(env.DB);
+      const status = pending ? "pending" : "approved";
       await env.DB.prepare(
         `INSERT INTO reviews (course_id, teacher_id, voter_id, avatar, nickname,
            overall, assess, attendance, difficulty, teaching,
-           overall_c, assess_c, attendance_c, difficulty_c, teaching_c)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           overall_c, assess_c, attendance_c, difficulty_c, teaching_c, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(course_id, teacher_id, voter_id) DO UPDATE SET
            avatar = excluded.avatar, nickname = excluded.nickname,
            overall = excluded.overall, assess = excluded.assess, attendance = excluded.attendance,
            difficulty = excluded.difficulty, teaching = excluded.teaching,
            overall_c = excluded.overall_c, assess_c = excluded.assess_c, attendance_c = excluded.attendance_c,
            difficulty_c = excluded.difficulty_c, teaching_c = excluded.teaching_c,
+           status = excluded.status,
            updated_at = datetime('now')`
       )
         .bind(
           courseId, teacherId, voterId, avatar, nickname,
           scores.overall, scores.assess, scores.attendance, scores.difficulty, scores.teaching,
-          comments.overall, comments.assess, comments.attendance, comments.difficulty, comments.teaching
+          comments.overall, comments.assess, comments.attendance, comments.difficulty, comments.teaching,
+          status
         )
         .run();
 
       const row = await env.DB.prepare(
-        `SELECT teacher_id, ${aggSelect()} FROM reviews WHERE course_id = ? AND teacher_id = ? GROUP BY teacher_id`
+        `SELECT teacher_id, ${aggSelect()} FROM reviews WHERE course_id = ? AND teacher_id = ? AND status = 'approved' GROUP BY teacher_id`
       )
         .bind(courseId, teacherId)
         .first<AggRow>();
-      return Response.json({ ok: true, dims: row ? rowToDims(row) : {} });
+      return Response.json({ ok: true, pending, dims: row ? rowToDims(row) : {} });
     } catch {
       return Response.json({ error: "database error" }, { status: 500 });
     }

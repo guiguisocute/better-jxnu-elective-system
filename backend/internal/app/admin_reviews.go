@@ -135,6 +135,32 @@ func truncateRunes(s string, n int) string {
 	return string(r[:n]) + "…"
 }
 
+// reviewStatusMeta maps a status value (whitelist) to its badge class + label.
+var reviewStatusMeta = map[string]struct{ Class, Label string }{
+	"approved": {"badge", "已公开"},
+	"pending":  {"badge warn", "待审核"},
+	"rejected": {"badge err", "已拒绝"},
+}
+
+// reviewFloat extracts a numeric dimension score; ok=false when absent/blank.
+func reviewFloat(row map[string]any, key string) (float64, bool) {
+	value, present := row[key]
+	if !present || value == nil {
+		return 0, false
+	}
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			return 0, false
+		}
+		return f, true
+	}
+	return 0, false
+}
+
 func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, session adminSession) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -151,6 +177,10 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 	if field != "course" && field != "teacher" && field != "voter" {
 		field = "course"
 	}
+	status := r.URL.Query().Get("status")
+	if _, ok := reviewStatusMeta[status]; !ok {
+		status = "all"
+	}
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
@@ -163,9 +193,18 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 	fieldColumn := map[string]string{"course": "r.course_id", "teacher": "r.teacher_id", "voter": "r.voter_id"}[field]
 	sql := `SELECT r.*, (SELECT COUNT(*) FROM review_votes v WHERE v.review_id=r.id) AS helpful FROM reviews r`
 	var params []any
+	var where []string
 	if q != "" {
-		sql += " WHERE " + fieldColumn + " LIKE ?"
+		where = append(where, fieldColumn+" LIKE ?")
 		params = append(params, "%"+q+"%")
+	}
+	if status != "all" {
+		// status is whitelisted above; still bind as a parameter.
+		where = append(where, "r.status = ?")
+		params = append(params, status)
+	}
+	if len(where) > 0 {
+		sql += " WHERE " + strings.Join(where, " AND ")
 	}
 	sql += " ORDER BY r.updated_at DESC LIMIT ? OFFSET ?"
 	params = append(params, reviewPageSize, offset)
@@ -179,77 +218,68 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 		return
 	}
 
-	totalReviews, totalVotes := 0, 0
-	if stat, _, err := cloudflare.D1Query(ctx, `SELECT (SELECT COUNT(*) FROM reviews) AS reviews, (SELECT COUNT(*) FROM review_votes) AS votes`, nil); err == nil && len(stat) > 0 {
+	totalReviews, totalVotes, pendingCount := 0, 0, 0
+	if stat, _, err := cloudflare.D1Query(ctx, `SELECT (SELECT COUNT(*) FROM reviews) AS reviews, (SELECT COUNT(*) FROM review_votes) AS votes, (SELECT COUNT(*) FROM reviews WHERE status='pending') AS pending`, nil); err == nil && len(stat) > 0 {
 		totalReviews = reviewInt(stat[0], "reviews")
 		totalVotes = reviewInt(stat[0], "votes")
+		pendingCount = reviewInt(stat[0], "pending")
 	}
 
+	moderationOn := false
+	if m, _, err := cloudflare.D1Query(ctx, `SELECT value FROM app_settings WHERE key='review_moderation'`, nil); err == nil && len(m) > 0 {
+		moderationOn = reviewText(m[0], "value") == "on"
+	}
+
+	courseName, teacherName := a.reviewNames()
+
 	var b strings.Builder
-	b.WriteString(`<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1><p>直连 Cloudflare D1 库 jxnu-ratings，可查看、编辑、删除与批量清理评价。</p></div><a class="button primary" href="/reviews/edit">手工补录评价</a></section>`)
+	b.WriteString(`<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1><p>直连 Cloudflare D1 库 jxnu-ratings，可查看、编辑、删除、审核与批量清理评价。</p></div><a class="button primary" href="/reviews/edit">手工补录评价</a></section>`)
 
-	// stats
-	b.WriteString(fmt.Sprintf(`<div class="grid three"><section class="card"><h2>总评价数</h2><p class="big">%d</p></section><section class="card"><h2>总投票数</h2><p class="big">%d</p></section><section class="card"><h2>当前页</h2><p class="big">第 %d 页</p><p class="hint">每页 %d 条</p></section></div>`, totalReviews, totalVotes, page, reviewPageSize))
+	// stats: 4 cards
+	b.WriteString(fmt.Sprintf(`<div class="grid four"><section class="card"><h2>总评价数</h2><p class="big">%d</p></section><section class="card"><h2>待审核</h2><p class="big">%d</p></section><section class="card"><h2>总投票数</h2><p class="big">%d</p></section><section class="card"><h2>当前页</h2><p class="big">第 %d 页</p><p class="hint">每页 %d 条</p></section></div>`, totalReviews, pendingCount, totalVotes, page, reviewPageSize))
 
-	// search form
-	sel := func(v, label string) string {
+	// moderation switch card
+	moderationBadge := `<span class="hint">关闭：评价即发即显</span>`
+	nextEnable := "on"
+	buttonLabel := "开启审核模式"
+	if moderationOn {
+		moderationBadge = `<span class="badge warn">开启中：新评价需人工审核</span>`
+		nextEnable = "off"
+		buttonLabel = "关闭审核模式"
+	}
+	b.WriteString(`<section class="card"><h2>审核模式</h2><p>` + moderationBadge + `</p><p class="hint">开启后，新提交的评价默认进入待审核，需在此页面手动通过后才对外可见。</p><form method="post" action="/action/review-moderation">` + csrf(session) + `<input type="hidden" name="enable" value="` + nextEnable + `"><button class="button" type="submit">` + buttonLabel + `</button></form></section>`)
+
+	// search form (with status dropdown)
+	sel := func(name, cur, v, label string) string {
 		s := ""
-		if field == v {
+		if cur == v {
 			s = " selected"
 		}
+		_ = name
 		return `<option value="` + v + `"` + s + `>` + label + `</option>`
 	}
 	b.WriteString(`<section class="card"><h2>搜索</h2><form method="get" action="/reviews" class="searchbar"><select name="field">` +
-		sel("course", "课程号") + sel("teacher", "教师号") + sel("voter", "voter") +
+		sel("field", field, "course", "课程号") + sel("field", field, "teacher", "教师号") + sel("field", field, "voter", "voter") +
+		`</select><select name="status">` +
+		sel("status", status, "all", "全部") + sel("status", status, "pending", "待审核") + sel("status", status, "approved", "已公开") + sel("status", status, "rejected", "已拒绝") +
 		`</select><input name="q" value="` + template.HTMLEscapeString(q) + `" placeholder="输入搜索词" maxlength="64"><button class="button" type="submit">搜索</button></form></section>`)
 
-	// table
-	b.WriteString(`<section class="card"><h2>评价列表</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>id</th><th>课程号</th><th>教师号</th><th>voter</th><th>昵称</th><th>头像</th>`)
-	for _, d := range reviewDimensions {
-		b.WriteString(`<th>` + d.Label + `</th>`)
-	}
-	for _, d := range reviewDimensions {
-		b.WriteString(`<th>` + d.Label + `评语</th>`)
-	}
-	b.WriteString(`<th>有用</th><th>更新时间</th><th>操作</th></tr></thead><tbody>`)
-
+	// review cards
+	b.WriteString(`<section class="card"><h2>评价列表</h2>`)
 	if len(rows) == 0 {
-		b.WriteString(`<tr><td colspan="19">没有匹配的评价</td></tr>`)
+		b.WriteString(`<p class="hint">没有匹配的评价。</p>`)
 	}
 	for _, row := range rows {
-		id := reviewInt(row, "id")
-		b.WriteString(`<tr>`)
-		b.WriteString(`<td>` + strconv.Itoa(id) + `</td>`)
-		b.WriteString(`<td>` + template.HTMLEscapeString(reviewText(row, "course_id")) + `</td>`)
-		b.WriteString(`<td>` + template.HTMLEscapeString(reviewText(row, "teacher_id")) + `</td>`)
-		b.WriteString(`<td title="` + template.HTMLEscapeString(reviewText(row, "voter_id")) + `">` + template.HTMLEscapeString(truncateRunes(reviewText(row, "voter_id"), 8)) + `</td>`)
-		b.WriteString(`<td>` + template.HTMLEscapeString(reviewText(row, "nickname")) + `</td>`)
-		b.WriteString(`<td>` + template.HTMLEscapeString(reviewText(row, "avatar")) + `</td>`)
-		for _, d := range reviewDimensions {
-			b.WriteString(`<td>` + reviewScoreCell(row, d.Score) + `</td>`)
-		}
-		for _, d := range reviewDimensions {
-			full := reviewText(row, d.Comment)
-			if strings.TrimSpace(full) == "" {
-				b.WriteString(`<td>—</td>`)
-			} else {
-				b.WriteString(`<td title="` + template.HTMLEscapeString(full) + `">` + template.HTMLEscapeString(truncateRunes(full, 60)) + `</td>`)
-			}
-		}
-		b.WriteString(`<td>` + strconv.Itoa(reviewInt(row, "helpful")) + `</td>`)
-		b.WriteString(`<td>` + template.HTMLEscapeString(reviewText(row, "updated_at")) + `</td>`)
-		b.WriteString(`<td><a href="/reviews/edit?id=` + strconv.Itoa(id) + `">编辑</a> <form method="post" action="/action/delete-review">` + csrf(session) + `<input type="hidden" name="id" value="` + strconv.Itoa(id) + `"><button class="link" type="submit" style="color:#c0363f">删除</button></form></td>`)
-		b.WriteString(`</tr>`)
+		b.WriteString(renderReviewCard(row, session, courseName, teacherName))
 	}
-	b.WriteString(`</tbody></table></div>`)
 
 	// pager
 	b.WriteString(`<div class="pager">`)
 	if page > 1 {
-		b.WriteString(`<a class="button" href="` + reviewListURL(q, field, page-1) + `">上一页</a>`)
+		b.WriteString(`<a class="button" href="` + reviewListURL(q, field, status, page-1) + `">上一页</a>`)
 	}
 	if len(rows) == reviewPageSize {
-		b.WriteString(`<a class="button" href="` + reviewListURL(q, field, page+1) + `">下一页</a>`)
+		b.WriteString(`<a class="button" href="` + reviewListURL(q, field, status, page+1) + `">下一页</a>`)
 	}
 	b.WriteString(`</div></section>`)
 
@@ -262,12 +292,162 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 	a.render(w, "评价管理", b.String(), &session)
 }
 
-func reviewListURL(q, field string, page int) string {
-	v := fmt.Sprintf("/reviews?field=%s&page=%d", field, page)
+// renderReviewCard renders one review as a card. All dynamic values are HTML
+// escaped; colors are static constants injected inline.
+func renderReviewCard(row map[string]any, session adminSession, courseName, teacherName func(id string) string) string {
+	var b strings.Builder
+	id := reviewInt(row, "id")
+	courseID := reviewText(row, "course_id")
+	teacherID := reviewText(row, "teacher_id")
+	status := reviewText(row, "status")
+	meta, ok := reviewStatusMeta[status]
+	if !ok {
+		meta = reviewStatusMeta["approved"]
+	}
+
+	cName := courseName(courseID)
+	if cName == "" {
+		cName = "未知课程"
+	}
+	tName := teacherName(teacherID)
+	if tName == "" {
+		tName = "未知教师"
+	}
+
+	b.WriteString(`<div class="rev">`)
+	// head row
+	b.WriteString(`<div class="rev-head"><div class="rev-title">` +
+		template.HTMLEscapeString(cName) + ` <code>` + template.HTMLEscapeString(courseID) + `</code> · ` +
+		template.HTMLEscapeString(tName) + ` <code>` + template.HTMLEscapeString(teacherID) + `</code></div>` +
+		`<span class="` + meta.Class + `">` + meta.Label + `</span></div>`)
+
+	// hint row
+	nickname := strings.TrimSpace(reviewText(row, "nickname"))
+	if nickname == "" {
+		nickname = "匿名同学"
+	}
+	voter := reviewText(row, "voter_id")
+	b.WriteString(`<p class="hint rev-meta">` + template.HTMLEscapeString(nickname) +
+		` · <span title="` + template.HTMLEscapeString(voter) + `">` + template.HTMLEscapeString(truncateRunes(voter, 8)) + `</span>` +
+		` · 有用 ` + strconv.Itoa(reviewInt(row, "helpful")) +
+		` · ` + template.HTMLEscapeString(reviewText(row, "updated_at")) +
+		` · #` + strconv.Itoa(id) + `</p>`)
+
+	// dimension chips
+	b.WriteString(`<div class="rev-chips">`)
+	for _, d := range reviewDimMetas {
+		score, has := reviewFloat(row, d.Score)
+		if !has {
+			continue
+		}
+		val := strconv.FormatFloat(score, 'f', -1, 64)
+		b.WriteString(`<span class="rev-chip" title="` + template.HTMLEscapeString(d.starTierLabel(score)) +
+			`" style="background:` + d.Color + `1A;color:` + d.Color + `">` +
+			template.HTMLEscapeString(d.Chip) + ` ★` + val + `</span>`)
+	}
+	b.WriteString(`</div>`)
+
+	// comments
+	for _, d := range reviewDimMetas {
+		full := strings.TrimSpace(reviewText(row, d.Comment))
+		if full == "" {
+			continue
+		}
+		b.WriteString(`<div class="rev-quote" style="border-color:` + d.Color + `"><span class="rev-quote-label" style="color:` + d.Color + `">` +
+			template.HTMLEscapeString(d.Chip) + `</span>` + template.HTMLEscapeString(full) + `</div>`)
+	}
+
+	// actions
+	b.WriteString(`<div class="rev-actions">`)
+	b.WriteString(`<a class="button" href="/reviews/edit?id=` + strconv.Itoa(id) + `">编辑</a>`)
+	if status == "pending" {
+		b.WriteString(`<form method="post" action="/action/moderate-review">` + csrf(session) + `<input type="hidden" name="id" value="` + strconv.Itoa(id) + `"><input type="hidden" name="decision" value="approved"><button class="button" type="submit">✔ 通过</button></form>`)
+		b.WriteString(`<form method="post" action="/action/moderate-review">` + csrf(session) + `<input type="hidden" name="id" value="` + strconv.Itoa(id) + `"><input type="hidden" name="decision" value="rejected"><button class="button" type="submit">✘ 拒绝</button></form>`)
+	}
+	b.WriteString(`<form method="post" action="/action/delete-review">` + csrf(session) + `<input type="hidden" name="id" value="` + strconv.Itoa(id) + `"><button class="link" type="submit" style="color:#c0363f">删除</button></form>`)
+	b.WriteString(`</div>`)
+
+	b.WriteString(`</div>`)
+	return b.String()
+}
+
+func reviewListURL(q, field, status string, page int) string {
+	v := fmt.Sprintf("/reviews?field=%s&status=%s&page=%d", field, status, page)
 	if q != "" {
 		v += "&q=" + template.URLQueryEscaper(q)
 	}
 	return v
+}
+
+// toggleReviewModeration flips the review_moderation app-setting between on/off.
+func (a *AdminServer) toggleReviewModeration(w http.ResponseWriter, r *http.Request, session adminSession) {
+	if !a.validPost(w, r, session) {
+		return
+	}
+	cloudflare := a.cloudflareClient()
+	if !cloudflare.D1Ready() {
+		a.result(w, "操作失败", "Cloudflare D1 凭据未配置", false, &session)
+		return
+	}
+	enable := map[string]string{"on": "on", "off": "off"}[r.Form.Get("enable")]
+	if enable == "" {
+		a.result(w, "操作失败", "开关值不合法", false, &session)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	if _, _, err := cloudflare.D1Query(ctx, `INSERT INTO app_settings (key,value) VALUES ('review_moderation',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, []any{enable}); err != nil {
+		a.result(w, "操作失败", err.Error(), false, &session)
+		return
+	}
+	if enable == "on" {
+		a.result(w, "审核模式已开启", "新提交的评价将进入待审核，需人工通过后才对外可见。", true, &session)
+		return
+	}
+	a.result(w, "审核模式已关闭", "评价将即发即显。", true, &session)
+}
+
+// moderateReview approves or rejects a single pending review.
+func (a *AdminServer) moderateReview(w http.ResponseWriter, r *http.Request, session adminSession) {
+	if !a.validPost(w, r, session) {
+		return
+	}
+	cloudflare := a.cloudflareClient()
+	if !cloudflare.D1Ready() {
+		a.result(w, "操作失败", "Cloudflare D1 凭据未配置", false, &session)
+		return
+	}
+	id, err := strconv.Atoi(strings.TrimSpace(r.Form.Get("id")))
+	if err != nil {
+		a.result(w, "操作失败", "评价 id 不合法", false, &session)
+		return
+	}
+	decision, err := normalizeReviewDecision(r.Form.Get("decision"))
+	if err != nil {
+		a.result(w, "操作失败", err.Error(), false, &session)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	if _, _, err := cloudflare.D1Query(ctx, `UPDATE reviews SET status=?, updated_at=datetime('now') WHERE id=?`, []any{decision, id}); err != nil {
+		a.result(w, "操作失败", err.Error(), false, &session)
+		return
+	}
+	verb := map[string]string{"approved": "已通过", "rejected": "已拒绝"}[decision]
+	a.result(w, "审核完成", fmt.Sprintf("%s评价 #%d。", verb, id), true, &session)
+}
+
+// normalizeReviewDecision whitelists the moderation decision. Returns an error
+// for anything outside {approved, rejected} so no SQL is issued on bad input.
+func normalizeReviewDecision(raw string) (string, error) {
+	switch strings.TrimSpace(raw) {
+	case "approved":
+		return "approved", nil
+	case "rejected":
+		return "rejected", nil
+	default:
+		return "", fmt.Errorf("审核结论必须是通过或拒绝")
+	}
 }
 
 func (a *AdminServer) reviewEditPage(w http.ResponseWriter, r *http.Request, session adminSession) {
@@ -534,6 +714,15 @@ func (a *AdminServer) saveD1Connection(w http.ResponseWriter, r *http.Request, s
 	if _, _, err := client.D1Query(ctx, "SELECT 1 AS ok", nil); err != nil {
 		a.result(w, "连接失败", "D1 未通过验证："+err.Error()+"。请确认 Token 具有 Account / D1 / Edit 权限，且 Account ID / 库 ID 正确。", false, &session)
 		return
+	}
+
+	// 若已配置 Pages 项目（两处共用同一个 CF_API_TOKEN），额外验证该 Token 仍能管理
+	// Pages，避免存入一个只有 D1 权限的 Token 后把 AI 配置页打坏。
+	if client.Ready() {
+		if _, err := client.GetProject(ctx); err != nil {
+			a.result(w, "连接失败", "该 Token 能访问 D1 但无法管理 Pages —— 两处共用同一个 CF_API_TOKEN，请生成同时具有 Account / D1 / Edit 与 Account / Cloudflare Pages / Edit 权限的 Token。原始错误："+err.Error(), false, &session)
+			return
+		}
 	}
 
 	if err := updateEnvironmentFile(a.env.EnvFilePath, map[string]string{

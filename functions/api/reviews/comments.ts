@@ -42,7 +42,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "courseId or teacherId required" }, { status: 400 });
   }
 
-  const where: string[] = [];
+  const where: string[] = ["r.status = 'approved'"];
   const binds: (string | number)[] = [voterId];
   if (courseId) {
     where.push("r.course_id = ?");

@@ -16,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const row = await context.env.DB.prepare(
     `SELECT id, avatar, nickname, overall, assess, attendance, difficulty, teaching,
-            overall_c, assess_c, attendance_c, difficulty_c, teaching_c, created_at, updated_at
+            overall_c, assess_c, attendance_c, difficulty_c, teaching_c, status, created_at, updated_at
      FROM reviews WHERE course_id = ? AND teacher_id = ? AND voter_id = ?`
   )
     .bind(courseId, teacherId, voterId)
@@ -44,6 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         attendanceC: row.attendance_c,
         difficultyC: row.difficulty_c,
         teachingC: row.teaching_c,
+        status: row.status ?? "approved",
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         helpful: 0,

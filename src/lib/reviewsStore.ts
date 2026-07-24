@@ -111,15 +111,16 @@ export async function fetchMyReview(
   return data.exists && data.review ? data.review : null;
 }
 
-/** 提交/覆盖评价；成功后用响应里的权威聚合覆盖本地并刷新相关评语流 */
-export async function submitReview(payload: ReviewSubmit): Promise<boolean> {
+/** 提交/覆盖评价；成功后用响应里的权威聚合覆盖本地并刷新相关评语流。
+ *  pending = 站点开启了审核模式，该条要等后台审核通过才公开。 */
+export async function submitReview(payload: ReviewSubmit): Promise<{ ok: boolean; pending: boolean }> {
   const res = await fetch("/api/reviews", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const data = await readJson<{ ok?: boolean; dims?: TeacherDims }>(res, {});
-  if (!data.ok) return false;
+  const data = await readJson<{ ok?: boolean; pending?: boolean; dims?: TeacherDims }>(res, {});
+  if (!data.ok) return { ok: false, pending: false };
   if (data.dims) {
     setTeacherDims(payload.courseId, payload.teacherId, data.dims);
     notify();
@@ -131,7 +132,7 @@ export async function submitReview(payload: ReviewSubmit): Promise<boolean> {
       void fetchReviewComments(cid || undefined, tid || undefined, payload.voterId);
     }
   }
-  return true;
+  return { ok: true, pending: !!data.pending };
 }
 
 /** 「有用」toggle：不可变替换数组（保证依赖 rows 引用的 useMemo 重新计算）、

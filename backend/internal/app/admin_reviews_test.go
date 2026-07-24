@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -128,5 +130,76 @@ func TestReviewsPageWithoutD1Credentials(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "/action/save-d1") || !strings.Contains(body, "连接 Cloudflare D1") {
 		t.Fatalf("expected D1 guidance card, got %q", body)
+	}
+}
+
+func TestStarTier(t *testing.T) {
+	cases := []struct {
+		score float64
+		want  int
+	}{
+		{0.5, 1}, {1, 1}, {1.4, 1}, {1.5, 2}, {2.5, 3}, {3.4, 3},
+		{4.5, 5}, {4.6, 5}, {5, 5}, {0, 1}, {9, 5},
+	}
+	for _, c := range cases {
+		if got := starTier(c.score); got != c.want {
+			t.Fatalf("starTier(%v) = %d, want %d", c.score, got, c.want)
+		}
+	}
+}
+
+func TestStarTierLabel(t *testing.T) {
+	overall := reviewDimMetas[0]
+	if got := overall.starTierLabel(4.6); got != "强烈推荐" {
+		t.Fatalf("overall.starTierLabel(4.6) = %q, want 强烈推荐", got)
+	}
+	if got := overall.starTierLabel(0.5); got != "很差" {
+		t.Fatalf("overall.starTierLabel(0.5) = %q, want 很差", got)
+	}
+}
+
+func TestNormalizeReviewDecision(t *testing.T) {
+	for _, ok := range []string{"approved", "rejected"} {
+		if got, err := normalizeReviewDecision(ok); err != nil || got != ok {
+			t.Fatalf("normalizeReviewDecision(%q) = %q,%v", ok, got, err)
+		}
+	}
+	for _, bad := range []string{"", "APPROVED", "pending", "deleted", "approved; DROP TABLE"} {
+		if _, err := normalizeReviewDecision(bad); err == nil {
+			t.Fatalf("normalizeReviewDecision(%q) expected error", bad)
+		}
+	}
+}
+
+func TestReviewNames(t *testing.T) {
+	dir := t.TempDir()
+	master := filepath.Join(dir, "data", "master")
+	if err := os.MkdirAll(master, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(master, "courses.json"), []byte(`[{"id":"001001","name":"国际政治","dept":"政法学院"},{"id":"002002","name":"高等数学"}]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(master, "teachers.json"), []byte(`[{"id":"00","name":"张三"},{"id":"01","name":"李四","gender":"男"}]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := &AdminServer{env: Environment{RepoDir: dir}}
+	courseName, teacherName := a.reviewNames()
+	if courseName("001001") != "国际政治" || courseName("002002") != "高等数学" {
+		t.Fatalf("course name lookup failed")
+	}
+	if teacherName("00") != "张三" || teacherName("01") != "李四" {
+		t.Fatalf("teacher name lookup failed")
+	}
+	if courseName("999999") != "" || teacherName("zz") != "" {
+		t.Fatalf("missing id should resolve to empty string")
+	}
+}
+
+func TestReviewNamesMissingFilesDoesNotCrash(t *testing.T) {
+	a := &AdminServer{env: Environment{RepoDir: t.TempDir()}}
+	courseName, teacherName := a.reviewNames()
+	if courseName("001001") != "" || teacherName("00") != "" {
+		t.Fatalf("expected empty lookups when master files are absent")
 	}
 }

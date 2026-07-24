@@ -141,6 +141,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [existing, setExisting] = useState(false);
+  const [pendingDone, setPendingDone] = useState(false);
 
   const hasScore = useMemo(
     () => DIMENSIONS.some((d) => (draft.scores[d] ?? 0) > 0),
@@ -203,11 +204,15 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
       (payload[COMMENT_FIELD[d]] as string | null) =
         score && score > 0 && comment ? comment.slice(0, 500) : null;
     }
-    const ok = await submitReview(payload);
+    const res = await submitReview(payload);
     setSubmitting(false);
-    if (ok) {
+    if (res.ok) {
       onSubmitted?.(courseId);
-      onClose();
+      if (res.pending) {
+        setPendingDone(true); // 审核模式：留在面板上告知「待审核」
+      } else {
+        onClose();
+      }
     } else {
       setError("提交失败，请稍后再试（本地开发无后端时不可用）");
     }
@@ -224,6 +229,22 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
         className="w-full sm:max-w-lg max-h-[92vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
+        {pendingDone ? (
+          <div className="px-6 py-10 text-center">
+            <div className="text-4xl mb-3" aria-hidden>✅</div>
+            <h2 className="text-[15px] font-bold text-gray-900">评价已提交</h2>
+            <p className="text-[12px] text-gray-500 mt-2 leading-relaxed">
+              当前站点开启了审核模式，你的评价将在管理员审核通过后公开展示。
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-5 px-6 py-2.5 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white text-[13px] font-bold shadow-md shadow-rose-200/70 hover:from-red-600 hover:to-rose-600"
+            >
+              知道了
+            </button>
+          </div>
+        ) : (
+        <>
         {/* header */}
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div>
@@ -367,6 +388,8 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
             {submitting ? "发布中…" : "匿名发布"}
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>,
     document.body

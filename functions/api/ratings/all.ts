@@ -7,7 +7,7 @@ interface Env {
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { results } = await context.env.DB.prepare(
-    "SELECT course_id, teacher_id, AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE overall IS NOT NULL GROUP BY course_id, teacher_id"
+    "SELECT course_id, teacher_id, AVG(overall) as avg_rating, COUNT(overall) as count FROM reviews WHERE overall IS NOT NULL AND status = 'approved' GROUP BY course_id, teacher_id"
   ).all();
 
   const grouped: Record<string, Record<string, { avg: number; count: number }>> = {};

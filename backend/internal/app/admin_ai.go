@@ -30,6 +30,19 @@ type aiAdminSettings struct {
 	APIKey       string
 }
 
+// cloudflareConnectCard is the shared Pages connection form. Used when no
+// credentials exist yet, and as a recovery path when the stored token stops
+// working (expired / replaced by a D1-only token).
+func (a *AdminServer) cloudflareConnectCard(session adminSession, title, intro string) string {
+	cloudflare := a.cloudflareClient()
+	return `<section class="card result error"><h2>` + template.HTMLEscapeString(title) + `</h2><p>` + intro + `</p><p class="hint">API Token 需要 Account / Cloudflare Pages / Edit 权限；若同时使用评价管理，请在同一个 Token 上再勾选 Account / D1 / Edit。Token 只写入 VPS，不会显示在页面、结果或日志中。</p>` +
+		`<form method="post" action="/action/save-cloudflare" class="stack">` + csrf(session) +
+		`<div class="field"><label>Cloudflare Account ID</label><input name="cfAccountID" minlength="32" maxlength="32" autocomplete="off" value="` + template.HTMLEscapeString(cloudflare.accountID) + `" required></div>` +
+		`<div class="field"><label>Pages 项目名</label><input name="cfPagesProject" value="` + template.HTMLEscapeString(cloudflare.ProjectName()) + `" placeholder="jxnu-elective-plus" maxlength="64" required></div>` +
+		`<div class="field"><label>Cloudflare API Token</label><input type="password" name="cfAPIToken" minlength="20" maxlength="512" autocomplete="new-password" required></div>` +
+		`<button class="button primary" type="submit">验证并保存 Cloudflare 连接</button></form></section>`
+}
+
 func (a *AdminServer) aiSettings(w http.ResponseWriter, r *http.Request, session adminSession) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -38,12 +51,7 @@ func (a *AdminServer) aiSettings(w http.ResponseWriter, r *http.Request, session
 	cloudflare := a.cloudflareClient()
 	if !cloudflare.Ready() {
 		body := `<section class="hero"><div><p class="eyebrow">AI 帮我选</p><h1>模型与预算配置</h1></div></section>` +
-			`<section class="card result error"><h2>先连接 Cloudflare Pages</h2><p>当前 VPS 没有可用的 Pages 管理凭据。只需在这里初始化一次；验证通过后会以 0600 权限写入 backend.env，并立即解锁下方完整 AI 配置。</p><p class="hint">API Token 需要 Account / Cloudflare Pages / Edit 权限。Token 只写入 VPS，不会显示在页面、结果或日志中。</p>` +
-			`<form method="post" action="/action/save-cloudflare" class="stack">` + csrf(session) +
-			`<div class="field"><label>Cloudflare Account ID</label><input name="cfAccountID" minlength="32" maxlength="32" autocomplete="off" required></div>` +
-			`<div class="field"><label>Pages 项目名</label><input name="cfPagesProject" value="` + template.HTMLEscapeString(cloudflare.ProjectName()) + `" placeholder="jxnu-elective-plus" maxlength="64" required></div>` +
-			`<div class="field"><label>Cloudflare API Token</label><input type="password" name="cfAPIToken" minlength="20" maxlength="512" autocomplete="new-password" required></div>` +
-			`<button class="button primary" type="submit">验证并保存 Cloudflare 连接</button></form></section>`
+			a.cloudflareConnectCard(session, "先连接 Cloudflare Pages", "当前 VPS 没有可用的 Pages 管理凭据。只需在这里初始化一次；验证通过后会以 0600 权限写入 backend.env，并立即解锁下方完整 AI 配置。")
 		a.render(w, "AI 配置", body, &session)
 		return
 	}
@@ -52,7 +60,11 @@ func (a *AdminServer) aiSettings(w http.ResponseWriter, r *http.Request, session
 	defer cancel()
 	project, err := cloudflare.GetProject(ctx)
 	if err != nil {
-		a.render(w, "AI 配置", `<section class="hero"><div><p class="eyebrow">AI 帮我选</p><h1>模型与预算配置</h1></div></section><section class="card result error"><h2>读取 Cloudflare Pages 失败</h2><p>`+template.HTMLEscapeString(err.Error())+`</p></section>`, &session)
+		// 凭据存在但打不通（403 = token 失效或被换成了只有 D1 权限的 token）——
+		// 直接给出重连表单，现场换一个带 Pages 权限的 Token。
+		a.render(w, "AI 配置", `<section class="hero"><div><p class="eyebrow">AI 帮我选</p><h1>模型与预算配置</h1></div></section>`+
+			a.cloudflareConnectCard(session, "读取 Cloudflare Pages 失败",
+				template.HTMLEscapeString(err.Error())+`<br>常见原因：API Token 过期，或最近在评价管理里保存了一个只有 D1 权限的 Token（两处共用同一个 <code>CF_API_TOKEN</code>）。请填入同时具有 Pages 与 D1 权限的 Token。`), &session)
 		return
 	}
 

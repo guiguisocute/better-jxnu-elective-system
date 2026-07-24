@@ -11,7 +11,7 @@ const DIMS = ["overall", "assess", "attendance", "difficulty", "teaching"] as co
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const select = DIMS.map((d) => `AVG(${d}) AS ${d}_avg, COUNT(${d}) AS ${d}_count`).join(", ");
   const { results } = await context.env.DB.prepare(
-    `SELECT course_id, teacher_id, ${select} FROM reviews GROUP BY course_id, teacher_id`
+    `SELECT course_id, teacher_id, ${select} FROM reviews WHERE status = 'approved' GROUP BY course_id, teacher_id`
   ).all<Record<string, string | number | null>>();
 
   const grouped: Record<string, Record<string, Record<string, { avg: number; count: number }>>> = {};

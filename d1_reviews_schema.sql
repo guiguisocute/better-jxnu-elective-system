@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS reviews (
   attendance_c TEXT,
   difficulty_c TEXT,
   teaching_c   TEXT,
+  -- 审核状态：approved（默认，直接公开）/ pending（审核模式开启时新提交）/ rejected。
+  -- 公开读接口只出 approved；审核在 Go 后台面板进行。
+  status     TEXT NOT NULL DEFAULT 'approved',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(course_id, teacher_id, voter_id)
@@ -33,6 +36,13 @@ CREATE INDEX IF NOT EXISTS idx_reviews_course  ON reviews(course_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_ct      ON reviews(course_id, teacher_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_teacher ON reviews(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_voter   ON reviews(voter_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_status  ON reviews(status);
+
+-- 站点级开关（评价审核模式等）。key: review_moderation, value: 'on' | 'off'（缺省 off）。
+CREATE TABLE IF NOT EXISTS app_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 
 -- 「有用」投票（评价卡右下角 👍）。一人一票，重复 POST = 取消（toggle）。
 CREATE TABLE IF NOT EXISTS review_votes (
