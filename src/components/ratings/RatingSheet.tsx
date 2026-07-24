@@ -18,6 +18,7 @@ import {
 import { AnonAvatar } from "./AnonAvatar";
 import { getVoterId } from "../../lib/voter";
 import { StarRatingInput } from "../StarRatingInput";
+import { useTheme } from "../../hooks/useTheme";
 
 export interface RatingSheetTarget {
   teacherId: string;
@@ -204,6 +205,8 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
   const [tsToken, setTsToken] = useState("");
   const tsRef = useRef<HTMLDivElement | null>(null);
   const tsWidgetId = useRef<string | null>(null);
+  // 挂件主题跟随站点主题（而非 Turnstile 默认的 auto=跟随系统），与用户在站内选的亮/暗一致
+  const { resolved: theme } = useTheme();
 
   const hasScore = useMemo(
     () => DIMENSIONS.some((d) => (draft.scores[d] ?? 0) > 0),
@@ -230,6 +233,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
         if (cancelled || !tsRef.current || !window.turnstile || tsWidgetId.current) return;
         tsWidgetId.current = window.turnstile.render(tsRef.current, {
           sitekey: tsSiteKey,
+          theme, // "light" | "dark"，跟随站点主题
           callback: (token: string) => setTsToken(token),
           "expired-callback": () => setTsToken(""),
           "error-callback": () => setTsToken(""),
@@ -245,7 +249,8 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
         tsWidgetId.current = null;
       }
     };
-  }, [tsSiteKey, pendingDone]);
+    // theme 变化时重建挂件以换肤（已取得的 token 仍有效，无需强制重新验证）
+  }, [tsSiteKey, pendingDone, theme]);
 
   // 打开/切课程：草稿优先，其次回填已提交的评价
   useEffect(() => {
