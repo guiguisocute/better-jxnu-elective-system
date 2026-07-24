@@ -126,7 +126,7 @@ func TestReviewsPageWithoutD1Credentials(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "尚未连接 Cloudflare D1") {
+	if !strings.Contains(body, "/action/save-d1") || !strings.Contains(body, "连接 Cloudflare D1") {
 		t.Fatalf("expected D1 guidance card, got %q", body)
 	}
 }

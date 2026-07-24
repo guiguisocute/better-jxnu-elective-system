@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -45,13 +46,44 @@ func parseReviewScore(raw string) (any, error) {
 	return v, nil
 }
 
-// reviewD1Unavailable renders the guidance card shown when the D1 binding is not
-// yet configured, so the handlers never touch a nil client path.
+// reviewD1SetupForm renders the self-service credential card (same UX as the AI
+// page's Cloudflare connection form). Shown when D1 is not configured yet, or as
+// a recovery path when queries fail (expired token / missing D1 permission).
+// The API token is shared with the Pages management token; leaving it blank
+// keeps the currently stored one.
+func (a *AdminServer) reviewD1SetupForm(session adminSession, notice string) string {
+	cloudflare := a.cloudflareClient()
+	noticeHTML := ""
+	if notice != "" {
+		noticeHTML = `<section class="card result error"><h2>连接 Cloudflare D1 失败</h2><p>` + template.HTMLEscapeString(notice) + `</p><p class="hint">常见原因：API Token 失效或缺少 Account / D1 / Edit 权限、Account ID 或库 ID 填错。请在下方修正后重新验证。</p></section>`
+	}
+	tokenLabel := "Cloudflare API Token"
+	tokenHint := `<p class="hint">Token 需要 Account / D1 / Edit 权限（可与 Pages 管理共用同一个 Token，一并勾选两种权限）。Token 只写入 VPS 的 backend.env，不会显示在页面或日志中。</p>`
+	tokenRequired := ` required`
+	if cloudflare.apiToken != "" {
+		tokenLabel += "（留空 = 沿用现有 Token）"
+		tokenRequired = ""
+	}
+	accountValue := cloudflare.accountID
+	dbValue := cloudflare.d1DatabaseID
+	if dbValue == "" {
+		dbValue = a.env.CFD1DatabaseID
+	}
+	return noticeHTML +
+		`<section class="card"><h2>连接 Cloudflare D1</h2><p>评价数据存放在 Cloudflare D1 库 <code>jxnu-ratings</code>。在此填写凭据，验证通过后以 0600 权限写入 backend.env 并立即生效。</p>` +
+		`<form method="post" action="/action/save-d1" class="stack">` + csrf(session) +
+		`<div class="field"><label>Cloudflare Account ID</label><input name="cfAccountID" minlength="32" maxlength="32" autocomplete="off" value="` + template.HTMLEscapeString(accountValue) + `" required></div>` +
+		`<div class="field"><label>` + tokenLabel + `</label><input type="password" name="cfAPIToken" maxlength="512" autocomplete="new-password"` + tokenRequired + `></div>` +
+		tokenHint +
+		`<div class="field"><label>D1 数据库 ID <code>CF_D1_DATABASE_ID</code></label><input name="cfD1DatabaseID" minlength="8" maxlength="64" value="` + template.HTMLEscapeString(dbValue) + `" required><p class="hint">Cloudflare Dashboard → D1 → jxnu-ratings 详情页可见；默认值即仓库 wrangler.toml 里的库 ID，一般无需修改。</p></div>` +
+		`<button class="button primary" type="submit">验证并保存 D1 连接</button></form></section>`
+}
+
+// reviewD1Unavailable renders the setup card when the D1 binding is not yet
+// configured, so the handlers never touch a nil client path.
 func (a *AdminServer) reviewD1Unavailable(w http.ResponseWriter, session adminSession) {
 	body := `<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1></div></section>` +
-		`<section class="card result error"><h2>尚未连接 Cloudflare D1</h2>` +
-		`<p>评价数据存放在 Cloudflare D1 库 <code>jxnu-ratings</code>。请先到 <a href="/ai">AI 配置</a> 页完成 Cloudflare 连接（Account ID / API Token / 项目名）。</p>` +
-		`<p class="hint">API Token 需要 Account / D1 / Edit 权限。此外需在 VPS 的 <code>backend.env</code> 配置 <code>CF_D1_DATABASE_ID</code>（已内置默认值，一般无需修改）。</p></section>`
+		a.reviewD1SetupForm(session, "")
 	a.render(w, "评价管理", body, &session)
 }
 
@@ -140,7 +172,10 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 
 	rows, _, err := cloudflare.D1Query(ctx, sql, params)
 	if err != nil {
-		a.render(w, "评价管理", `<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1></div></section><section class="card result error"><h2>读取评价失败</h2><p>`+template.HTMLEscapeString(err.Error())+`</p></section>`, &session)
+		// 查询失败（token 失效 / 缺 D1 权限 / 库 ID 错）→ 与未配置同款自助表单，现场修
+		a.render(w, "评价管理",
+			`<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1></div></section>`+
+				a.reviewD1SetupForm(session, err.Error()), &session)
 		return
 	}
 
@@ -455,6 +490,62 @@ func (a *AdminServer) deleteReview(w http.ResponseWriter, r *http.Request, sessi
 		return
 	}
 	a.result(w, "评价已删除", fmt.Sprintf("已删除评价 #%d 及其投票记录。", id), true, &session)
+}
+
+// saveD1Connection validates operator-supplied D1 credentials with a real
+// SELECT 1 round-trip, persists them to backend.env (0600) and hot-swaps the
+// shared Cloudflare client. Token is shared with Pages management; blank token
+// keeps the currently stored one.
+func (a *AdminServer) saveD1Connection(w http.ResponseWriter, r *http.Request, session adminSession) {
+	if !a.validPost(w, r, session) {
+		return
+	}
+	accountID := strings.TrimSpace(r.Form.Get("cfAccountID"))
+	token := strings.TrimSpace(r.Form.Get("cfAPIToken"))
+	dbID := strings.TrimSpace(r.Form.Get("cfD1DatabaseID"))
+	if !regexp.MustCompile(`^[0-9a-fA-F]{32}$`).MatchString(accountID) {
+		a.result(w, "连接失败", "Cloudflare Account ID 应为 32 位十六进制字符串", false, &session)
+		return
+	}
+	if !regexp.MustCompile(`^[0-9a-fA-F-]{8,64}$`).MatchString(dbID) {
+		a.result(w, "连接失败", "D1 数据库 ID 格式不合法（应为 Dashboard 里的 UUID）", false, &session)
+		return
+	}
+	current := a.cloudflareClient()
+	if token == "" {
+		token = current.apiToken
+	}
+	if len(token) < 20 || len(token) > 512 || strings.ContainsAny(token, "\r\n") {
+		a.result(w, "连接失败", "Cloudflare API Token 格式不合法", false, &session)
+		return
+	}
+
+	nextEnv := a.env
+	nextEnv.CFAccountID = accountID
+	nextEnv.CFAPIToken = token
+	nextEnv.CFD1DatabaseID = dbID
+	if current.project != "" {
+		nextEnv.CFPagesProject = current.project
+	}
+	client := NewCloudflarePagesClient(nextEnv)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	if _, _, err := client.D1Query(ctx, "SELECT 1 AS ok", nil); err != nil {
+		a.result(w, "连接失败", "D1 未通过验证："+err.Error()+"。请确认 Token 具有 Account / D1 / Edit 权限，且 Account ID / 库 ID 正确。", false, &session)
+		return
+	}
+
+	if err := updateEnvironmentFile(a.env.EnvFilePath, map[string]string{
+		"CF_ACCOUNT_ID":     accountID,
+		"CF_API_TOKEN":      token,
+		"CF_D1_DATABASE_ID": dbID,
+	}); err != nil {
+		a.result(w, "保存失败", err.Error(), false, &session)
+		return
+	}
+	a.setCloudflareClient(client)
+	a.result(w, "D1 已连接", "凭据已安全保存并立即生效。返回评价管理页即可查看与管理评价数据。", true, &session)
 }
 
 func (a *AdminServer) purgeReviews(w http.ResponseWriter, r *http.Request, session adminSession) {

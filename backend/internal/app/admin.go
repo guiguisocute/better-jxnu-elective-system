@@ -66,6 +66,7 @@ func (a *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("/action/save-review", a.auth(a.saveReview))
 	mux.HandleFunc("/action/delete-review", a.auth(a.deleteReview))
 	mux.HandleFunc("/action/purge-reviews", a.auth(a.purgeReviews))
+	mux.HandleFunc("/action/save-d1", a.auth(a.saveD1Connection))
 	return recoverMiddleware(a.logger, mux)
 }
 
