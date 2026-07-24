@@ -353,14 +353,10 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
   // Portal 到 body：详情页 aside 等祖先带 transform/sticky 会形成局部堆叠上下文，
   // 直接就地渲染时 fixed 遮罩压不住页面其他 z 层。
   return createPortal(
-    <div
-      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-6"
-      onClick={onClose}
-    >
-      <div
-        className="w-full sm:max-w-lg max-h-[92vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    // 点击遮罩不再关闭：编写评价时长按拖拽（选文字/拉滑块）松手落在遮罩上会误触 click→关闭，
+    // 面板整个消失、体验很差。只允许右上角「×」关闭。
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-6">
+      <div className="w-full sm:max-w-lg max-h-[92vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col">
         {pendingDone ? (
           <div className="px-6 py-10 text-center">
             <div className="text-4xl mb-3" aria-hidden>✅</div>

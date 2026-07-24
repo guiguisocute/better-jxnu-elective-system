@@ -7,13 +7,23 @@ import type { AllReviews, Dimension, ReviewRow, ReviewSubmit, TeacherDims } from
 
 type Listener = () => void;
 
+/** 三类可等待资源（全站聚合 / 各评语流）的加载状态；idle=尚未发起 */
+export type LoadStatus = "idle" | "loading" | "ready" | "error";
+
 const dims = new Map<string, Map<string, TeacherDims>>();
 const comments = new Map<string, ReviewRow[]>(); // key: `${courseId}|${teacherId ?? ""}`
 const listeners = new Set<Listener>();
 let version = 0;
+let allStatus: LoadStatus = "idle";
+const commentsStatus = new Map<string, LoadStatus>();
+// dims 是就地变更的（setTeacherDims 直接 .set）；交给 React 的必须是每次 notify 后的新引用
+// 快照（外层浅拷贝），否则依赖 [dimsMap] 的 useMemo 因引用恒等永不重算 ——
+// 这正是「F5 直进 /ratings 后数据到了列表也永远空着，得回主页再进」的根因。
+let dimsSnapshot: Map<string, Map<string, TeacherDims>> = new Map();
 
 function notify() {
   version++;
+  dimsSnapshot = new Map(dims);
   for (const fn of listeners) fn();
 }
 
@@ -29,7 +39,7 @@ export function getReviewsVersion() {
 }
 
 export function getDimsMap() {
-  return dims;
+  return dimsSnapshot;
 }
 
 export function getTeacherDims(courseId: string, teacherId: string): TeacherDims | null {
@@ -44,6 +54,14 @@ export function getComments(courseId: string | undefined, teacherId: string | un
   return comments.get(commentsKey(courseId, teacherId)) ?? null;
 }
 
+export function getAllReviewsStatus(): LoadStatus {
+  return allStatus;
+}
+
+export function getCommentsStatus(courseId: string | undefined, teacherId: string | undefined): LoadStatus {
+  return commentsStatus.get(commentsKey(courseId, teacherId)) ?? "idle";
+}
+
 // 与 ratingsStore 相同的容错解析：兜底 vite dev 无 Functions 时 /api/* 返回 SPA index.html。
 async function readJson<T>(res: Response, fallback: T): Promise<T> {
   if (!res.ok) return fallback;
@@ -55,6 +73,26 @@ async function readJson<T>(res: Response, fallback: T): Promise<T> {
   }
 }
 
+/** 批量加载专用：网络层异常 / 5xx 自动重试（退避），4xx 与 200-非JSON（dev 无 Functions）直接失败。
+ *  失败返回 { ok:false } 而非静默空数据 —— 调用方据此进入 error 态，UI 才能给出重试入口。 */
+const RETRY_ATTEMPTS = 3;
+async function fetchJsonRetry<T>(url: string, init?: RequestInit): Promise<{ ok: true; data: T } | { ok: false }> {
+  for (let i = 0; i < RETRY_ATTEMPTS; i++) {
+    try {
+      const res = await fetch(url, init);
+      const isJson = (res.headers.get("content-type") || "").includes("application/json");
+      if (res.ok && isJson) return { ok: true, data: (await res.json()) as T };
+      // 200 但非 JSON（dev 无 Functions 回落 index.html）或 4xx：重试无意义
+      if (res.ok || (res.status >= 400 && res.status < 500)) return { ok: false };
+      // 5xx（D1 抖动等）→ 退避后重试
+    } catch {
+      /* 网络层失败（断网 / 连接被杀 / 响应截断）→ 退避后重试 */
+    }
+    if (i < RETRY_ATTEMPTS - 1) await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+  }
+  return { ok: false };
+}
+
 function setTeacherDims(courseId: string, teacherId: string, next: TeacherDims) {
   let course = dims.get(courseId);
   if (!course) {
@@ -64,37 +102,72 @@ function setTeacherDims(courseId: string, teacherId: string, next: TeacherDims) 
   course.set(teacherId, next);
 }
 
-/** 全站聚合 bulk-load（评价子页面 + 列表排序/AI 的 overall 来源） */
+/** 全站聚合 bulk-load（评价子页面 + 列表排序/AI 的 overall 来源）。
+ *  状态机每次流转都 notify —— 失败也要让 UI 收到通知（error 态 + 重试按钮），
+ *  而不是像旧版那样静默吞掉、页面永远停在"空数据"。 */
 export async function fetchAllReviews() {
-  const res = await fetch("/api/reviews/all", { cache: "no-cache" });
-  const all = await readJson<AllReviews>(res, {});
-  for (const [cid, teachers] of Object.entries(all)) {
+  allStatus = "loading";
+  notify();
+  const r = await fetchJsonRetry<AllReviews>("/api/reviews/all", { cache: "no-cache" });
+  if (!r.ok) {
+    allStatus = "error";
+    notify();
+    return;
+  }
+  for (const [cid, teachers] of Object.entries(r.data)) {
     for (const [tid, t] of Object.entries(teachers)) {
       setTeacherDims(cid, tid, t);
     }
   }
+  allStatus = "ready";
   notify();
+}
+
+/** 幂等触发：idle/error → 发起加载；loading/ready → 不动。
+ *  每次组件挂载都调它，等价于"失败后每次进页面自动重试 + 重试按钮可复用"。 */
+export function ensureAllReviews() {
+  if (allStatus === "loading" || allStatus === "ready") return;
+  void fetchAllReviews();
 }
 
 /** 单课程聚合刷新（详情页挂载时保鲜） */
 export async function fetchCourseReviews(courseId: string) {
-  const res = await fetch(`/api/reviews?courseId=${encodeURIComponent(courseId)}`, { cache: "no-cache" });
-  const rows = await readJson<{ teacher_id: string; dims: TeacherDims }[]>(res, []);
-  for (const row of rows) setTeacherDims(courseId, row.teacher_id, row.dims);
+  const r = await fetchJsonRetry<{ teacher_id: string; dims: TeacherDims }[]>(
+    `/api/reviews?courseId=${encodeURIComponent(courseId)}`,
+    { cache: "no-cache" }
+  );
+  if (!r.ok) return;
+  for (const row of r.data) setTeacherDims(courseId, row.teacher_id, row.dims);
   notify();
 }
 
-/** 评语流。teacherId 省略 = 该课程全部教师的评价。 */
+/** 评语流。teacherId 省略 = 该课程全部教师的评价；两者都省略 = 全站广场流。
+ *  失败时保留旧 rows（若有）—— 决不能像旧版那样把失败缓存成空数组冒充"已加载且无评价"。 */
 export async function fetchReviewComments(courseId: string | undefined, teacherId: string | undefined, voterId: string) {
+  const key = commentsKey(courseId, teacherId);
+  commentsStatus.set(key, "loading");
+  notify();
   const params = new URLSearchParams();
   if (courseId) params.set("courseId", courseId);
   if (teacherId) params.set("teacherId", teacherId);
   params.set("voterId", voterId);
   params.set("limit", "100");
-  const res = await fetch(`/api/reviews/comments?${params}`, { cache: "no-cache" });
-  const rows = await readJson<ReviewRow[]>(res, []);
-  comments.set(commentsKey(courseId, teacherId), rows);
+  const r = await fetchJsonRetry<ReviewRow[]>(`/api/reviews/comments?${params}`, { cache: "no-cache" });
+  if (!r.ok) {
+    commentsStatus.set(key, "error");
+    notify();
+    return;
+  }
+  comments.set(key, r.data);
+  commentsStatus.set(key, "ready");
   notify();
+}
+
+/** 幂等触发（同 ensureAllReviews 语义），供挂载时调用 */
+export function ensureReviewComments(courseId: string | undefined, teacherId: string | undefined, voterId: string) {
+  const st = getCommentsStatus(courseId, teacherId);
+  if (st === "loading" || st === "ready") return;
+  void fetchReviewComments(courseId, teacherId, voterId);
 }
 
 /** 我对该 (课程, 教师) 已提交的完整评价（编辑回填用） */

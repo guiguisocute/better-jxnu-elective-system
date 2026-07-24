@@ -1,25 +1,37 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Course } from "../types";
 
 export function useCourseData() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/courses.json")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then((data: Course[]) => {
+        if (cancelled) return;
         setCourses(data);
         setLoading(false);
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err.message);
         setLoading(false);
       });
+    return () => { cancelled = true; };
+  }, [nonce]);
+
+  /** 加载失败后重新拉取（评价页错误态的重试入口） */
+  const reload = useCallback(() => {
+    setError(null);
+    setLoading(true);
+    setNonce((n) => n + 1);
   }, []);
 
   const allDepts = [...new Set(courses.map((c) => c.dept).filter(Boolean))].sort();
@@ -49,5 +61,5 @@ export function useCourseData() {
   ];
   const subTags = allTags.filter((t) => !courseTypes.includes(t));
 
-  return { courses, loading, error, allDepts, allCredits, allTags, allPlans, courseTypes, subTags };
+  return { courses, loading, error, reload, allDepts, allCredits, allTags, allPlans, courseTypes, subTags };
 }

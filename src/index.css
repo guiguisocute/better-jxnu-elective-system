@@ -146,6 +146,7 @@ body {
 :where(.dark) .bg-emerald-100{ background-color: rgba(16, 185, 129, 0.25) }
 :where(.dark) .bg-amber-50  { background-color: rgba(245, 158, 11, 0.15) }
 :where(.dark) .bg-amber-100 { background-color: rgba(245, 158, 11, 0.25) }
+:where(.dark) .hover\:bg-amber-100:hover { background-color: rgba(245, 158, 11, 0.25) }
 :where(.dark) .bg-orange-50 { background-color: rgba(249, 115, 22, 0.15) }
 :where(.dark) .bg-rose-50   { background-color: rgba(244, 63, 94, 0.15) }
 

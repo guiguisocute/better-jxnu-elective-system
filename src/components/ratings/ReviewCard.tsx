@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Dimension, ReviewRow } from "../../lib/reviewDimensions";
 import {
   DIMENSION_COLORS,
@@ -15,8 +15,8 @@ import { StarRating } from "../StarRating";
 
 interface Props {
   row: ReviewRow;
-  /** 评价对应的课程名（按老师视图里区分课程用；无则不显示） */
-  courseLabel?: string;
+  /** 评价对应的课程名（按老师视图里区分课程用；无则不显示）。广场里是带底框的富文本，故用 ReactNode */
+  courseLabel?: ReactNode;
   /** 「有用」数最高的卡片标热评 */
   hot?: boolean;
   onToggleHelpful?: (reviewId: number) => void;

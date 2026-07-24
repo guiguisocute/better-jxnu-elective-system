@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormalSection } from "../types";
 
 // 正选 / 补退选共用同一份课表和同一个前端入口。
@@ -6,6 +6,7 @@ export function useFormalData() {
   const [sections, setSections] = useState<FormalSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,6 +26,13 @@ export function useFormalData() {
         setLoading(false);
       });
     return () => { cancelled = true; };
+  }, [nonce]);
+
+  /** 加载失败后重新拉取（评价页错误态的重试入口） */
+  const reload = useCallback(() => {
+    setError(null);
+    setLoading(true);
+    setNonce((n) => n + 1);
   }, []);
 
   const available = !loading && !error && sections.length > 0;
@@ -33,5 +41,5 @@ export function useFormalData() {
     () => [...new Set(sections.map((s) => s.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a)),
     [sections],
   );
-  return { sections, loading, error, available, allSemesters };
+  return { sections, loading, error, reload, available, allSemesters };
 }

@@ -62,12 +62,68 @@ function sortRows(rows: ReviewRow[], sort: SortMode): ReviewRow[] {
   return copy;
 }
 
+/* ---------- 加载 / 错误态展示件（灰块经全局 .dark 映射自动适配深色） ---------- */
+
+/** 左列列表骨架：模拟实体卡的三行布局 */
+function ListSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="w-full rounded-xl bg-white ring-1 ring-gray-100 px-4 py-3 shrink-0 animate-pulse">
+          <div className="h-3.5 w-2/5 rounded bg-gray-100" />
+          <div className="h-2.5 w-3/5 rounded bg-gray-100 mt-2" />
+          <div className="h-3 w-1/3 rounded bg-gray-100 mt-2.5" />
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** 右侧评价流骨架：模拟评价卡（头像 + 两行文本） */
+function FeedSkeleton() {
+  return (
+    <div>
+      <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="rounded-2xl bg-white ring-1 ring-gray-100 p-4 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gray-100 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="h-3 w-24 rounded bg-gray-100" />
+                <div className="h-2.5 w-40 max-w-full rounded bg-gray-100 mt-1.5" />
+              </div>
+            </div>
+            <div className="h-3 w-full rounded bg-gray-100 mt-3" />
+            <div className="h-3 w-2/3 rounded bg-gray-100 mt-1.5" />
+          </div>
+        ))}
+      </div>
+      <p className="text-center text-[12px] text-gray-400 py-2">评价加载中…</p>
+    </div>
+  );
+}
+
+/** 加载失败卡：给出明确的重试入口（网络恢复后点一下即可，无需离开页面） */
+function LoadErrorCard({ text, onRetry, compact }: { text: string; onRetry: () => void; compact?: boolean }) {
+  return (
+    <div className={`rounded-2xl bg-white ring-1 ring-gray-100 text-center ${compact ? "py-8" : "py-14"}`}>
+      <p className="text-[13px] text-gray-500">⚠ {text}</p>
+      <button
+        onClick={onRetry}
+        className="mt-3 px-4 py-1.5 rounded-full bg-red-50 text-red-600 text-[12px] font-bold hover:bg-red-100 transition-colors"
+      >
+        重试
+      </button>
+    </div>
+  );
+}
+
 // 课程评价子页面：与主页同一条红 banner（像切换页面而非跳转），左列实体列表（独立滚动 +
 // 基本筛选/排序）+ 右侧详情（综合评分 + 5 维彩条 + 写评价 + 全部评价卡片流 + 上学期快评）。
 export function RatingsPage() {
-  const { courses } = useCourseData();
+  const { courses, loading: coursesLoading, error: coursesError, reload: reloadCourses } = useCourseData();
   const formal = useFormalData();
-  const { dimsMap, getDims } = useAllReviews();
+  const { dimsMap, getDims, status: reviewsStatus, retry: retryReviews } = useAllReviews();
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortMode>("latest");
@@ -279,15 +335,16 @@ export function RatingsPage() {
   // ---- 右侧详情数据 ----
   const selTeacher = view === "teacher" && selectedId ? teacherIndex.get(selectedId) : undefined;
   const selCourse = view === "course" && selectedId ? courseIndex.get(selectedId) : undefined;
-  const { rows: teacherRows, refresh: refreshTeacherRows } = useReviewComments(
+  const { rows: teacherRows, status: teacherRowsStatus, refresh: refreshTeacherRows } = useReviewComments(
     undefined,
     view === "teacher" && selectedId ? selectedId : undefined
   );
-  const { rows: courseRows, refresh: refreshCourseRows } = useReviewComments(
+  const { rows: courseRows, status: courseRowsStatus, refresh: refreshCourseRows } = useReviewComments(
     view === "course" && selectedId ? selectedId : undefined,
     undefined
   );
   const rows = view === "teacher" ? teacherRows : courseRows;
+  const rowsStatus = view === "teacher" ? teacherRowsStatus : courseRowsStatus;
   const refreshRows = view === "teacher" ? refreshTeacherRows : refreshCourseRows;
   const feed = useReviewFeed();
 
@@ -315,9 +372,36 @@ export function RatingsPage() {
 
   const hasSelection = !!(selTeacher || selCourse);
   const teacherLabelOf = (tid: string) => teacherIndex.get(tid)?.name ?? tid;
-  /** 广场卡片标识行：评 xxx（老师）的 xxxx（课程） */
-  const feedLabelOf = (r: ReviewRow) => `评 ${teacherLabelOf(r.teacherId)} 老师 的《${courseNameOf(r.courseId)}》`;
+  /** 广场卡片标识行：评 xxx（老师）的《xxxx》（课程）——老师名与课程名加底框强调 */
+  const feedLabelOf = (r: ReviewRow) => (
+    <>
+      评{" "}
+      <span className="rounded bg-gray-100 px-1 py-px text-gray-500">{teacherLabelOf(r.teacherId)}</span>{" "}
+      老师 的《
+      <span className="rounded bg-gray-100 px-1 py-px text-gray-500">{courseNameOf(r.courseId)}</span>
+      》
+    </>
+  );
   const sortedFeed = useMemo(() => sortRows(feed.rows ?? [], sort), [feed.rows, sort]);
+
+  // ---- 加载 / 错误态 ----
+  // 左列的"内容"来自静态目录（courses.json ∪ formal_sections.json）；课程视图默认列表
+  // 额外依赖 D1 聚合（courseOverall 的 key 集）。列表空 + 在加载 → 骨架屏；
+  // 列表空 + 失败 → 整卡错误 + 重试；列表有内容但某来源失败 → 顶部细条提示（可点重试）。
+  const catalogLoading = coursesLoading || formal.loading;
+  const catalogError = coursesError || formal.error;
+  const reviewsLoading = reviewsStatus === "idle" || reviewsStatus === "loading";
+  const listEmpty = (view === "teacher" ? teacherList : courseList).length === 0;
+  const listLoading =
+    listEmpty && (view === "teacher" || q ? catalogLoading : catalogLoading || reviewsLoading);
+  const listError =
+    listEmpty && !listLoading &&
+    !!(view === "teacher" || q ? catalogError : catalogError || reviewsStatus === "error");
+  const retrySources = () => {
+    if (coursesError) reloadCourses();
+    if (formal.error) formal.reload();
+    if (reviewsStatus === "error") retryReviews();
+  };
 
   return (
     <div className="min-h-screen bg-page">
@@ -364,9 +448,14 @@ export function RatingsPage() {
                 </button>
               ))}
             </div>
-            {/* 移动端广场入口（桌面端不选中任何详情即广场） */}
+            {/* 移动端广场入口（桌面端不选中任何详情即广场）；已在广场时再点一次返回列表 */}
             <button
               onClick={() => {
+                if (mobileFeed && !hasSelection) {
+                  // 再点一次「广场」→ 返回列表
+                  setMobileFeed(false);
+                  return;
+                }
                 const next = new URLSearchParams();
                 next.set("view", view);
                 setParams(next);
@@ -458,11 +547,35 @@ export function RatingsPage() {
               <option value="name">按名称</option>
             </select>
           </div>
+          {/* 列表有内容但某数据源失败：细条提示（不打断可用内容），点击重试 */}
+          {!listEmpty && (catalogError || reviewsStatus === "error") && (
+            <button
+              onClick={retrySources}
+              className="shrink-0 w-full rounded-lg bg-amber-50 px-3 py-2 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+            >
+              ⚠ 部分数据加载失败（
+              {[catalogError ? "课程目录" : "", reviewsStatus === "error" ? "评分" : ""].filter(Boolean).join("、")}
+              ）· 点击重试
+            </button>
+          )}
           <p className="text-[12px] text-gray-400 px-1">
-            {view === "teacher" ? `教师 · 共 ${teacherList.length} 位` : `课程 · 共 ${courseList.length} 门`}
-            {!q && view === "course" && "（已有评价）"}
+            {listLoading ? (
+              "列表加载中…"
+            ) : (
+              <>
+                {view === "teacher" ? `教师 · 共 ${teacherList.length} 位` : `课程 · 共 ${courseList.length} 门`}
+                {!q && view === "course" && "（已有评价）"}
+                {view === "teacher" && !listEmpty && reviewsLoading && (
+                  <span className="text-gray-300"> · 评分加载中…</span>
+                )}
+              </>
+            )}
           </p>
-          {view === "teacher"
+          {listLoading && <ListSkeleton />}
+          {listError && (
+            <LoadErrorCard compact text="数据加载失败，请检查网络后重试" onRetry={retrySources} />
+          )}
+          {!listLoading && !listError && (view === "teacher"
             ? teacherList.slice(0, listLimit).map(({ entry, agg }) => (
                 <button
                   key={entry.id}
@@ -520,8 +633,8 @@ export function RatingsPage() {
                     )}
                   </div>
                 </button>
-              ))}
-          {(view === "teacher" ? teacherList : courseList).length === 0 && (
+              )))}
+          {!listLoading && !listError && listEmpty && (
             <div className="text-center text-gray-400 text-[13px] py-10 bg-white rounded-xl ring-1 ring-gray-100">
               {q ? "没有匹配的结果" : "还没有任何评价，搜索一位老师或一门课来抢首评"}
             </div>
@@ -558,25 +671,38 @@ export function RatingsPage() {
             <>
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <h2 className="text-[15px] font-bold text-gray-800">
-                  广场 · 最新评价 <span className="text-gray-400 font-normal text-[13px]">{feed.rows?.length ?? 0}</span>
+                  广场 · 最新评价{" "}
+                  {feed.rows !== null && (
+                    <span className="text-gray-400 font-normal text-[13px]">{feed.rows.length}</span>
+                  )}
                 </h2>
                 <span className="text-[11px] text-gray-400">点左侧任意老师/课程查看专页 · 再点一次回到广场</span>
               </div>
-              <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
-                {sortedFeed.map((r) => (
-                  <ReviewCard
-                    key={r.id}
-                    row={r}
-                    courseLabel={feedLabelOf(r)}
-                    onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
-                    onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
-                  />
-                ))}
-              </div>
-              {(feed.rows?.length ?? 0) === 0 && (
-                <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-24 text-center text-gray-300 text-sm">
-                  广场还空着 —— 从左侧挑一位老师抢首评
-                </div>
+              {feed.rows === null ? (
+                feed.status === "error" ? (
+                  <LoadErrorCard text="评价加载失败，请检查网络后重试" onRetry={() => void feed.refresh()} />
+                ) : (
+                  <FeedSkeleton />
+                )
+              ) : (
+                <>
+                  <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
+                    {sortedFeed.map((r) => (
+                      <ReviewCard
+                        key={r.id}
+                        row={r}
+                        courseLabel={feedLabelOf(r)}
+                        onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
+                        onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
+                      />
+                    ))}
+                  </div>
+                  {feed.rows.length === 0 && (
+                    <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-24 text-center text-gray-300 text-sm">
+                      广场还空着 —— 从左侧挑一位老师抢首评
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -624,30 +750,43 @@ export function RatingsPage() {
             <>
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <h2 className="text-[15px] font-bold text-gray-800">
-                  全部评价 <span className="text-gray-400 font-normal text-[13px]">{rows?.length ?? 0}</span>
+                  全部评价{" "}
+                  {rows !== null && (
+                    <span className="text-gray-400 font-normal text-[13px]">{rows.length}</span>
+                  )}
                 </h2>
                 <span className="text-[11px] text-gray-400">🐢 匿名发布 · 每条评价可只评你在意的维度</span>
               </div>
-              <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
-                {sortedRows.map((r) => (
-                  <ReviewCard
-                    key={r.id}
-                    row={r}
-                    hot={r.id === hotId}
-                    courseLabel={
-                      view === "teacher"
-                        ? courseNameOf(r.courseId)
-                        : `${teacherIndex.get(r.teacherId)?.name ?? r.teacherId} 老师`
-                    }
-                    onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
-                    onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
-                  />
-                ))}
-              </div>
-              {(rows?.length ?? 0) === 0 && (
-                <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-14 text-center text-gray-300 text-sm">
-                  还没有评价，点「写评价」抢首评
-                </div>
+              {rows === null ? (
+                rowsStatus === "error" ? (
+                  <LoadErrorCard text="评价加载失败，请检查网络后重试" onRetry={() => void refreshRows()} />
+                ) : (
+                  <FeedSkeleton />
+                )
+              ) : (
+                <>
+                  <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
+                    {sortedRows.map((r) => (
+                      <ReviewCard
+                        key={r.id}
+                        row={r}
+                        hot={r.id === hotId}
+                        courseLabel={
+                          view === "teacher"
+                            ? courseNameOf(r.courseId)
+                            : `${teacherIndex.get(r.teacherId)?.name ?? r.teacherId} 老师`
+                        }
+                        onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
+                        onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
+                      />
+                    ))}
+                  </div>
+                  {rows.length === 0 && (
+                    <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-14 text-center text-gray-300 text-sm">
+                      还没有评价，点「写评价」抢首评
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -747,7 +886,6 @@ function CourseTeachersCard({
       <h2 className="text-[15px] font-bold text-gray-800 mb-4">
         各教师维度评分
         <span className="text-gray-400 font-normal text-[13px] ml-2">
-          {rated.length} 位有评分 · {unrated.length} 位暂无
         </span>
       </h2>
       <div className="space-y-4">
