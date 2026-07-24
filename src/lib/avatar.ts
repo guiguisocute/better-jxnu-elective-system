@@ -1,21 +1,10 @@
-// 匿名头像（momo 风）：动物 emoji + 柔和底色，由 seed 确定性渲染。
-// momo 原图是小红书版权素材，无正规开源包 —— 用本地 emoji 集模拟同款氛围；
-// avatar 字段只存 seed 字符串，后端/管理面板不关心渲染细节，
-// 日后若拿到可用图包，把 renderAvatar 换成图片映射即可无缝迁移。
+// 匿名身份：boring-avatars (variant="beam") 头像 + wg-random-name 随机中文昵称。
+// avatar 字段只存 seed 字符串；颜色由 seed 确定性派生（同一 seed 永远同一张脸同一配色），
+// 后端/管理面板不关心渲染细节。昵称每次写评价随机生成一个，不持久化。
+
+import randomName from "wg-random-name";
 
 const AVATAR_KEY = "jxnu_review_avatar";
-const NICKNAME_KEY = "jxnu_review_nickname";
-
-const EMOJIS = [
-  "🐢", "🐨", "🐰", "🐵", "🦊", "🐼", "🐧", "🦉",
-  "🐙", "🦆", "🐸", "🐹", "🦝", "🐱", "🐶", "🦁",
-  "🐷", "🐮", "🦄", "🐳", "🦥", "🦜", "🐿️", "🦔",
-];
-
-const BG_COLORS = [
-  "#FEE2E2", "#FFEDD5", "#FEF3C7", "#ECFCCB", "#D1FAE5", "#CFFAFE",
-  "#DBEAFE", "#E0E7FF", "#EDE9FE", "#FCE7F3", "#F3F4F6", "#FFE4E6",
-];
 
 function hashSeed(seed: string): number {
   let h = 5381;
@@ -25,18 +14,17 @@ function hashSeed(seed: string): number {
   return h;
 }
 
-export interface AvatarView {
-  emoji: string;
-  bg: string;
-}
-
-/** seed → 确定性头像（空/缺省 seed 也给一个稳定的兜底样子） */
-export function renderAvatar(seed: string | null | undefined): AvatarView {
+/** seed → boring-avatars 的 5 色 palette（确定性「随机」；HSL 保持柔和明快） */
+export function seedColors(seed: string | null | undefined): string[] {
   const h = hashSeed(seed || "momo");
-  return {
-    emoji: EMOJIS[h % EMOJIS.length],
-    bg: BG_COLORS[Math.floor(h / EMOJIS.length) % BG_COLORS.length],
-  };
+  const colors: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const hue = (h * (i + 3) * 47) % 360;
+    const sat = 55 + ((h >> (i + 2)) % 30); // 55–84%
+    const light = 55 + ((h >> (i + 5)) % 25); // 55–79%
+    colors.push(`hsl(${hue} ${sat}% ${light}%)`);
+  }
+  return colors;
 }
 
 export function randomAvatarSeed(): string {
@@ -62,14 +50,14 @@ export function setAvatarSeed(seed: string) {
   localStorage.setItem(AVATAR_KEY, seed);
 }
 
-export function getNickname(): string {
-  return localStorage.getItem(NICKNAME_KEY) ?? "";
-}
-
-export function setNickname(name: string) {
-  const t = name.trim().slice(0, 20);
-  if (t) localStorage.setItem(NICKNAME_KEY, t);
-  else localStorage.removeItem(NICKNAME_KEY);
+/** 随机中文匿名昵称（wg-random-name，如「快乐的小猫咪」），失败兜底空串（展示层再兜「匿名同学」） */
+export function randomNickname(): string {
+  try {
+    const name = randomName.getNickName();
+    return typeof name === "string" ? name.slice(0, 20) : "";
+  } catch {
+    return "";
+  }
 }
 
 export const FALLBACK_NICKNAME = "匿名同学";

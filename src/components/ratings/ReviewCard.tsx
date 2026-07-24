@@ -6,7 +6,8 @@ import {
   NEW_DIMENSIONS,
   starTextFor,
 } from "../../lib/reviewDimensions";
-import { FALLBACK_NICKNAME, renderAvatar } from "../../lib/avatar";
+import { FALLBACK_NICKNAME } from "../../lib/avatar";
+import { AnonAvatar } from "./AnonAvatar";
 import { StarRating } from "../StarRating";
 
 interface Props {
@@ -48,7 +49,6 @@ const COMMENT_KEYS: Record<Dimension, keyof ReviewRow> = {
 // 设计稿评价卡：头像+昵称+时间·课程 → 总体星级+文案 → 总体评语 →
 // 4 新维度小胶囊 → 分维度评语块（彩色左边框）→ 有用/修改 footer。
 export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine }: Props) {
-  const av = renderAvatar(row.avatar);
   const chips = NEW_DIMENSIONS.filter((d) => row[d] != null);
   const dimComments = NEW_DIMENSIONS.filter((d) => {
     const c = row[COMMENT_KEYS[d]];
@@ -63,13 +63,7 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
     >
       {/* 头像 + 昵称 + 时间 */}
       <div className="flex items-center gap-3">
-        <span
-          className="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 select-none"
-          style={{ backgroundColor: av.bg }}
-          aria-hidden
-        >
-          {av.emoji}
-        </span>
+        <AnonAvatar seed={row.avatar} size={40} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[13px] font-semibold text-gray-800 truncate">

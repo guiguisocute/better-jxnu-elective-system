@@ -13,10 +13,9 @@ import {
   getAvatarSeed,
   setAvatarSeed,
   randomAvatarSeed,
-  renderAvatar,
-  getNickname,
-  setNickname,
+  randomNickname,
 } from "../../lib/avatar";
+import { AnonAvatar } from "./AnonAvatar";
 import { getVoterId } from "../../lib/voter";
 import { StarRatingInput } from "../StarRatingInput";
 
@@ -134,7 +133,8 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
     target.initialCourseId ?? target.courseOptions[0]?.id ?? ""
   );
   const [seed, setSeed] = useState(getAvatarSeed);
-  const [nickname, setNick] = useState(getNickname);
+  // 昵称每次打开随机生成一个（wg-random-name 中文昵称）；已有评价时回填原昵称
+  const [nickname, setNick] = useState(randomNickname);
   const [draft, setDraft] = useState<Draft>({ scores: {}, comments: {} });
   const [openComments, setOpenComments] = useState<Partial<Record<Dimension, boolean>>>({});
   const [loading, setLoading] = useState(false);
@@ -142,7 +142,6 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
   const [error, setError] = useState("");
   const [existing, setExisting] = useState(false);
 
-  const av = renderAvatar(seed);
   const hasScore = useMemo(
     () => DIMENSIONS.some((d) => (draft.scores[d] ?? 0) > 0),
     [draft.scores]
@@ -190,7 +189,6 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
     setSubmitting(true);
     setError("");
     setAvatarSeed(seed);
-    setNickname(nickname);
     const payload: ReviewSubmit = {
       courseId,
       teacherId: target.teacherId,
@@ -268,13 +266,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
 
           {/* 匿名身份 */}
           <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-3.5 py-3">
-            <span
-              className="w-11 h-11 rounded-full flex items-center justify-center text-2xl shrink-0 select-none"
-              style={{ backgroundColor: av.bg }}
-              aria-hidden
-            >
-              {av.emoji}
-            </span>
+            <AnonAvatar seed={seed} size={44} />
             <div className="flex-1 min-w-0">
               <input
                 value={nickname}
@@ -284,7 +276,10 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
               />
             </div>
             <button
-              onClick={() => setSeed(randomAvatarSeed())}
+              onClick={() => {
+                setSeed(randomAvatarSeed());
+                setNick(randomNickname());
+              }}
               className="shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 bg-white border border-gray-200 hover:text-red-500 hover:border-red-200 transition-colors"
             >
               换一个

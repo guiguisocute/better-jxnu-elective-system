@@ -10,10 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "boring-avatars": "^2.0.4",
     "echarts": "^6.1.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.0"
+    "react-router-dom": "^7.15.0",
+    "wg-random-name": "^1.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
