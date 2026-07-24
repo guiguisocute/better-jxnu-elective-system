@@ -183,19 +183,22 @@ export function RatingsPage() {
         .map((t) => t.id)
         .slice(0, 120);
     } else {
-      ids = [...teacherAgg.keys()];
+      // 全量教师（含暂无评价的）；有评价的在前
+      ids = [...teacherIndex.keys()];
     }
     let list = ids.map((tid) => ({
       entry: teacherIndex.get(tid) ?? { id: tid, name: `教师 ${tid}`, dept: "", courseIds: [] },
       agg: teacherAgg.get(tid),
     }));
     if (listDept) list = list.filter((x) => x.entry.dept === listDept);
+    const byName = (a: (typeof list)[number], b: (typeof list)[number]) =>
+      a.entry.name.localeCompare(b.entry.name, "zh");
     if (listSort === "rating") {
-      list.sort((a, b) => (b.agg?.overall?.avg ?? -1) - (a.agg?.overall?.avg ?? -1));
+      list.sort((a, b) => (b.agg?.overall?.avg ?? -1) - (a.agg?.overall?.avg ?? -1) || byName(a, b));
     } else if (listSort === "count") {
-      list.sort((a, b) => (b.agg?.overall?.count ?? 0) - (a.agg?.overall?.count ?? 0));
+      list.sort((a, b) => (b.agg?.overall?.count ?? 0) - (a.agg?.overall?.count ?? 0) || byName(a, b));
     } else {
-      list.sort((a, b) => a.entry.name.localeCompare(b.entry.name, "zh"));
+      list.sort(byName);
     }
     return list;
   }, [q, teacherIndex, teacherAgg, courseIndex, listDept, listSort]);
@@ -229,10 +232,8 @@ export function RatingsPage() {
   const deptOptions = useMemo(() => {
     const set = new Set<string>();
     if (view === "teacher") {
-      const ids = q ? teacherList.map((x) => x.entry.id) : [...teacherAgg.keys()];
-      for (const tid of ids) {
-        const d = teacherIndex.get(tid)?.dept;
-        if (d) set.add(d);
+      for (const t of teacherIndex.values()) {
+        if (t.dept) set.add(t.dept);
       }
     } else {
       const ids = q ? courseList.map((x) => x.entry.id) : [...courseOverall.keys()];
@@ -242,9 +243,16 @@ export function RatingsPage() {
       }
     }
     return [...set].sort((a, b) => a.localeCompare(b, "zh"));
-    // teacherList/courseList 已含 listDept 过滤，这里只取集合，轻微偏差可接受
+    // courseList 已含 listDept 过滤，这里只取集合，轻微偏差可接受
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, q, teacherAgg, courseOverall, teacherIndex, courseIndex]);
+  }, [view, q, teacherIndex, courseOverall, courseIndex]);
+
+  // 全量教师列表分批渲染（2000+ 位老师一次性出 DOM 会卡）
+  const LIST_BATCH = 100;
+  const [listLimit, setListLimit] = useState(LIST_BATCH);
+  useEffect(() => {
+    setListLimit(LIST_BATCH);
+  }, [view, q, listDept, listSort]);
 
   const select = (id: string) => {
     const next = new URLSearchParams(params);
@@ -423,10 +431,10 @@ export function RatingsPage() {
           </div>
           <p className="text-[12px] text-gray-400 px-1">
             {view === "teacher" ? `教师 · 共 ${teacherList.length} 位` : `课程 · 共 ${courseList.length} 门`}
-            {!q && "（已有评价）"}
+            {!q && view === "course" && "（已有评价）"}
           </p>
           {view === "teacher"
-            ? teacherList.map(({ entry, agg }) => (
+            ? teacherList.slice(0, listLimit).map(({ entry, agg }) => (
                 <button
                   key={entry.id}
                   onClick={() => select(entry.id)}
@@ -488,6 +496,14 @@ export function RatingsPage() {
             <div className="text-center text-gray-400 text-[13px] py-10 bg-white rounded-xl ring-1 ring-gray-100">
               {q ? "没有匹配的结果" : "还没有任何评价，搜索一位老师或一门课来抢首评"}
             </div>
+          )}
+          {view === "teacher" && teacherList.length > listLimit && (
+            <button
+              onClick={() => setListLimit((l) => l + LIST_BATCH)}
+              className="w-full shrink-0 rounded-xl border border-dashed border-gray-200 bg-white/70 py-2.5 text-[12px] text-gray-500 hover:text-red-500 hover:border-red-200 transition-colors tabular-nums"
+            >
+              显示更多（已显示 {Math.min(listLimit, teacherList.length)} / {teacherList.length} 位）
+            </button>
           )}
         </aside>
 
