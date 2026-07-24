@@ -17,7 +17,6 @@ import { termToCalLabel, enrollYear } from "../lib/term";
 import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
-import { isPassed } from "../lib/studentRecord";
 import { useAppConfig } from "../lib/appConfig";
 import { acquireScrollLock } from "../lib/scrollLock";
 import { FilterBar } from "./FilterBar";
@@ -73,18 +72,6 @@ function sortSemesters(list: string[]): string[] {
 }
 
 const GITHUB_URL = "https://github.com/guiguisocute/better-jxnu-elective-system";
-
-const formalSectionKey = (s: FormalSection) => `${s.id}|${s.className}|${s.teacherId}`;
-const normalizeTeacherName = (v: string | undefined) => (v ?? "").replace(/\s+/g, "");
-const splitTeacherNames = (v: string | undefined) =>
-  normalizeTeacherName(v).split(/[、,，/]/).map((x) => x.trim()).filter(Boolean);
-const teacherMatches = (sectionTeacher: string, importedTeacher: string | undefined) => {
-  const section = normalizeTeacherName(sectionTeacher);
-  if (!section) return false;
-  const names = splitTeacherNames(importedTeacher);
-  if (names.length === 0) return true;
-  return names.some((name) => section.includes(name) || name.includes(section));
-};
 
 function GithubIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -172,7 +159,6 @@ export function HomePage() {
     if (filter.filters.plan !== currentPlan) setCurrentPlan(filter.filters.plan);
   }, [filter.filters.plan, currentPlan]);
   const chosenSections = useChosenSections();
-  const [quickRatingActive, setQuickRatingActive] = useState(false);
 
   // 一键排除已选时段：模拟选课开启时，把下学期已选课程占用的周时段算出来 —— 必修（按当前选班）
   // + 学号导入的教务真实课表（kind=imported，官方已选，不随待选清单增删变化）。
@@ -202,11 +188,10 @@ export function HomePage() {
   );
 
   const clearAllFilters = () => {
-    setQuickRatingActive(false);
     filter.clearAll();
     schedule.clear();
   };
-  const hasAnyActiveFilters = filter.hasActiveFilters || schedule.active || quickRatingActive;
+  const hasAnyActiveFilters = filter.hasActiveFilters || schedule.active;
 
   // 「真正收窄列表」的筛选 —— 后面会结合结果规模决定折叠组是否默认展开。
   // 裸选培养方案（仅高亮、未勾「仅看本方案」）不算收窄，避免太宽泛。
@@ -221,10 +206,9 @@ export function HomePage() {
       f.area.length > 0 || f.areaExclude.length > 0 ||
       (f.plan !== "" && f.planFilter === "include") ||
       f.hideTaken ||
-      schedule.active ||
-      quickRatingActive
+      schedule.active
     );
-  }, [filter.filters, schedule.active, quickRatingActive]);
+  }, [filter.filters, schedule.active]);
 
   // 功能说明层：无任何筛选时中间区不堆课，先解释各区域功能（详见 FeatureHints）。
   // 「直接展示全部课程」只是临时揭开本次清洁态的列表；一旦再施加筛选就重置，
@@ -459,12 +443,6 @@ export function HomePage() {
   );
   const allSemesters = dataSource === "pre" ? preSemesters : formal.allSemesters;
   const selectedSemester = semesterByDS[dataSource];
-  const quickRatingSemester = useMemo(() => {
-    const lastTerm = credit.term - 1;
-    if (!currentPlan || lastTerm < 1) return "";
-    const sem = termToCalLabel(enrollYear(currentPlan), lastTerm);
-    return sem && formal.allSemesters.includes(sem) ? sem : "";
-  }, [credit.term, currentPlan, formal.allSemesters]);
 
   // 当前激活 dataSource 的 slot 若为空 / 不在选项中，按当前学期 → 最新可选项兜底。
   // 仅惰性初始化当前激活那一个槽位（不预填三个，避免对 formal 未就绪时的竞争）。
@@ -486,60 +464,30 @@ export function HomePage() {
     return m;
   }, [courses]);
 
-  const quickRatingCourses = useMemo(() => {
-    const lastTerm = credit.term - 1;
-    if (!quickRatingSemester || lastTerm < 1) return [];
-    return (credit.stored.importedDetailCourses ?? []).filter((c) =>
-      !c.supplemented &&
-      isPassed(c) &&
-      !!c.courseId &&
-      c.planTermIndex === lastTerm,
-    );
-  }, [credit.stored.importedDetailCourses, credit.term, quickRatingSemester]);
-  const quickRatingSectionKeys = useMemo(() => {
-    if (quickRatingCourses.length === 0) return new Set<string>();
-    const importedByCid = new Map<string, typeof quickRatingCourses>();
-    for (const c of quickRatingCourses) {
-      const list = importedByCid.get(c.courseId) ?? [];
-      list.push(c);
-      importedByCid.set(c.courseId, list);
-    }
-    const keys = new Set<string>();
+  // 预选「往期容量」：同课程号在正选开课安排里最近一个学期的班级容量区间（nn~mm）。
+  // 评分列移除后预选行的参考信息位，帮助判断这课往年好不好抢。
+  const capacityRangeById = useMemo(() => {
+    const bySem = new Map<string, { sem: string; min: number; max: number }>();
     for (const s of formal.sections) {
-      if (s.semester !== quickRatingSemester) continue;
-      const imported = importedByCid.get(s.id);
-      if (!imported) continue;
-      if (imported.some((c) =>
-        teacherMatches(s.teacher, c.teacher) ||
-        (!!c.teachingClass && c.teachingClass === s.className)
-      )) {
-        keys.add(formalSectionKey(s));
+      if (s.capacity == null || s.capacity <= 0) continue;
+      const cur = bySem.get(s.id);
+      if (!cur || s.semester > cur.sem) {
+        bySem.set(s.id, { sem: s.semester, min: s.capacity, max: s.capacity });
+      } else if (s.semester === cur.sem) {
+        cur.min = Math.min(cur.min, s.capacity);
+        cur.max = Math.max(cur.max, s.capacity);
       }
     }
-    return keys;
-  }, [formal.sections, quickRatingCourses, quickRatingSemester]);
-  const hasStudentImport = (credit.stored.importedDetailCourses?.length ?? 0) > 0;
-  const quickRatingImportedCourseCount = new Set(quickRatingCourses.map((c) => c.courseId)).size;
-  const quickRatingReady = quickRatingSectionKeys.size > 0;
-  const quickRatingDisabledReason = !currentPlan
-    ? "先选择或通过学号导入培养方案"
-    : !hasStudentImport
-    ? "先在模拟选课里输入学号导入"
-    : !quickRatingSemester
-    ? "暂无可匹配的上学期正式开课数据"
-    : quickRatingImportedCourseCount === 0
-    ? "导入记录里没有上学期课程"
-    : !quickRatingReady
-    ? "上学期课程暂未匹配到任课老师"
-    : "";
-  useEffect(() => {
-    if (quickRatingActive && !quickRatingReady) setQuickRatingActive(false);
-  }, [quickRatingActive, quickRatingReady]);
-  useEffect(() => {
-    if (quickRatingActive && (dataSource !== "formal" || selectedSemester !== quickRatingSemester)) {
-      setQuickRatingActive(false);
+    const m = new Map<string, string>();
+    for (const [cid, r] of bySem) {
+      m.set(cid, r.min === r.max ? String(r.max) : `${r.min}~${r.max}`);
     }
-  }, [dataSource, quickRatingActive, quickRatingSemester, selectedSemester]);
+    return m;
+  }, [formal.sections]);
+  const getCapacityRange = useCallback(
+    (cid: string) => capacityRangeById.get(cid) ?? null,
+    [capacityRangeById],
+  );
 
   // 实时人数：放在内容筛选之前，让「余量筛选」拿得到 getEnrollment（余量 = 容量 − 实时已选）。
   const isFormalMode = dataSource !== "pre";
@@ -580,7 +528,6 @@ export function HomePage() {
       return tagsOf(s).includes(t);
     };
     return formal.sections.filter((s) => {
-      if (quickRatingActive && !quickRatingSectionKeys.has(formalSectionKey(s))) return false;
       if (s.semester !== selectedSemester) return false;
       if (search && !s._search.includes(search)) return false;
       if (f.credits.length > 0 && !f.credits.includes(s.credits)) return false;
@@ -606,7 +553,7 @@ export function HomePage() {
       if (f.hideTaken && sim.mode === "sim" && credit.takenCids.has(s.id)) return false;
       return true;
     });
-  }, [formal.sections, selectedSemester, filter.deferredFilters, coursesById, sim.mode, credit.takenCids, quickRatingActive, quickRatingSectionKeys]);
+  }, [formal.sections, selectedSemester, filter.deferredFilters, coursesById, sim.mode, credit.takenCids]);
 
   // 「仅看有余量」实际生效时才需要跟着实时人数重算；未开启时不能把 getEnrollment 放进依赖 ——
   // 否则每次实时轮询（哪怕只是刷新已选人数）都会强制重新过滤全量班级列表，白白扫一遍几千行。
@@ -882,28 +829,6 @@ export function HomePage() {
     return () => window.removeEventListener("popstate", onPopState);
   }, [showMobileFilter]);
 
-  const handleQuickRatePreviousSemester = useCallback(() => {
-    if (!quickRatingReady || !quickRatingSemester) return;
-    if (quickRatingActive) {
-      setQuickRatingActive(false);
-      return;
-    }
-    filter.clearAll({ preservePlan: true });
-    schedule.clear();
-    setQuickRatingActive(true);
-    setHintsDismissed(true);
-    changeDataSource("formal");
-    setSemesterByDS((prev) => ({ ...prev, formal: quickRatingSemester }));
-    setFormalPage(1);
-    setSelected(null);
-    setSelectedSection(null);
-    setSelectedSectionKey(null);
-    setMobileCourse(null);
-    setMobileSection(null);
-    if (showMobileFilter) closeMobileFilter();
-    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
-  }, [changeDataSource, closeMobileFilter, filter, quickRatingActive, quickRatingReady, quickRatingSemester, schedule, showMobileFilter]);
-
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-page">
@@ -960,24 +885,6 @@ export function HomePage() {
                 <span className="hidden sm:inline">课程评价</span>
                 <span className="sm:hidden">评价</span>
               </Link>
-              <button
-                type="button"
-                onClick={handleQuickRatePreviousSemester}
-                disabled={!quickRatingReady}
-                title={quickRatingReady ? (quickRatingActive ? "取消只看上学期课程" : `评价 ${quickRatingSemester} 上学期课程`) : quickRatingDisabledReason}
-                className={`md:hidden shrink-0 h-8 rounded-lg px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
-                  !quickRatingReady
-                    ? "bg-white/10 text-white/45 cursor-not-allowed"
-                    : quickRatingActive
-                    ? "bg-white text-red-600"
-                    : "bg-white/20 text-white hover:bg-white/30"
-                }`}
-              >
-                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3.5z" />
-                </svg>
-                <span>评价</span>
-              </button>
               {/* 主题切换：桌面 / 手机统一放顶部红条右侧 */}
               <ThemeToggle />
               {/* 模拟选课开关：仅手机端 (<md) 显示（桌面端在搜索行）。 */}
@@ -1332,16 +1239,13 @@ export function HomePage() {
             enrollmentSortAsc={filter.enrollmentSortAsc}
             setEnrollmentSortAsc={filter.setEnrollmentSortAsc}
             stickyTop={tableStickyTop}
+            getCapacityRange={getCapacityRange}
             getEnrollment={liveEnrollment.getEnrollment}
             isEnrollmentChanged={liveEnrollment.isEnrollmentChanged}
             liveEnrollmentStatus={liveEnrollment.status}
             selectedPlan={filter.filters.plan}
             dataSource={dataSource}
-            onChangeDataSource={(v) => {
-              changeDataSource(v);
-              // 任意点击数据源 tab（含已选中的红色「正选」）都退出快速评价，回到正常列表。
-              setQuickRatingActive(false);
-            }}
+            onChangeDataSource={changeDataSource}
             formalGroups={paginatedFormalGroups}
             defaultExpandFormal={shouldAutoExpandFormal}
             formalAvailable={formal.available}
@@ -1361,17 +1265,10 @@ export function HomePage() {
             onEnterSim={enterSim}
             sidebarOpen={sidebarOpen}
             onExpandSidebar={() => setSidebarOpen(true)}
-            quickRatingSemester={quickRatingSemester}
-            quickRatingReady={quickRatingReady}
-            quickRatingActive={quickRatingActive}
-            quickRatingCount={quickRatingSectionKeys.size}
-            quickRatingDisabledReason={quickRatingDisabledReason}
-            quickRatingSections={visibleFormalSections}
-            onQuickRatePreviousSemester={handleQuickRatePreviousSemester}
           />
           {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染）。
               功能说明层显示时（无筛选）隐藏分页。 */}
-          {showHints || quickRatingActive ? null : isFormalMode ? (
+          {showHints ? null : isFormalMode ? (
             formal.available && visibleFormalSections.length > 0 && (
               <Pagination
                 page={safeFormalPage}

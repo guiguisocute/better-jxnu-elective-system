@@ -6,7 +6,6 @@ import { displayTags, isInPlan, compactTags } from "../lib/planMatch";
 import { DataSourceSwitcher } from "./DataSourceSwitcher";
 import { SemesterSelector } from "./SemesterSelector";
 import { FeatureHints } from "./FeatureHints";
-import { QuickRatingPanel } from "./QuickRatingPanel";
 import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
 import { LiveEnrollmentIndicator } from "./LiveEnrollmentIndicator";
 import { isTestSemester } from "../lib/term";
@@ -23,6 +22,8 @@ interface Props {
   enrollmentSortAsc: boolean | null;
   setEnrollmentSortAsc: (v: boolean | null) => void;
   stickyTop?: number;
+  /** 预选行：同课程号最近学期的班级容量区间文本（"16~30" / "30"），无往期数据为 null。 */
+  getCapacityRange?: (courseId: string) => string | null;
   /** 正选/补退选：读取 VPS 实时授课人数；容量仍来自静态 FormalSection。 */
   getEnrollment?: (section: FormalSection) => number | null;
   /** 本次刷新该班级人数是否变化（驱动已选/容量徽章闪烁）。 */
@@ -66,14 +67,6 @@ interface Props {
   sidebarOpen?: boolean;
   /** 展开左侧筛选栏（说明层折叠态的「展开筛选」按钮）。 */
   onExpandSidebar?: () => void;
-  /** 通过学号导入后，快速切到自己上个学期选过的正式开课班级。 */
-  quickRatingSemester?: string;
-  quickRatingReady?: boolean;
-  quickRatingActive?: boolean;
-  quickRatingCount?: number;
-  quickRatingDisabledReason?: string;
-  quickRatingSections?: FormalSection[];
-  onQuickRatePreviousSemester?: () => void;
 }
 
 // 多时段冲突悬停文案：该 section 因某时段命中 include 入选，但还占用了未选时段。
@@ -194,7 +187,7 @@ function compressSchedule(raw: string): string {
 }
 
 // 班级名称紧凑化：超长时取「前3字……末4字」中略式，避免列内截断把关键的「x级 / x班」吃掉。
-function compressClassName(raw: string, maxLen = 11): string {
+function compressClassName(raw: string, maxLen = 14): string {
   if (!raw) return "—";
   if (raw.length <= maxLen) return raw;
   return raw.slice(0, 3) + "……" + raw.slice(-4);
@@ -646,7 +639,7 @@ const FormalGroupCard = memo(function FormalGroupCard({ group, expanded, onToggl
 export function CourseTable({
   courses, selectedId, onSelect, sortAsc, setSortAsc,
   enrollmentSortAsc, setEnrollmentSortAsc,
-  stickyTop = 0, selectedPlan = "",
+  stickyTop = 0, selectedPlan = "", getCapacityRange,
   getEnrollment, isEnrollmentChanged, liveEnrollmentStatus,
   dataSource, onChangeDataSource,
   formalGroups = [], defaultExpandFormal = false, formalAvailable = false, formalLoading = false,
@@ -655,8 +648,6 @@ export function CourseTable({
   selectedSectionKey = null,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
   showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
-  quickRatingSemester = "", quickRatingReady = false, quickRatingActive = false,
-  quickRatingCount = 0, quickRatingDisabledReason = "", quickRatingSections = [], onQuickRatePreviousSemester,
 }: Props) {
   // 同课程号折叠的展开态：按课程号存「显式覆盖」（true=展开 / false=收起）。
   // 未覆盖的组取默认值 defaultExpandFormal（有搜索词时默认展开，否则默认收起）。
@@ -713,31 +704,6 @@ export function CourseTable({
         >
           <div className="flex items-center gap-2">
             <DataSourceSwitcher value={dataSource} onChange={onChangeDataSource} />
-            {onQuickRatePreviousSemester && (
-              <button
-                type="button"
-                onClick={onQuickRatePreviousSemester}
-                disabled={!quickRatingReady}
-                title={quickRatingReady ? (quickRatingActive ? "取消只看上学期课程" : `评价 ${quickRatingSemester} 上学期课程`) : quickRatingDisabledReason}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold leading-none transition-all ${
-                  !quickRatingReady
-                    ? "cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300"
-                    : quickRatingActive
-                    ? "border-red-500 bg-red-500 text-white shadow-sm shadow-red-200 hover:bg-red-600 hover:border-red-600"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <svg className="h-3.5 w-3.5 shrink-0 self-center" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3.5z" />
-                </svg>
-                <span className="leading-none">评价上学期课程</span>
-                {quickRatingReady && (
-                  <span className="hidden xl:inline text-[11px] font-medium leading-none tabular-nums opacity-70">
-                    {quickRatingActive ? `${quickRatingCount} 个班级` : quickRatingSemester}
-                  </span>
-                )}
-              </button>
-            )}
           </div>
           {isFormal && selectedSemester && isTestSemester(selectedSemester) && (
             <div
@@ -763,10 +729,7 @@ export function CourseTable({
           </div>
         </div>
 
-        {/* 快速评价：使用独立精简面板，避免回到完整选课表心智。 */}
-        {quickRatingActive ? (
-          <QuickRatingPanel sections={quickRatingSections} />
-        ) : isFormal && showHints && formalAvailable && !formalLoading ? (
+        {isFormal && showHints && formalAvailable && !formalLoading ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
         ) : !isFormal && showHints && courses.length > 0 ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
@@ -774,19 +737,19 @@ export function CourseTable({
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              {/* 列宽（顺序）：课程号8 / 课程名称15 / 学分5 / 开课学院10 / 标签13 /
-                 任课教师9 / 上课时间11 / 班级名称12 / 教室代号8 / 已选容量9 (%)。
-                 评分列已移除（评分只在详情页与 /ratings 子页面展示）。
+              {/* 列宽（顺序）：课程号8 / 课程名称15 / 学分5 / 开课学院10 / 标签11 /
+                 任课教师8 / 上课时间11 / 班级名称15 / 教室代号8 / 已选容量9 (%)。
+                 标签/教师压缩、班级名称加宽 —— 尽量让班级名完整展示。
                  注意：<colgroup> 只能含 <col>，勿加行内注释。 */}
               <colgroup>
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "15%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "10%" }} />
-                <col style={{ width: "13%" }} />
-                <col style={{ width: "9%" }} />
                 <col style={{ width: "11%" }} />
-                <col style={{ width: "12%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "15%" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "9%" }} />
               </colgroup>
@@ -903,16 +866,17 @@ export function CourseTable({
           </div>
         ) : (
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-            {/* 列宽：课程号 / 课程名称 / 学分 / 开课学院 / 标签 / 教师 (+ 模拟选课加车列)。
-               评分列已移除（评分只在详情页与 /ratings 子页面展示）。
+            {/* 列宽：课程号 / 课程名称 / 学分 / 开课学院 / 标签 / 教师 / 往期容量 (+ 模拟选课加车列)。
+               评分列已移除；往期容量 = 同课程号最近学期正选班级容量区间。
                固定布局避免长课名（如"教育实践 (含专题见习、教育实习、实践研习)"）把右侧顶出。 */}
             <colgroup>
-              <col style={{ width: simMode ? "11%" : "12%" }} />
-              <col style={{ width: simMode ? "30%" : "32%" }} />
-              <col style={{ width: simMode ? "7%"  : "8%"  }} />
-              <col style={{ width: simMode ? "19%" : "20%" }} />
-              <col style={{ width: simMode ? "14%" : "14%" }} />
-              <col style={{ width: simMode ? "13%" : "14%" }} />
+              <col style={{ width: simMode ? "10%" : "11%" }} />
+              <col style={{ width: simMode ? "26%" : "28%" }} />
+              <col style={{ width: simMode ? "6%"  : "7%"  }} />
+              <col style={{ width: simMode ? "17%" : "18%" }} />
+              <col style={{ width: simMode ? "13%" : "13%" }} />
+              <col style={{ width: simMode ? "12%" : "12%" }} />
+              <col style={{ width: simMode ? "10%" : "11%" }} />
               {simMode && <col style={{ width: "6%" }} />}
             </colgroup>
             <thead className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
@@ -929,6 +893,7 @@ export function CourseTable({
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">开课学院</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">标签</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">教师</th>
+                <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100" title="同课程号最近一个学期正选班级容量区间">往期容量</th>
                 {simMode && <th className="w-12 bg-gray-50 border-b border-gray-100" aria-label="加入待选清单" />}
               </tr>
             </thead>
@@ -986,6 +951,19 @@ export function CourseTable({
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-500 max-w-[150px] truncate border-b border-gray-50">
                       {c.teachers.map((t) => t.name).join(", ") || "—"}
+                    </td>
+                    <td className="px-5 py-4 border-b border-gray-50 whitespace-nowrap">
+                      {(() => {
+                        const range = getCapacityRange?.(c.id) ?? null;
+                        return range ? (
+                          <span className="text-xs text-gray-600 tabular-nums" title="同课程号最近学期正选班级容量区间">
+                            {range}
+                            <span className="text-gray-400 ml-0.5">人</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        );
+                      })()}
                     </td>
                     {simMode && (
                       <td className="px-3 py-4 border-b border-gray-50 text-right">
@@ -1138,6 +1116,11 @@ export function CourseTable({
                     {c.teachers.length > 0 && (
                       <p className="text-xs text-gray-500 mt-2.5 truncate">
                         {c.teachers.map((t) => t.name).join(", ")}
+                      </p>
+                    )}
+                    {getCapacityRange?.(c.id) && (
+                      <p className="text-[11px] text-gray-400 mt-1.5 tabular-nums">
+                        往期容量 {getCapacityRange(c.id)} 人
                       </p>
                     )}
                     <div className="mt-2 flex items-center justify-end">

@@ -1,19 +1,27 @@
-import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
 import { useFormalData } from "../hooks/useFormalData";
 import { useAllReviews, useReviewComments } from "../hooks/useReviews";
+import { useSimMode } from "../hooks/useSimMode";
+import { useCart } from "../hooks/useCart";
+import { usePlanCourses } from "../hooks/usePlanCourses";
+import { useCreditPlan } from "../hooks/useCreditPlan";
+import type { Course, FormalSection } from "../types";
 import type { Dimension, ReviewRow, TeacherDims } from "../lib/reviewDimensions";
 import { DIMENSIONS, compositeOf } from "../lib/reviewDimensions";
-import { toggleHelpful } from "../lib/reviewsStore";
+import { toggleHelpful, fetchMyReview } from "../lib/reviewsStore";
 import { getVoterId } from "../lib/voter";
+import { deriveQuickReviewSections, formalSectionKey } from "../lib/quickReview";
 import { StarRating } from "./StarRating";
+import { ThemeToggle } from "./ThemeToggle";
 import { DimensionBars } from "./ratings/DimensionBars";
 import { ReviewCard } from "./ratings/ReviewCard";
 import { RatingSheet, type RatingSheetTarget } from "./ratings/RatingSheet";
 
 type ViewMode = "course" | "teacher";
 type SortMode = "latest" | "helpful" | "best";
+type ListSort = "rating" | "count" | "name";
 
 interface TeacherEntry {
   id: string;
@@ -55,16 +63,48 @@ function sortRows(rows: ReviewRow[], sort: SortMode): ReviewRow[] {
   return copy;
 }
 
-// 课程评价子页面（设计稿还原）：红头 breadcrumb + 按课程/按老师双视图 +
-// 左列实体列表 + 右侧详情（综合评分 + 5 维彩条 + 写评价 + 全部评价卡片流）。
+// 课程评价子页面：与主页同一条红 banner（像切换页面而非跳转），左列实体列表（独立滚动 +
+// 基本筛选/排序）+ 右侧详情（综合评分 + 5 维彩条 + 写评价 + 全部评价卡片流 + 上学期快评）。
 export function RatingsPage() {
+  const navigate = useNavigate();
   const { courses } = useCourseData();
-  const { sections } = useFormalData();
+  const formal = useFormalData();
   const { dimsMap, getDims } = useAllReviews();
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortMode>("latest");
+  const [listDept, setListDept] = useState("");
+  const [listSort, setListSort] = useState<ListSort>("rating");
   const [sheet, setSheet] = useState<RatingSheetTarget | null>(null);
+
+  // ===== 模拟选课链路（悬浮球 + 上学期快评都要用；与 HomePage 同一套 localStorage 状态） =====
+  const sim = useSimMode();
+  const cart = useCart();
+  const [currentPlan] = useState<string>(() => {
+    try {
+      const raw = sessionStorage.getItem("jxnu_filters");
+      if (raw) return (JSON.parse(raw).filters?.plan as string) ?? "";
+    } catch { /* ignore */ }
+    return "";
+  });
+  const cartCourses = useMemo(
+    () => cart.ids.map((id) => courses.find((c) => c.id === id)).filter(Boolean) as Course[],
+    [cart.ids, courses],
+  );
+  const planCourses = usePlanCourses(sim.mode !== "browse", currentPlan);
+  const credit = useCreditPlan(currentPlan, cartCourses, planCourses.courses, planCourses.coursesOf);
+
+  const quickReview = useMemo(
+    () =>
+      deriveQuickReviewSections({
+        plan: currentPlan,
+        term: credit.term,
+        importedDetailCourses: credit.stored.importedDetailCourses,
+        formalSections: formal.sections,
+        allSemesters: formal.allSemesters,
+      }),
+    [currentPlan, credit.term, credit.stored.importedDetailCourses, formal.sections, formal.allSemesters],
+  );
 
   const view: ViewMode = params.get("view") === "course" ? "course" : "teacher";
   const selectedId = params.get(view === "course" ? "course" : "teacher") ?? "";
@@ -97,11 +137,11 @@ export function RatingsPage() {
       }
       for (const t of c.teachers) link(t.id, t.name, t.dept, c.id, c.name, c.dept);
     }
-    for (const s of sections) {
+    for (const s of formal.sections) {
       link(s.teacherId, s.teacher, s.dept, s.id, s.name, s.dept);
     }
     return { teacherIndex: teachers, courseIndex: courseMap };
-  }, [courses, sections]);
+  }, [courses, formal.sections]);
 
   // ---- 每位老师的全量聚合（跨课程） ----
   const teacherAgg = useMemo(() => {
@@ -134,8 +174,9 @@ export function RatingsPage() {
     return m;
   }, [dimsMap]);
 
-  // ---- 左列列表：默认 = 有评价的实体；搜索 = 全目录 ----
+  // ---- 左列列表：默认 = 有评价的实体；搜索 = 全目录。附基本筛选（学院）+ 排序 ----
   const q = search.trim().toLowerCase();
+
   const teacherList = useMemo(() => {
     let ids: string[];
     if (q) {
@@ -145,17 +186,24 @@ export function RatingsPage() {
           return t.courseIds.some((cid) => (courseIndex.get(cid)?.name ?? "").toLowerCase().includes(q));
         })
         .map((t) => t.id)
-        .slice(0, 80);
+        .slice(0, 120);
     } else {
       ids = [...teacherAgg.keys()];
     }
-    return ids
-      .map((tid) => ({
-        entry: teacherIndex.get(tid) ?? { id: tid, name: `教师 ${tid}`, dept: "", courseIds: [] },
-        agg: teacherAgg.get(tid),
-      }))
-      .sort((a, b) => (b.agg?.overall?.count ?? 0) - (a.agg?.overall?.count ?? 0));
-  }, [q, teacherIndex, teacherAgg, courseIndex]);
+    let list = ids.map((tid) => ({
+      entry: teacherIndex.get(tid) ?? { id: tid, name: `教师 ${tid}`, dept: "", courseIds: [] },
+      agg: teacherAgg.get(tid),
+    }));
+    if (listDept) list = list.filter((x) => x.entry.dept === listDept);
+    if (listSort === "rating") {
+      list.sort((a, b) => (b.agg?.overall?.avg ?? -1) - (a.agg?.overall?.avg ?? -1));
+    } else if (listSort === "count") {
+      list.sort((a, b) => (b.agg?.overall?.count ?? 0) - (a.agg?.overall?.count ?? 0));
+    } else {
+      list.sort((a, b) => a.entry.name.localeCompare(b.entry.name, "zh"));
+    }
+    return list;
+  }, [q, teacherIndex, teacherAgg, courseIndex, listDept, listSort]);
 
   const courseList = useMemo(() => {
     let ids: string[];
@@ -163,17 +211,45 @@ export function RatingsPage() {
       ids = [...courseIndex.values()]
         .filter((c) => c.name.toLowerCase().includes(q) || c.id.includes(q) || c.dept.toLowerCase().includes(q))
         .map((c) => c.id)
-        .slice(0, 80);
+        .slice(0, 120);
     } else {
       ids = [...courseOverall.keys()];
     }
-    return ids
-      .map((cid) => ({
-        entry: courseIndex.get(cid) ?? { id: cid, name: `课程 ${cid}`, dept: "", teacherIds: [] },
-        overall: courseOverall.get(cid),
-      }))
-      .sort((a, b) => (b.overall?.count ?? 0) - (a.overall?.count ?? 0));
-  }, [q, courseIndex, courseOverall]);
+    let list = ids.map((cid) => ({
+      entry: courseIndex.get(cid) ?? { id: cid, name: `课程 ${cid}`, dept: "", teacherIds: [] },
+      overall: courseOverall.get(cid),
+    }));
+    if (listDept) list = list.filter((x) => x.entry.dept === listDept);
+    if (listSort === "rating") {
+      list.sort((a, b) => (b.overall?.avg ?? -1) - (a.overall?.avg ?? -1));
+    } else if (listSort === "count") {
+      list.sort((a, b) => (b.overall?.count ?? 0) - (a.overall?.count ?? 0));
+    } else {
+      list.sort((a, b) => a.entry.name.localeCompare(b.entry.name, "zh"));
+    }
+    return list;
+  }, [q, courseIndex, courseOverall, listDept, listSort]);
+
+  /** 学院下拉选项：当前视图列表（未套学院筛选前）出现过的学院 */
+  const deptOptions = useMemo(() => {
+    const set = new Set<string>();
+    if (view === "teacher") {
+      const ids = q ? teacherList.map((x) => x.entry.id) : [...teacherAgg.keys()];
+      for (const tid of ids) {
+        const d = teacherIndex.get(tid)?.dept;
+        if (d) set.add(d);
+      }
+    } else {
+      const ids = q ? courseList.map((x) => x.entry.id) : [...courseOverall.keys()];
+      for (const cid of ids) {
+        const d = courseIndex.get(cid)?.dept;
+        if (d) set.add(d);
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "zh"));
+    // teacherList/courseList 已含 listDept 过滤，这里只取集合，轻微偏差可接受
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, q, teacherAgg, courseOverall, teacherIndex, courseIndex]);
 
   const select = (id: string) => {
     const next = new URLSearchParams(params);
@@ -186,6 +262,7 @@ export function RatingsPage() {
     const next = new URLSearchParams();
     next.set("view", v);
     setParams(next, { replace: false });
+    setListDept("");
   };
 
   // ---- 右侧详情数据 ----
@@ -227,75 +304,117 @@ export function RatingsPage() {
   const hasSelection = !!(selTeacher || selCourse);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 红色页头 */}
-      <header className="bg-gradient-to-r from-red-600 to-red-500 text-white sticky top-0 z-40 shadow-md shadow-red-900/10">
-        <div className="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[15px] font-bold">
-            <span aria-hidden>🐢</span>
-            <Link to="/" className="hover:opacity-80">选课 PLUS</Link>
-            <span className="opacity-60 font-normal">/</span>
-            <span>课程评价</span>
+    <div className="min-h-screen bg-page">
+      {/* 与主页同一条红 banner（像切换页面而非跳转到别的站） */}
+      <header className="sticky top-0 z-40">
+        <div className="bg-header relative z-10 pt-[env(safe-area-inset-top)]">
+          <div className="max-w-[2000px] mx-auto px-4 md:px-6 flex items-center justify-between py-2.5">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain shrink-0" />
+              <h1 className="text-sm font-bold tracking-tight text-brand-fg truncate">JXNU选课PLUS</h1>
+              <span className="text-xs hidden sm:inline shrink-0" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
+              <span className="shrink-0 inline-flex items-center gap-1 h-7 rounded-lg px-2 text-xs font-bold bg-white text-red-600">
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3.5z" />
+                </svg>
+                课程评价
+              </span>
+            </div>
+            <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
+              <Link
+                to="/"
+                className="shrink-0 h-8 rounded-lg px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 bg-white/20 text-white hover:bg-white/30 transition-colors"
+              >
+                ← 返回选课
+              </Link>
+              <ThemeToggle />
+            </div>
           </div>
-          <Link to="/" className="text-[13px] opacity-90 hover:opacity-100">← 返回选课</Link>
+        </div>
+
+        {/* 工具条：视图切换 + 搜索 + 评语排序 */}
+        <div className="bg-white border-b border-gray-100 shadow-sm">
+          <div className="max-w-[2000px] mx-auto px-4 md:px-6 py-2.5 flex items-center gap-3 flex-wrap">
+            <div className="inline-flex rounded-full bg-gray-100 p-0.5">
+              {(["course", "teacher"] as ViewMode[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => switchView(v)}
+                  className={`px-4 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
+                    view === v ? "bg-white text-red-600 shadow-sm ring-1 ring-red-100" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {v === "course" ? "按课程" : "按老师"}
+                </button>
+              ))}
+            </div>
+            <div className="relative flex-1 min-w-[180px] max-w-sm">
+              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="搜索课程、老师、学院…"
+                className="w-full rounded-full border border-gray-200 pl-9 pr-3 py-1.5 text-[13px] bg-gray-50 focus:bg-white focus:border-red-200 outline-none transition-colors"
+              />
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 ml-auto">
+              <span className="text-[12px] text-gray-400">评价排序</span>
+              {(
+                [
+                  ["latest", "最新"],
+                  ["helpful", "最有帮助"],
+                  ["best", "好评优先"],
+                ] as [SortMode, string][]
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setSort(key)}
+                  className={`px-3 py-1 rounded-full text-[12px] font-semibold transition-colors ${
+                    sort === key
+                      ? "bg-red-50 text-red-600 ring-1 ring-red-200"
+                      : "text-gray-500 ring-1 ring-gray-200 hover:text-gray-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* 工具条：视图切换 + 搜索 + 排序 */}
-      <div className="bg-white border-b border-gray-100 sticky top-12 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center gap-3 flex-wrap">
-          <div className="inline-flex rounded-full bg-gray-100 p-0.5">
-            {(["course", "teacher"] as ViewMode[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => switchView(v)}
-                className={`px-4 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
-                  view === v ? "bg-white text-red-600 shadow-sm ring-1 ring-red-100" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {v === "course" ? "按课程" : "按老师"}
-              </button>
-            ))}
+      {/* 主体：左列表与右详情各自滚动（desktop）。banner 48 + 工具条 ~54 ≈ 102px。 */}
+      <main className="max-w-[2000px] mx-auto px-4 md:px-6 py-4 grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start lg:h-[calc(100vh-118px)]">
+        {/* 左列：实体列表（独立滚动） */}
+        <aside
+          className={`${hasSelection ? "hidden lg:flex" : "flex"} flex-col gap-2 lg:h-full lg:overflow-y-auto lg:pr-1 pb-6`}
+        >
+          {/* 左列筛选 + 排序 */}
+          <div className="flex items-center gap-2 sticky top-0 bg-page z-10 pb-1">
+            <select
+              value={listDept}
+              onChange={(e) => setListDept(e.target.value)}
+              className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[12px] text-gray-700"
+              title="按学院筛选"
+            >
+              <option value="">全部学院</option>
+              {deptOptions.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+            <select
+              value={listSort}
+              onChange={(e) => setListSort(e.target.value as ListSort)}
+              className="shrink-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[12px] text-gray-700"
+              title="列表排序"
+            >
+              <option value="rating">评分最高</option>
+              <option value="count">评价最多</option>
+              <option value="name">按名称</option>
+            </select>
           </div>
-          <div className="relative flex-1 min-w-[180px] max-w-sm">
-            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索课程、老师、学院…"
-              className="w-full rounded-full border border-gray-200 pl-9 pr-3 py-1.5 text-[13px] bg-gray-50 focus:bg-white focus:border-red-200 outline-none transition-colors"
-            />
-          </div>
-          <div className="hidden sm:flex items-center gap-1.5 ml-auto">
-            <span className="text-[12px] text-gray-400">排序</span>
-            {(
-              [
-                ["latest", "最新"],
-                ["helpful", "最有帮助"],
-                ["best", "好评优先"],
-              ] as [SortMode, string][]
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setSort(key)}
-                className={`px-3 py-1 rounded-full text-[12px] font-semibold transition-colors ${
-                  sort === key
-                    ? "bg-red-50 text-red-600 ring-1 ring-red-200"
-                    : "text-gray-500 ring-1 ring-gray-200 hover:text-gray-700"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <main className="max-w-7xl mx-auto px-4 py-5 grid gap-5 lg:grid-cols-[300px_1fr] items-start">
-        {/* 左列：实体列表（移动端在未选中时全宽显示） */}
-        <aside className={`${hasSelection ? "hidden lg:block" : ""} space-y-2`}>
           <p className="text-[12px] text-gray-400 px-1">
             {view === "teacher" ? `教师 · 共 ${teacherList.length} 位` : `课程 · 共 ${courseList.length} 门`}
             {!q && "（已有评价）"}
@@ -305,7 +424,7 @@ export function RatingsPage() {
                 <button
                   key={entry.id}
                   onClick={() => select(entry.id)}
-                  className={`w-full text-left rounded-xl bg-white px-4 py-3 transition-all ${
+                  className={`w-full text-left rounded-xl bg-white px-4 py-3 transition-all shrink-0 ${
                     selectedId === entry.id
                       ? "ring-2 ring-red-400 shadow-sm"
                       : "ring-1 ring-gray-100 hover:ring-gray-200 hover:shadow-sm"
@@ -335,7 +454,7 @@ export function RatingsPage() {
                 <button
                   key={entry.id}
                   onClick={() => select(entry.id)}
-                  className={`w-full text-left rounded-xl bg-white px-4 py-3 transition-all ${
+                  className={`w-full text-left rounded-xl bg-white px-4 py-3 transition-all shrink-0 ${
                     selectedId === entry.id
                       ? "ring-2 ring-red-400 shadow-sm"
                       : "ring-1 ring-gray-100 hover:ring-gray-200 hover:shadow-sm"
@@ -366,8 +485,8 @@ export function RatingsPage() {
           )}
         </aside>
 
-        {/* 右侧详情 */}
-        <section className={hasSelection ? "" : "hidden lg:block"}>
+        {/* 右侧详情（独立滚动） */}
+        <section className={`${hasSelection ? "" : "hidden lg:block"} lg:h-full lg:overflow-y-auto lg:pr-1 pb-10`}>
           {/* 移动端返回列表 */}
           {hasSelection && (
             <button
@@ -380,6 +499,23 @@ export function RatingsPage() {
             >
               ← 返回{view === "teacher" ? "教师" : "课程"}列表
             </button>
+          )}
+
+          {/* 上学期快评（学号导入后匹配到的班级；多维评价直接开 RatingSheet） */}
+          {quickReview.sections.length > 0 && (
+            <QuickReviewCard
+              semester={quickReview.semester}
+              sections={quickReview.sections}
+              defaultOpen={!hasSelection}
+              onWrite={(s) =>
+                setSheet({
+                  teacherId: s.teacherId,
+                  teacherName: s.teacher || s.teacherId,
+                  courseOptions: [{ id: s.id, name: s.name || s.id }],
+                  initialCourseId: s.id,
+                })
+              }
+            />
           )}
 
           {!hasSelection && (
@@ -438,10 +574,16 @@ export function RatingsPage() {
                             next.set("teacher", tid);
                             setParams(next);
                           }}
-                          className="text-[14px] font-bold text-gray-800 hover:text-red-600 transition-colors"
+                          title="点击查看这位老师的主页与全部评价"
+                          className="group/t text-left text-[14px] font-bold text-gray-800 hover:text-red-600 transition-colors cursor-pointer"
                         >
-                          {t?.name ?? tid}
+                          <span className="border-b border-dashed border-transparent group-hover/t:border-red-300">
+                            {t?.name ?? tid}
+                          </span>
                           <span className="text-[11px] text-gray-400 font-normal ml-2">{t?.dept}</span>
+                          <span className="inline-flex items-center ml-1.5 text-[11px] text-red-400 opacity-0 group-hover/t:opacity-100 transition-opacity" aria-hidden>
+                            查看主页 →
+                          </span>
                         </button>
                         <button
                           onClick={() => openSheetForTeacher(tid, selCourse.id)}
@@ -491,6 +633,26 @@ export function RatingsPage() {
           )}
         </section>
       </main>
+
+      {/* 模拟选课悬浮球（保留主页的存在感；点击回主页展开面板） */}
+      {sim.mode === "sim" && (
+        <button
+          onClick={() => navigate("/")}
+          title={`下学期已规划 ${credit.view.nextSemCredits}/${credit.view.nextSemCap} 学分 · 点击回选课页查看模拟面板`}
+          className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-white shadow-lg ring-1 ring-red-100 flex flex-col items-center justify-center hover:shadow-xl transition-shadow"
+        >
+          <span className="text-[10px] text-gray-400 leading-none">下学期</span>
+          <span className={`text-[15px] font-black tabular-nums leading-tight ${credit.view.nextSemOver ? "text-rose-600" : "text-red-500"}`}>
+            {credit.view.nextSemCredits}
+            <span className="text-[10px] text-gray-400 font-semibold">/{credit.view.nextSemCap}</span>
+          </span>
+          {cart.count > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              {cart.count}
+            </span>
+          )}
+        </button>
+      )}
 
       {sheet && (
         <RatingSheet
@@ -556,6 +718,95 @@ function TeacherPanel({
         </div>
         <DimensionBars dims={agg ?? null} />
       </div>
+    </div>
+  );
+}
+
+/** 上学期快评行：懒查本人是否已评（overall 是否非空），展示 已评/未评 徽章。 */
+function QuickReviewRow({ section, onWrite }: { section: FormalSection; onWrite: () => void }) {
+  const [rated, setRated] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyReview(section.id, section.teacherId, getVoterId()).then((mine) => {
+      if (!cancelled) setRated(!!mine && DIMENSIONS.some((d) => typeof mine[d] === "number"));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [section.id, section.teacherId]);
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-white ring-1 ring-gray-100 px-3.5 py-2.5">
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-semibold text-gray-800 truncate" title={section.name}>
+          {section.name}
+        </div>
+        <div className="text-[11px] text-gray-400 mt-0.5 truncate">
+          {section.teacher || "未指定"} · <span className="font-mono">{section.id}</span>
+        </div>
+      </div>
+      {rated !== null && (
+        <span
+          className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+            rated ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400"
+          }`}
+        >
+          {rated ? "已评" : "未评"}
+        </span>
+      )}
+      <button
+        onClick={onWrite}
+        disabled={!section.teacherId}
+        className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-bold transition-all active:scale-[0.97] ${
+          rated
+            ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+            : "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-sm shadow-rose-200/60 hover:from-red-600 hover:to-rose-600"
+        } disabled:opacity-40 disabled:cursor-not-allowed`}
+      >
+        {rated ? "修改" : "✎ 写评价"}
+      </button>
+    </div>
+  );
+}
+
+function QuickReviewCard({
+  semester,
+  sections,
+  defaultOpen,
+  onWrite,
+}: {
+  semester: string;
+  sections: FormalSection[];
+  defaultOpen: boolean;
+  onWrite: (s: FormalSection) => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-2xl bg-gradient-to-br from-amber-50/70 via-white to-white ring-1 ring-amber-100 p-4 sm:p-5 mb-5">
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between text-left">
+        <div>
+          <h2 className="text-[15px] font-bold text-gray-800 flex items-center gap-2">
+            <span aria-hidden>⭐</span> 评价上学期课程
+            <span className="text-[11px] font-semibold text-amber-600 bg-amber-100/70 rounded px-1.5 py-0.5 tabular-nums">
+              {semester} · {sections.length} 门
+            </span>
+          </h2>
+          <p className="text-[11px] text-gray-400 mt-0.5">学号导入匹配到的你上学期上过的班级 —— 五个维度都可以评，也可以只评在意的</p>
+        </div>
+        <svg
+          className={`w-4 h-4 text-amber-400 transition-transform shrink-0 ${open ? "rotate-180" : ""}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {sections.map((s) => (
+            <QuickReviewRow key={formalSectionKey(s)} section={s} onWrite={() => onWrite(s)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

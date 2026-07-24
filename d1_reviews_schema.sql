@@ -3,7 +3,7 @@
 -- 远端:  npx wrangler d1 execute jxnu-ratings --remote --file=d1_reviews_schema.sql
 --
 -- 5 个维度固定列（overall=总体评分 承接旧 ratings.rating；assess=考核给分;
--- attendance=考勤频率; difficulty=课程难度; teaching=教学质量），全部可空 ——
+-- attendance=考勤频率; difficulty=课程强度; teaching=教学质量），全部可空 ——
 -- 用户可以只评在意的维度。每维度各带一条可选评语（*_c 列）。
 -- 分数取值 0.5–5 步进 0.5，在 API 层校验（D1/SQLite 不便按维度 CHECK NULL 组合）。
 

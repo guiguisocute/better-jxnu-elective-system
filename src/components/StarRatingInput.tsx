@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 interface Props {
   value: number;
@@ -8,6 +8,9 @@ interface Props {
 
 export function StarRatingInput({ value, onChange, size = 28 }: Props) {
   const [hover, setHover] = useState(0);
+  // SVG id 是 document 全局的：同页多个输入实例（如 RatingSheet 里 5 个维度）
+  // 共用 `input-half-N` 会互相引用错渐变，星星出现「不该亮的亮了」。用 useId 保证唯一。
+  const uid = useId();
 
   const handleClick = (star: number, half: boolean) => {
     onChange(half ? star - 0.5 : star);
@@ -23,6 +26,7 @@ export function StarRatingInput({ value, onChange, size = 28 }: Props) {
         const active = hover || value;
         const isFull = active >= star;
         const isHalf = !isFull && active >= star - 0.5;
+        const gradId = `${uid}-half-${star}`;
 
         return (
           <div
@@ -44,7 +48,7 @@ export function StarRatingInput({ value, onChange, size = 28 }: Props) {
             />
             <svg width={size} height={size} viewBox="0 0 20 20">
               <defs>
-                <linearGradient id={`input-half-${star}`}>
+                <linearGradient id={gradId}>
                   <stop offset="50%" stopColor="#FBBF24" />
                   <stop offset="50%" stopColor="#E5E7EB" />
                 </linearGradient>
@@ -55,7 +59,7 @@ export function StarRatingInput({ value, onChange, size = 28 }: Props) {
                   isFull
                     ? "#FBBF24"
                     : isHalf
-                    ? `url(#input-half-${star})`
+                    ? `url(#${gradId})`
                     : "#E5E7EB"
                 }
                 className="transition-colors"

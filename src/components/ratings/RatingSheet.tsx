@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Dimension, ReviewSubmit } from "../../lib/reviewDimensions";
 import {
   DIMENSIONS,
@@ -46,6 +47,85 @@ const COMMENT_FIELD: Record<Dimension, keyof ReviewSubmit> = {
   difficulty: "difficultyC",
   teaching: "teachingC",
 };
+
+/** 可搜索课程下拉（React 风格 combobox）：输入过滤 + 点击选择。 */
+function CourseCombobox({
+  options,
+  value,
+  onChange,
+}: {
+  options: { id: string; name: string }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selected = options.find((o) => o.id === value);
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? options.filter((o) => o.name.toLowerCase().includes(q) || o.id.includes(q))
+    : options;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((v) => !v);
+          setQuery("");
+        }}
+        className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-800 bg-white hover:border-red-200 transition-colors"
+      >
+        <span className="truncate text-left">
+          {selected ? (
+            <>
+              {selected.name}
+              <span className="text-gray-400 font-mono text-[11px] ml-1.5">{selected.id}</span>
+            </>
+          ) : (
+            <span className="text-gray-400">选择课程…</span>
+          )}
+        </span>
+        <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-10 mt-1 w-full rounded-xl bg-white shadow-lg ring-1 ring-gray-100 overflow-hidden">
+          <div className="p-2 border-b border-gray-50">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜索课程名 / 课程号…"
+              className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] bg-gray-50 focus:bg-white outline-none focus:border-red-200"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            {filtered.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => {
+                  onChange(o.id);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-[13px] transition-colors flex items-center justify-between gap-2 ${
+                  o.id === value ? "bg-red-50 text-red-600 font-semibold" : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <span className="truncate">{o.name}</span>
+                <span className="shrink-0 text-[11px] font-mono text-gray-400">{o.id}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-3 text-[12px] text-gray-400 text-center">没有匹配的课程</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // 匿名写评价面板（设计稿「写评价」按钮弹出）：头像/昵称 → 5 维度星级（每档实时文案 +
 // 每维度可选评语）→ 匿名发布。每一项都可不填，但至少要给一个维度打分。
@@ -135,9 +215,11 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
     }
   };
 
-  return (
+  // Portal 到 body：详情页 aside 等祖先带 transform/sticky 会形成局部堆叠上下文，
+  // 直接就地渲染时 fixed 遮罩压不住页面其他 z 层（右栏、悬浮球「不该亮的亮了」）。
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-6"
+      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-6"
       onClick={onClose}
     >
       <div
@@ -166,21 +248,15 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {/* 课程选择（多课程教师） */}
+          {/* 课程选择（多课程教师）：可搜索下拉 */}
           {target.courseOptions.length > 1 ? (
             <div>
               <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">评价哪门课？</label>
-              <select
+              <CourseCombobox
+                options={target.courseOptions}
                 value={courseId}
-                onChange={(e) => setCourseId(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-800 bg-white"
-              >
-                {target.courseOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}（{c.id}）
-                  </option>
-                ))}
-              </select>
+                onChange={setCourseId}
+              />
             </div>
           ) : (
             target.courseOptions[0] && (
@@ -203,7 +279,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
               <input
                 value={nickname}
                 onChange={(e) => setNick(e.target.value.slice(0, 20))}
-                placeholder="匿名昵称（可不填）"
+                placeholder="匿名同学"
                 className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-[13px] bg-white"
               />
             </div>
@@ -263,7 +339,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
                       onChange={(e) =>
                         setDraft((prev) => ({ ...prev, comments: { ...prev.comments, [d]: e.target.value.slice(0, 500) } }))
                       }
-                      placeholder={`关于${DIMENSION_LABELS[d]}想说的…（可不填）`}
+                      placeholder={`关于${DIMENSION_LABELS[d]}想说的…（选填）`}
                       rows={2}
                       maxLength={500}
                       className="mt-2 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-[12px] leading-relaxed resize-y"
@@ -297,6 +373,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

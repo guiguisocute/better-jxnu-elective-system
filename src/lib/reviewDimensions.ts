@@ -13,7 +13,7 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   overall: "总体评分",
   assess: "考核给分",
   attendance: "考勤频率",
-  difficulty: "课程难度",
+  difficulty: "课程强度",
   teaching: "教学质量",
 };
 
@@ -22,7 +22,7 @@ export const DIMENSION_SHORT: Record<Dimension, string> = {
   overall: "总体",
   assess: "考核",
   attendance: "考勤",
-  difficulty: "难度",
+  difficulty: "强度",
   teaching: "教学",
 };
 
@@ -31,7 +31,7 @@ export const DIMENSION_STAR_TEXT: Record<Dimension, string[]> = {
   overall: ["很差", "较差", "一般", "不错", "强烈推荐"],
   assess: ["给分很低", "给分偏严", "中规中矩", "给分不错", "给分超好"],
   attendance: ["每堂必点", "经常点名", "偶尔点名", "很少点名", "一次未点"],
-  difficulty: ["非常轻松", "比较简单", "中等", "有点难", "硬核劝退"],
+  difficulty: ["毫无压力", "比较简单", "中等", "有点强度", "硬核劝退"],
   teaching: ["照本宣科", "比较平淡", "还算清晰", "讲得很好", "醍醐灌顶"],
 };
 

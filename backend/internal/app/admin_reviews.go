@@ -21,7 +21,7 @@ var reviewDimensions = []struct {
 	{"overall", "overall_c", "总体评分"},
 	{"assess", "assess_c", "考核给分"},
 	{"attendance", "attendance_c", "考勤频率"},
-	{"difficulty", "difficulty_c", "课程难度"},
+	{"difficulty", "difficulty_c", "课程强度"},
 	{"teaching", "teaching_c", "教学质量"},
 }
 
