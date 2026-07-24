@@ -1,11 +1,12 @@
 /** Browser-facing human-verification configuration and small URL helpers. */
 
 export type HumanVerificationProvider = "off" | "turnstile" | "cap";
-export type HumanVerificationFeature = "reviews" | "student-record";
+export type HumanVerificationFeature = "reviews" | "reports" | "student-record";
 
 export interface HumanVerificationConfig {
   provider: HumanVerificationProvider;
   reviewsEnabled: boolean;
+  reportsEnabled: boolean;
   studentRecordEnabled: boolean;
   turnstileSiteKey: string;
   capApiEndpoint: string;
@@ -17,6 +18,7 @@ export interface HumanVerificationConfig {
 const DEFAULT_CONFIG: HumanVerificationConfig = {
   provider: "off",
   reviewsEnabled: false,
+  reportsEnabled: false,
   studentRecordEnabled: false,
   turnstileSiteKey: "",
   capApiEndpoint: "",
@@ -38,9 +40,15 @@ function normalize(raw: unknown): HumanVerificationConfig {
   const stringValue = (key: string) => (typeof data[key] === "string" ? data[key].trim() : "");
   const legacyTurnstileSiteKey = stringValue("turnstileSiteKey");
   const provider = isProvider(data.provider) ? data.provider : legacyTurnstileSiteKey ? "turnstile" : "off";
+  const reviewsEnabled =
+    data.reviewsEnabled === true ||
+    (!Object.prototype.hasOwnProperty.call(data, "reviewsEnabled") && !!legacyTurnstileSiteKey);
   return {
     provider,
-    reviewsEnabled: data.reviewsEnabled === true || (!Object.prototype.hasOwnProperty.call(data, "reviewsEnabled") && !!legacyTurnstileSiteKey),
+    reviewsEnabled,
+    reportsEnabled:
+      data.reportsEnabled === true ||
+      (!Object.prototype.hasOwnProperty.call(data, "reportsEnabled") && reviewsEnabled),
     studentRecordEnabled: data.studentRecordEnabled === true,
     turnstileSiteKey: legacyTurnstileSiteKey,
     capApiEndpoint: stringValue("capApiEndpoint").replace(/\/+$/, ""),
@@ -94,7 +102,9 @@ export function featureNeedsVerification(
   feature: HumanVerificationFeature,
 ): boolean {
   if (config.provider === "off") return false;
-  return feature === "reviews" ? config.reviewsEnabled : config.studentRecordEnabled;
+  if (feature === "reviews") return config.reviewsEnabled;
+  if (feature === "reports") return config.reportsEnabled;
+  return config.studentRecordEnabled;
 }
 
 /** Full widget endpoint expected by @cap.js/widget. */

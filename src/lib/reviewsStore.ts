@@ -250,15 +250,32 @@ export async function toggleHelpful(reviewId: number, voterId: string) {
   }
 }
 
-/** 举报一条评价（一人一条一次，重复幂等） */
-export async function reportReview(reviewId: number, voterId: string, reason: string): Promise<boolean> {
-  const res = await fetch("/api/reviews/report", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reviewId, voterId, reason: reason.trim().slice(0, 200) || undefined }),
-  });
-  const data = await readJson<{ ok?: boolean }>(res, {});
-  return !!data.ok;
+export type ReportReviewResult = "ok" | "verification" | "error";
+
+/** 举报一条评价（一人一条一次，重复幂等）。先完成人机验证，再发 POST。 */
+export async function reportReview(
+  reviewId: number,
+  voterId: string,
+  reason: string,
+  captchaToken: string,
+): Promise<ReportReviewResult> {
+  try {
+    const res = await fetch("/api/reviews/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reviewId,
+        voterId,
+        reason: reason.trim().slice(0, 200) || undefined,
+        captchaToken: captchaToken || null,
+      }),
+    });
+    if (res.status === 403) return "verification";
+    const data = await readJson<{ ok?: boolean }>(res, {});
+    return data.ok ? "ok" : "error";
+  } catch {
+    return "error";
+  }
 }
 
 /** 站点人机验证配置；保留旧函数名，避免外部/缓存 bundle 断裂。 */

@@ -7,11 +7,12 @@
  */
 
 export type CaptchaProvider = "off" | "turnstile" | "cap";
-export type CaptchaFeature = "reviews" | "student-record";
+export type CaptchaFeature = "reviews" | "reports" | "student-record";
 
 export interface CaptchaConfig {
   provider: CaptchaProvider;
   reviewsEnabled: boolean;
+  reportsEnabled: boolean;
   studentRecordEnabled: boolean;
   turnstileSiteKey: string;
   turnstileSecret: string;
@@ -26,6 +27,7 @@ interface CaptchaEnv {
   DB: D1Database;
   CAPTCHA_PROVIDER?: string;
   CAPTCHA_REVIEWS_ENABLED?: string;
+  CAPTCHA_REPORTS_ENABLED?: string;
   CAPTCHA_STUDENT_ENABLED?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET?: string;
@@ -38,6 +40,7 @@ interface CaptchaEnv {
 const SETTINGS = [
   "captcha_provider",
   "captcha_reviews_enabled",
+  "captcha_reports_enabled",
   "captcha_student_enabled",
   "turnstile_site_key",
   "turnstile_secret",
@@ -123,6 +126,11 @@ export async function loadCaptchaConfig(env: CaptchaEnv): Promise<CaptchaConfig>
     : clean(env.CAPTCHA_REVIEWS_ENABLED)
       ? enabled(clean(env.CAPTCHA_REVIEWS_ENABLED))
       : provider === "turnstile" && (!!turnstileSiteKey || !!turnstileSecret);
+  const reportsEnabled = explicit(settings, "captcha_reports_enabled")
+    ? enabled(settings.captcha_reports_enabled ?? "")
+    : clean(env.CAPTCHA_REPORTS_ENABLED)
+      ? enabled(clean(env.CAPTCHA_REPORTS_ENABLED))
+      : reviewsEnabled;
   const studentRecordEnabled = explicit(settings, "captcha_student_enabled")
     ? enabled(settings.captcha_student_enabled ?? "")
     : enabled(clean(env.CAPTCHA_STUDENT_ENABLED));
@@ -137,6 +145,7 @@ export async function loadCaptchaConfig(env: CaptchaEnv): Promise<CaptchaConfig>
   return {
     provider,
     reviewsEnabled,
+    reportsEnabled,
     studentRecordEnabled,
     turnstileSiteKey,
     turnstileSecret,
@@ -150,7 +159,9 @@ export async function loadCaptchaConfig(env: CaptchaEnv): Promise<CaptchaConfig>
 
 export function featureEnabled(config: CaptchaConfig, feature: CaptchaFeature): boolean {
   if (config.provider === "off") return false;
-  return feature === "reviews" ? config.reviewsEnabled : config.studentRecordEnabled;
+  if (feature === "reviews") return config.reviewsEnabled;
+  if (feature === "reports") return config.reportsEnabled;
+  return config.studentRecordEnabled;
 }
 
 function tokenValue(token: unknown): string {
@@ -222,6 +233,7 @@ export function publicCaptchaConfig(config: CaptchaConfig) {
   return {
     provider: config.provider,
     reviewsEnabled: config.reviewsEnabled,
+    reportsEnabled: config.reportsEnabled,
     studentRecordEnabled: config.studentRecordEnabled,
     turnstileSiteKey: config.provider === "turnstile" ? config.turnstileSiteKey : "",
     capApiEndpoint: config.provider === "cap" ? config.capApiEndpoint : "",

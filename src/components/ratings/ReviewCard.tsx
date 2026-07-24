@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { Dimension, ReviewRow } from "../../lib/reviewDimensions";
 import {
   DIMENSION_COLORS,
@@ -12,6 +12,7 @@ import { reportReview } from "../../lib/reviewsStore";
 import { getVoterId } from "../../lib/voter";
 import { AnonAvatar } from "./AnonAvatar";
 import { StarRating } from "../StarRating";
+import { HumanVerificationWidget, type HumanVerificationHandle } from "../HumanVerificationWidget";
 
 interface Props {
   row: ReviewRow;
@@ -56,13 +57,37 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reported, setReported] = useState(false);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportCaptchaToken, setReportCaptchaToken] = useState("");
+  const [reportCaptchaRequired, setReportCaptchaRequired] = useState(false);
+  const [reportCaptchaReady, setReportCaptchaReady] = useState(false);
+  const reportCaptchaRef = useRef<HumanVerificationHandle | null>(null);
+  const reportCaptchaBlocking =
+    !reportCaptchaReady || (reportCaptchaRequired && !reportCaptchaToken);
 
   const submitReport = async () => {
-    const ok = await reportReview(row.id, getVoterId(), reportReason);
-    if (ok) {
+    if (reportSubmitting || reportCaptchaBlocking) return;
+    setReportSubmitting(true);
+    setReportError("");
+    const result = await reportReview(
+      row.id,
+      getVoterId(),
+      reportReason,
+      reportCaptchaRequired ? reportCaptchaToken : "",
+    );
+    setReportSubmitting(false);
+    if (result === "ok") {
       setReported(true);
       setReportOpen(false);
+      return;
     }
+    setReportError(
+      result === "verification"
+        ? "人机验证失败或已过期，请重新验证后再提交。"
+        : "举报提交失败，请稍后再试。",
+    );
+    reportCaptchaRef.current?.reset();
   };
   const dimComments = NEW_DIMENSIONS.filter((d) => {
     const c = row[COMMENT_KEYS[d]];
@@ -178,7 +203,13 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
         )}
         {!row.mine && (
           <button
-            onClick={() => !reported && setReportOpen((v) => !v)}
+            onClick={() => {
+              if (reported) return;
+              setReportError("");
+              setReportCaptchaToken("");
+              setReportCaptchaReady(false);
+              setReportOpen(!reportOpen);
+            }}
             className={`ml-auto text-[11px] transition-colors ${
               reported ? "text-gray-300 cursor-default" : "text-gray-300 hover:text-rose-500"
             }`}
@@ -188,19 +219,53 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
         )}
       </div>
       {reportOpen && !reported && (
-        <div className="mt-2 flex items-center gap-2">
-          <input
+        <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50/40 p-3">
+          <textarea
             value={reportReason}
             onChange={(e) => setReportReason(e.target.value.slice(0, 200))}
             placeholder="举报理由（可不填）"
-            className="flex-1 min-w-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] bg-gray-50"
+            rows={3}
+            maxLength={200}
+            className="w-full min-h-[72px] max-h-48 resize-y rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[12px] leading-relaxed outline-none focus:border-rose-300"
           />
-          <button
-            onClick={() => void submitReport()}
-            className="shrink-0 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-[11px] font-semibold hover:bg-rose-100 transition-colors"
-          >
-            提交举报
-          </button>
+          <div className="mt-1 text-right text-[10px] tabular-nums text-gray-400">
+            {reportReason.length}/200
+          </div>
+          <HumanVerificationWidget
+            ref={reportCaptchaRef}
+            feature="reports"
+            onToken={setReportCaptchaToken}
+            onStateChange={(state) => {
+              setReportCaptchaRequired(state.required);
+              setReportCaptchaReady(state.ready);
+            }}
+            className="mt-2"
+          />
+          {reportError && (
+            <p className="mt-2 text-[11px] leading-relaxed text-rose-600">{reportError}</p>
+          )}
+          <div className="mt-2 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setReportCaptchaToken("");
+                setReportCaptchaReady(false);
+                setReportOpen(false);
+              }}
+              className="px-3 py-1.5 text-[11px] font-medium text-gray-400 hover:text-gray-600"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={() => void submitReport()}
+              disabled={reportSubmitting || reportCaptchaBlocking}
+              title={reportCaptchaBlocking ? "请先完成人机验证" : undefined}
+              className="shrink-0 rounded-lg bg-rose-100 px-3 py-1.5 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {reportSubmitting ? "提交中…" : "提交举报"}
+            </button>
+          </div>
         </div>
       )}
     </div>

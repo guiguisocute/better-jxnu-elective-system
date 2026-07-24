@@ -10,6 +10,7 @@ func TestCaptchaCardRendersMutuallyExclusiveProvidersAndScopes(t *testing.T) {
 	html := a.captchaCard(adminSession{CSRF: "csrf"}, captchaAdminSettings{
 		Provider:           "cap",
 		ReviewsEnabled:     true,
+		ReportsEnabled:     true,
 		StudentEnabled:     true,
 		CapAPIEndpoint:     "https://getxk.example/cap",
 		CapSiteKey:         "site123",
@@ -22,9 +23,10 @@ func TestCaptchaCardRendersMutuallyExclusiveProvidersAndScopes(t *testing.T) {
 		`name="captchaProvider" value="turnstile"`,
 		`name="captchaProvider" value="cap" checked`,
 		`name="captchaReviews" checked`,
+		`name="captchaReports" checked`,
 		`name="captchaStudent" checked`,
 		"Turnstile / Cap 互斥",
-		"评价提交、学号查询",
+		"评价提交、举报提交、学号查询",
 		"/action/save-captcha",
 		"/action/captcha-off",
 	} {

@@ -4,6 +4,7 @@ interface Env {
   DB: D1Database;
   CAPTCHA_PROVIDER?: string;
   CAPTCHA_REVIEWS_ENABLED?: string;
+  CAPTCHA_REPORTS_ENABLED?: string;
   CAPTCHA_STUDENT_ENABLED?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET?: string;

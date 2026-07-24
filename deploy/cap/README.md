@@ -30,7 +30,7 @@ Cap 的站点密钥和 Site Secret 在 Cap 控制台创建；随后到 Go 后端
 - API 根地址：`https://getxk.jxnu-publish.asia/cap`
 - Site Key / Site Secret：Cap 控制台生成的值
 - WASM 地址：可留空（前端自动推导 `/cap/assets/cap_wasm_bg.wasm`）
-- 分别勾选「保护评价提交」和/或「保护学号查询」
+- 分别勾选「保护评价提交」「保护举报提交」和/或「保护学号查询」
 
 Turnstile 凭据不会因切换到 Cap 而删除，两者由 `captcha_provider` 保证互斥。
 

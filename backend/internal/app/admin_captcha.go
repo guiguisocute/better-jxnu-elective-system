@@ -13,6 +13,7 @@ import (
 const (
 	captchaProviderRow       = "captcha_provider"
 	captchaReviewsEnabledRow = "captcha_reviews_enabled"
+	captchaReportsEnabledRow = "captcha_reports_enabled"
 	captchaStudentEnabledRow = "captcha_student_enabled"
 	capAPIEndpointRow        = "cap_api_endpoint"
 	capSiteKeyRow            = "cap_site_key"
@@ -23,6 +24,7 @@ const (
 type captchaAdminSettings struct {
 	Provider           string
 	ReviewsEnabled     bool
+	ReportsEnabled     bool
 	StudentEnabled     bool
 	TurnstileSiteKey   string
 	TurnstileSecretSet bool
@@ -66,9 +68,9 @@ func normalizeHTTPSURL(raw string, optional bool) (string, error) {
 func (a *AdminServer) loadCaptchaSettings(ctx context.Context) (captchaAdminSettings, error) {
 	cloudflare := a.cloudflareClient()
 	rows, _, err := cloudflare.D1Query(ctx,
-		`SELECT key, value FROM app_settings WHERE key IN (?,?,?,?,?,?,?,?,?)`,
+		`SELECT key, value FROM app_settings WHERE key IN (?,?,?,?,?,?,?,?,?,?)`,
 		[]any{
-			captchaProviderRow, captchaReviewsEnabledRow, captchaStudentEnabledRow,
+			captchaProviderRow, captchaReviewsEnabledRow, captchaReportsEnabledRow, captchaStudentEnabledRow,
 			turnstileSiteKeyRow, turnstileSecretRow,
 			capAPIEndpointRow, capSiteKeyRow, capSecretRow, capWasmURLRow,
 		})
@@ -99,10 +101,18 @@ func (a *AdminServer) loadCaptchaSettings(ctx context.Context) (captchaAdminSett
 		// closed instead of silently dropping protection.
 		reviewsEnabled = provider == "turnstile" && (values[turnstileSiteKeyRow] != "" || values[turnstileSecretRow] != "")
 	}
+	reportsEnabled := settingOn(values[captchaReportsEnabledRow])
+	if _, explicit := values[captchaReportsEnabledRow]; !explicit {
+		// The report switch was introduced after the review switch. Existing
+		// protected installations inherit the review setting until explicitly
+		// saved in the panel, so deploying the endpoint does not leave a gap.
+		reportsEnabled = reviewsEnabled
+	}
 
 	return captchaAdminSettings{
 		Provider:           provider,
 		ReviewsEnabled:     reviewsEnabled,
+		ReportsEnabled:     reportsEnabled,
 		StudentEnabled:     settingOn(values[captchaStudentEnabledRow]),
 		TurnstileSiteKey:   values[turnstileSiteKeyRow],
 		TurnstileSecretSet: values[turnstileSecretRow] != "",
@@ -142,7 +152,7 @@ func secretFieldLabel(name string, set bool) (string, string) {
 	return name, ""
 }
 
-// captchaCard renders the single mutually-exclusive provider selector plus two
+// captchaCard renders the single mutually-exclusive provider selector plus three
 // independent protected actions. Provider credentials stay stored when another
 // provider is selected, so switching back does not require re-entering secrets.
 func (a *AdminServer) captchaCard(session adminSession, settings captchaAdminSettings, loadErr error) string {
@@ -150,15 +160,18 @@ func (a *AdminServer) captchaCard(session adminSession, settings captchaAdminSet
 	if loadErr != nil {
 		badge = `<span class="badge err">读取配置失败：` + template.HTMLEscapeString(loadErr.Error()) + `</span>`
 	} else if settings.Provider == "off" {
-		badge = `<span class="hint">未启用：评价提交与学号查询均免验证</span>`
+		badge = `<span class="hint">未启用：评价提交、举报提交与学号查询均免验证</span>`
 	} else if !captchaConfigured(settings) {
 		badge = `<span class="badge err">` + captchaProviderLabel(settings.Provider) + ` 配置不完整；已勾选场景会拒绝请求（403）</span>`
-	} else if !settings.ReviewsEnabled && !settings.StudentEnabled {
+	} else if !settings.ReviewsEnabled && !settings.ReportsEnabled && !settings.StudentEnabled {
 		badge = `<span class="hint">` + captchaProviderLabel(settings.Provider) + ` 凭据已保存，但尚未勾选保护场景</span>`
 	} else {
 		var scopes []string
 		if settings.ReviewsEnabled {
 			scopes = append(scopes, "评价提交")
+		}
+		if settings.ReportsEnabled {
+			scopes = append(scopes, "举报提交")
 		}
 		if settings.StudentEnabled {
 			scopes = append(scopes, "学号查询")
@@ -171,13 +184,14 @@ func (a *AdminServer) captchaCard(session adminSession, settings captchaAdminSet
 
 	var b strings.Builder
 	b.WriteString(`<section class="card"><h2>人机验证（Turnstile / Cap 互斥）</h2><p>` + badge + `</p>`)
-	b.WriteString(`<p class="hint">选择一个全站 provider，再分别决定是否保护「评价提交」与「学号查询」。Turnstile 与 Cap 始终互斥；切换 provider 不会删除另一套凭据。配置写入 D1，<b>保存即生效、无需重新部署</b>。</p>`)
+	b.WriteString(`<p class="hint">选择一个全站 provider，再分别决定是否保护「评价提交」「举报提交」与「学号查询」。Turnstile 与 Cap 始终互斥；切换 provider 不会删除另一套凭据。配置写入 D1，<b>保存即生效、无需重新部署</b>。</p>`)
 	b.WriteString(`<form method="post" action="/action/save-captcha" class="stack">` + csrf(session))
 	b.WriteString(`<div class="choices">` +
-		radio("captchaProvider", "off", "关闭", "两个场景都不做人机验证", settings.Provider) +
+		radio("captchaProvider", "off", "关闭", "三个场景都不做人机验证", settings.Provider) +
 		radio("captchaProvider", "turnstile", "Turnstile", "Cloudflare 托管验证", settings.Provider) +
 		radio("captchaProvider", "cap", "Cap", "同一台 VPS 自托管验证", settings.Provider) + `</div>`)
 	b.WriteString(`<div><label class="inline"><input type="checkbox" name="captchaReviews" ` + checked(settings.ReviewsEnabled) + `>保护评价提交</label>`)
+	b.WriteString(`<label class="inline"><input type="checkbox" name="captchaReports" ` + checked(settings.ReportsEnabled) + `>保护举报提交</label>`)
 	b.WriteString(`<label class="inline"><input type="checkbox" name="captchaStudent" ` + checked(settings.StudentEnabled) + `>保护学号查询</label></div>`)
 
 	b.WriteString(`<div class="grid three"><div><h3>Cloudflare Turnstile</h3>`)
@@ -190,7 +204,7 @@ func (a *AdminServer) captchaCard(session adminSession, settings captchaAdminSet
 	b.WriteString(`<div class="field"><label>` + capSecretLabel + `</label><input type="password" name="capSecret" maxlength="256" autocomplete="new-password"><p class="hint">这里填站点 secret，不是 Cap 控制台 ADMIN_KEY；永不回显。</p></div>`)
 	b.WriteString(`<div class="field"><label>WASM 地址（可选）<code>cap_wasm_url</code></label><input name="capWasmUrl" maxlength="400" autocomplete="off" value="` + template.HTMLEscapeString(settings.CapWasmURL) + `" placeholder="https://getxk.jxnu-publish.asia/cap/assets/cap_wasm_bg.wasm"><p class="hint">留空时按 API 根地址自动推导 /assets/cap_wasm_bg.wasm。</p></div></div></div>`)
 	b.WriteString(`<button class="button primary" type="submit">保存人机验证配置（即时生效）</button></form>`)
-	if settings.Provider != "off" || settings.ReviewsEnabled || settings.StudentEnabled {
+	if settings.Provider != "off" || settings.ReviewsEnabled || settings.ReportsEnabled || settings.StudentEnabled {
 		b.WriteString(`<form method="post" action="/action/captcha-off" class="stack" onsubmit="return confirm('确定关闭所有人机验证？已保存的 Turnstile/Cap 凭据会保留，之后可一键重新启用。')">` + csrf(session) + `<button class="button" type="submit" style="background:#8b2631">关闭所有人机验证（保留凭据）</button></form>`)
 	}
 	b.WriteString(`</section>`)
@@ -213,6 +227,7 @@ func (a *AdminServer) saveCaptcha(w http.ResponseWriter, r *http.Request, sessio
 		return
 	}
 	reviewsEnabled := r.Form.Get("captchaReviews") == "on"
+	reportsEnabled := r.Form.Get("captchaReports") == "on"
 	studentEnabled := r.Form.Get("captchaStudent") == "on"
 	turnstileSiteKey := strings.TrimSpace(r.Form.Get("turnstileSiteKey"))
 	turnstileSecret := strings.TrimSpace(r.Form.Get("turnstileSecret"))
@@ -257,13 +272,13 @@ func (a *AdminServer) saveCaptcha(w http.ResponseWriter, r *http.Request, sessio
 		return
 	}
 
-	if provider == "turnstile" && (reviewsEnabled || studentEnabled) {
+	if provider == "turnstile" && (reviewsEnabled || reportsEnabled || studentEnabled) {
 		if turnstileSiteKey == "" || (turnstileSecret == "" && !current.TurnstileSecretSet) {
 			a.result(w, "保存失败", "启用 Turnstile 时必须有完整的 Site Key 与 Secret Key", false, &session)
 			return
 		}
 	}
-	if provider == "cap" && (reviewsEnabled || studentEnabled) {
+	if provider == "cap" && (reviewsEnabled || reportsEnabled || studentEnabled) {
 		if capEndpoint == "" || capSiteKey == "" || (capSecret == "" && !current.CapSecretSet) {
 			a.result(w, "保存失败", "启用 Cap 时必须有 API 根地址、Site Key 与 Site Secret", false, &session)
 			return
@@ -274,6 +289,7 @@ func (a *AdminServer) saveCaptcha(w http.ResponseWriter, r *http.Request, sessio
 	updates := [][2]string{
 		{captchaProviderRow, provider},
 		{captchaReviewsEnabledRow, map[bool]string{true: "on", false: "off"}[reviewsEnabled]},
+		{captchaReportsEnabledRow, map[bool]string{true: "on", false: "off"}[reportsEnabled]},
 		{captchaStudentEnabledRow, map[bool]string{true: "on", false: "off"}[studentEnabled]},
 		{turnstileSiteKeyRow, turnstileSiteKey},
 		{capAPIEndpointRow, capEndpoint},
@@ -296,6 +312,9 @@ func (a *AdminServer) saveCaptcha(w http.ResponseWriter, r *http.Request, sessio
 	scopes := []string{}
 	if reviewsEnabled {
 		scopes = append(scopes, "评价提交")
+	}
+	if reportsEnabled {
+		scopes = append(scopes, "举报提交")
 	}
 	if studentEnabled {
 		scopes = append(scopes, "学号查询")
@@ -321,11 +340,11 @@ func (a *AdminServer) disableCaptcha(w http.ResponseWriter, r *http.Request, ses
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	const upsert = `INSERT INTO app_settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`
-	for _, item := range [][2]string{{captchaProviderRow, "off"}, {captchaReviewsEnabledRow, "off"}, {captchaStudentEnabledRow, "off"}} {
+	for _, item := range [][2]string{{captchaProviderRow, "off"}, {captchaReviewsEnabledRow, "off"}, {captchaReportsEnabledRow, "off"}, {captchaStudentEnabledRow, "off"}} {
 		if _, _, err := cloudflare.D1Query(ctx, upsert, []any{item[0], item[1]}); err != nil {
 			a.result(w, "操作失败", err.Error(), false, &session)
 			return
 		}
 	}
-	a.result(w, "人机验证已关闭", "Turnstile 与 Cap 凭据均已保留；评价提交和学号查询恢复免验证。", true, &session)
+	a.result(w, "人机验证已关闭", "Turnstile 与 Cap 凭据均已保留；评价提交、举报提交和学号查询恢复免验证。", true, &session)
 }

@@ -287,7 +287,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
     // 点击遮罩不再关闭：编写评价时长按拖拽（选文字/拉滑块）松手落在遮罩上会误触 click→关闭，
     // 面板整个消失、体验很差。只允许右上角「×」关闭。
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-6">
-      <div className="w-full sm:max-w-lg max-h-[92vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col">
+      <div className="w-full sm:max-w-xl max-h-[92vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col">
         {pendingDone ? (
           <div className="px-6 py-10 text-center">
             <div className="text-4xl mb-3" aria-hidden>✅</div>
@@ -431,9 +431,9 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
                       setDraft((prev) => ({ ...prev, comments: { ...prev.comments, [d]: e.target.value.slice(0, 500) } }))
                     }
                     placeholder={`关于${DIMENSION_LABELS[d]}想说的…（可不填）`}
-                    rows={2}
+                    rows={4}
                     maxLength={500}
-                    className="mt-2 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-[12px] leading-relaxed resize-y"
+                    className="mt-2 w-full min-h-24 max-h-[40vh] resize-y rounded-lg border border-gray-200 px-3 py-2.5 text-[12px] leading-relaxed outline-none focus:border-red-200"
                   />
                 )}
               </div>

@@ -585,7 +585,7 @@ func (a *AdminServer) reviewEditPage(w http.ResponseWriter, r *http.Request, ses
 	b.WriteString(`<section class="card"><h2>各维度评分与评语</h2><p class="hint">评分可留空；至少填写一个维度。评语不超过 500 字。</p>`)
 	for _, d := range reviewDimensions {
 		b.WriteString(`<div class="field"><label>` + d.Label + ` 评分</label>` + reviewScoreSelect(d.Score, get(d.Score)) + `</div>`)
-		b.WriteString(`<div class="field"><label>` + d.Label + ` 评语</label><textarea name="` + d.Comment + `" rows="2" maxlength="500">` + template.HTMLEscapeString(get(d.Comment)) + `</textarea></div>`)
+		b.WriteString(`<div class="field"><label>` + d.Label + ` 评语</label><textarea name="` + d.Comment + `" rows="4" maxlength="500" style="resize:vertical;min-height:96px">` + template.HTMLEscapeString(get(d.Comment)) + `</textarea></div>`)
 	}
 	b.WriteString(`</section>`)
 	b.WriteString(`<div class="actions"><button class="button primary" type="submit">保存评价</button></div></form>`)
