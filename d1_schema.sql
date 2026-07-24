@@ -33,10 +33,14 @@ CREATE TABLE IF NOT EXISTS student_records (
   updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 站点级开关（key-value）。评价系统运营开关都放这里，改完即生效、不需重新部署：
---   review_moderation   = 'on'|'off'  审核模式（新评价是否先进 pending）
---   turnstile_site_key  = <明文站点密钥>  非空 = 前端渲染 Turnstile 挂件（/api/reviews/config 下发）
---   turnstile_secret    = <服务端密钥>    非空 = POST /api/reviews 强制 siteverify
+-- 站点级开关（key-value）。评价/学号人机验证都由 Go 面板写入，改完即生效、不需重新部署：
+--   review_moderation       = 'on'|'off'  审核模式（新评价是否先进 pending）
+--   captcha_provider        = 'off'|'turnstile'|'cap'（二选一，互斥）
+--   captcha_reviews_enabled = 'on'|'off'  是否保护评价提交
+--   captcha_student_enabled = 'on'|'off'  是否保护学号查询
+--   turnstile_site_key / turnstile_secret = Turnstile 公钥/服务端密钥
+--   cap_api_endpoint / cap_site_key / cap_secret = Cap 自托管地址/站点密钥/验证密钥
+--   cap_wasm_url            = 可选的自托管 WASM 地址（空则按 Cap 地址推导）
 -- 为什么 turnstile 不用 Pages 环境变量：仓库带 wrangler.toml 时每次 git 构建会清掉不在 [vars]
 -- 里的明文变量，而本仓库每小时被数据同步 push→构建一次，明文站点密钥最多活一小时。
 CREATE TABLE IF NOT EXISTS app_settings (

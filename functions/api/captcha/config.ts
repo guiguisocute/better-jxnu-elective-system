@@ -13,10 +13,15 @@ interface Env {
   CAP_WASM_URL?: string;
 }
 
-// Compatibility alias for older clients. New code reads /api/captcha/config,
-// but keeping this route avoids breaking a cached RatingSheet bundle.
-
+// GET /api/captcha/config — only public widget settings. Secrets never leave
+// the Pages Function; the Go panel writes them to D1.
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const config = await loadCaptchaConfig(context.env);
-  return Response.json(publicCaptchaConfig(config), { headers: { "Cache-Control": "max-age=60" } });
+  return Response.json(publicCaptchaConfig(config), {
+    headers: {
+      // The panel changes D1 directly. Keep the browser cache short enough for
+      // a switch to take effect without a deployment.
+      "Cache-Control": "max-age=60",
+    },
+  });
 };

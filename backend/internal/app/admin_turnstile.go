@@ -131,6 +131,14 @@ func (a *AdminServer) saveTurnstile(w http.ResponseWriter, r *http.Request, sess
 			return
 		}
 	}
+	// Legacy action compatibility: old bookmarks/forms still mean “use
+	// Turnstile for reviews”. The new panel uses /action/save-captcha.
+	for _, item := range [][2]string{{captchaProviderRow, "turnstile"}, {captchaReviewsEnabledRow, "on"}} {
+		if _, _, err := cloudflare.D1Query(ctx, upsert, []any{item[0], item[1]}); err != nil {
+			a.result(w, "保存失败", "Turnstile 密钥已存，但通用开关写入失败："+err.Error(), false, &session)
+			return
+		}
+	}
 	a.result(w, "Turnstile 已启用/更新", "已写入 D1（app_settings）。前端最多 1 分钟内跟上——无需重新部署。写评价将需要人机验证。", true, &session)
 }
 
@@ -150,6 +158,13 @@ func (a *AdminServer) disableTurnstile(w http.ResponseWriter, r *http.Request, s
 	if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM app_settings WHERE key IN (?,?)`, []any{turnstileSiteKeyRow, turnstileSecretRow}); err != nil {
 		a.result(w, "操作失败", err.Error(), false, &session)
 		return
+	}
+	const upsert = `INSERT INTO app_settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`
+	for _, item := range [][2]string{{captchaProviderRow, "off"}, {captchaReviewsEnabledRow, "off"}, {captchaStudentEnabledRow, "off"}} {
+		if _, _, err := cloudflare.D1Query(ctx, upsert, []any{item[0], item[1]}); err != nil {
+			a.result(w, "操作失败", "Turnstile 密钥已删，但通用开关写入失败："+err.Error(), false, &session)
+			return
+		}
 	}
 	a.result(w, "Turnstile 已关闭", "已从 D1 删除两个键。前端最多 1 分钟内恢复免验证。", true, &session)
 }

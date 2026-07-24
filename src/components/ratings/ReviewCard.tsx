@@ -94,7 +94,7 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
               </span>
             )}
           </div>
-          <div className="text-[11px] text-gray-400 mt-0.5 truncate">
+          <div className="text-[11px] text-gray-400 mt-0.5 leading-relaxed break-words [overflow-wrap:anywhere]">
             {timeAgo(row.updatedAt)}
             {courseLabel && <span> · {courseLabel}</span>}
           </div>
@@ -112,7 +112,7 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
 
       {/* 总体评语（自由文本） */}
       {row.overallC && (
-        <p className="text-[13px] text-gray-700 leading-relaxed mt-2 whitespace-pre-line">{row.overallC}</p>
+        <p className="text-[13px] text-gray-700 leading-relaxed mt-2 whitespace-pre-line break-words [overflow-wrap:anywhere]">{row.overallC}</p>
       )}
 
       {/* 4 新维度胶囊 */}
@@ -146,7 +146,7 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
                 style={{ borderLeft: `3px solid ${c.bar}` }}
               >
                 <div className={`text-[10px] font-bold mb-0.5 ${c.chipText}`}>{DIMENSION_LABELS[d]}</div>
-                <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-line">
+                <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]">
                   {row[COMMENT_KEYS[d]] as string}
                 </p>
               </div>

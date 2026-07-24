@@ -21,6 +21,7 @@ STUDENT_IMPORT_PROGRESS.md
 AI_PICK_PROGRESS.md
 tools/xk_api_manual.md
 deploy/kkap.env
+deploy/cap/.env
 
 # AI帮我选 本地开发密钥（wrangler pages dev 自动读取）
 .dev.vars

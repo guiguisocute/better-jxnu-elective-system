@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import type { Course, FormalSection, MajorRequirement, PlanCourse } from "../../types";
 import type { CreditPlanView, CreditBlock } from "../../lib/creditPlan";
 import { REQUIRED_NATURES } from "../../lib/creditPlan";
@@ -11,6 +11,7 @@ import type { StoredInputs } from "../../hooks/useCreditPlan";
 import { STUDENT_IMPORT_ENABLED } from "../../lib/featureFlags";
 import { useAppConfig } from "../../lib/appConfig";
 import { PlanSelector } from "../PlanSelector";
+import { HumanVerificationWidget, type HumanVerificationHandle } from "../HumanVerificationWidget";
 import { CreditRing, CreditRingLegend, FutureRequiredToggle } from "./CreditRing";
 import { SimScheduleGrid } from "./SimScheduleGrid";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -128,6 +129,10 @@ export function OnboardingModal({
   const [importSid, setImportSid] = useState("");
   const [importLoading, setImportLoading] = useState(false);
   const [importErr, setImportErr] = useState<string | null>(null);
+  const [importCaptchaToken, setImportCaptchaToken] = useState("");
+  const [importCaptchaRequired, setImportCaptchaRequired] = useState(false);
+  const [importCaptchaReady, setImportCaptchaReady] = useState(false);
+  const importCaptchaRef = useRef<HumanVerificationHandle | null>(null);
   // 拉到的档案 + 派生建议（先预览，确认后才回填引导）。
   const [preview, setPreview] = useState<{ rec: StudentRecord; sug: ImportSuggestion } | null>(null);
   // 方案识别纠错：内联下拉编辑（不跳转、不清空已查数据）。
@@ -164,6 +169,10 @@ export function OnboardingModal({
   };
 
   const handleImport = async () => {
+    if (!importCaptchaReady || (importCaptchaRequired && !importCaptchaToken)) {
+      setImportErr("请先完成人机验证。");
+      return;
+    }
     setImportErr(null);
     setPreview(null);
     setEdit(null);
@@ -172,7 +181,7 @@ export function OnboardingModal({
     setEditingPlan(false);
     setImportLoading(true);
     try {
-      const rec = await importStudentRecord(importSid);
+      const rec = await importStudentRecord(importSid, importCaptchaToken);
       const matched = !!(rec.planKey && allPlans.includes(rec.planKey));
       const plan = matched ? rec.planKey! : selectedPlan;
       const sug = deriveInputsFromRecord(rec, plan ? coursesOf(plan) : undefined);
@@ -182,6 +191,8 @@ export function OnboardingModal({
       setImportErr((e as Error).message);
     } finally {
       setImportLoading(false);
+      // Both Turnstile and Cap tokens are single-use on the server side.
+      importCaptchaRef.current?.reset();
     }
   };
 
@@ -358,7 +369,13 @@ export function OnboardingModal({
               {studentImportEnabled && (
                 <button
                   type="button"
-                  onClick={() => { setImportOpen(true); setImportErr(null); }}
+                  onClick={() => {
+                    setImportOpen(true);
+                    setImportErr(null);
+                    setImportCaptchaToken("");
+                    setImportCaptchaReady(false);
+                    importCaptchaRef.current?.reset();
+                  }}
                   className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200 hover:bg-indigo-100 transition-colors"
                 >
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -1013,12 +1030,27 @@ export function OnboardingModal({
                 <button
                   type="button"
                   onClick={handleImport}
-                  disabled={importLoading || !importSid.trim()}
+                  disabled={
+                    importLoading ||
+                    !importSid.trim() ||
+                    !importCaptchaReady ||
+                    (importCaptchaRequired && !importCaptchaToken)
+                  }
                   className="shrink-0 px-4 py-2 rounded-lg bg-indigo-500 text-white text-[13px] font-bold hover:bg-indigo-600 disabled:bg-gray-200 disabled:text-gray-400"
                 >
                   {importLoading ? "查询中…" : "查询"}
                 </button>
               </div>
+              <HumanVerificationWidget
+                ref={importCaptchaRef}
+                feature="student-record"
+                onToken={setImportCaptchaToken}
+                onStateChange={(state) => {
+                  setImportCaptchaRequired(state.required);
+                  setImportCaptchaReady(state.ready);
+                }}
+                className="mt-3"
+              />
               {importErr && <p className="mt-2 text-[12px] text-rose-600">{importErr}</p>}
               <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
                 数据源无成绩，已修课程一律按「已通过」估算。

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cap.js/widget": "^0.1.56",
     "boring-avatars": "^2.0.4",
     "echarts": "^6.1.0",
     "react": "^19.2.6",

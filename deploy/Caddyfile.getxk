@@ -1,6 +1,14 @@
 getxk.jxnu-publish.asia {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8787
+	handle_path /cap/* {
+		reverse_proxy 127.0.0.1:3000
+	}
+	handle_path /live/* {
+		reverse_proxy 127.0.0.1:8788
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8787
+	}
 	header {
 		X-Frame-Options DENY
 		Referrer-Policy no-referrer

@@ -106,7 +106,9 @@ export interface ReviewSubmit {
   attendanceC?: string | null;
   difficultyC?: string | null;
   teachingC?: string | null;
-  /** Cloudflare Turnstile token（站点开启人机校验时必带） */
+  /** 当前互斥人机验证 provider 产生的 token（Turnstile/Cap） */
+  captchaToken?: string | null;
+  /** 兼容旧版客户端；新代码使用 captchaToken */
   turnstileToken?: string | null;
 }
 

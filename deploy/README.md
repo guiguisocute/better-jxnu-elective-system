@@ -70,6 +70,8 @@ KKAP 不再使用页面默认学期。每次先读取 `ddlSterm`，按仓库目�
 
 保存按钮会先 PATCH Pages 项目的 production 环境变量，再创建一次 production 部署；只有部署完成后新配置才会生效。现有 `AI_API_KEY` 始终按 `secret_text` 处理，页面、结果页和日志都不会回显。面板使用的 `CF_API_TOKEN` 需要 `Account / Cloudflare Pages / Edit` 权限；VPS 尚未配置时，“AI 配置”页会先显示一次性 Cloudflare 连接表单，验证成功后以 `0600` 权限写入 `backend.env` 并立即解锁完整配置。
 
+“评价管理 → 人机验证”统一管理 Turnstile / Cap。全站一次只能选择一个 provider，但「评价提交」与「学号查询」可分别开关；切换 provider 会保留另一套凭据。Cap Standalone 与 Valkey 的部署说明见 [`cap/README.md`](cap/README.md)，公网 API 固定走 `https://getxk.jxnu-publish.asia/cap`。
+
 ## 本地构建与首次部署
 
 VPS 不需要安装 Go。在开发机仓库根目录交叉编译：
@@ -183,6 +185,7 @@ systemctl --user start jxnu-sync.service
 
 现有 [`Caddyfile.getxk`](Caddyfile.getxk) 不需要改路径：
 
+- `/cap/*` 去掉 `/cap` 前缀后反代到自托管 Cap `127.0.0.1:3000`；
 - `/live/*` 反代到 `127.0.0.1:8788`；
 - 其他公开请求反代到 `127.0.0.1:8787`。
 

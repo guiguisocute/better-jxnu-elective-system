@@ -1,4 +1,5 @@
 import type { AllReviews, Dimension, ReviewRow, ReviewSubmit, TeacherDims } from "./reviewDimensions";
+import { fetchHumanVerificationConfig, type HumanVerificationConfig } from "./humanVerification";
 
 // 评价系统 V2 数据层：模块级 pub/sub store（与 ratingsStore 同款范式）。
 // real 数据两块：dims 聚合（Map<courseId, Map<teacherId, TeacherDims>>）+ 评语流缓存。
@@ -260,13 +261,9 @@ export async function reportReview(reviewId: number, voterId: string, reason: st
   return !!data.ok;
 }
 
-/** 站点评价配置（Turnstile site key 等）；模块级缓存一次 */
-let reviewConfigCache: { turnstileSiteKey: string } | null = null;
-export async function fetchReviewConfig(): Promise<{ turnstileSiteKey: string }> {
-  if (reviewConfigCache) return reviewConfigCache;
-  const res = await fetch("/api/reviews/config");
-  reviewConfigCache = await readJson(res, { turnstileSiteKey: "" });
-  return reviewConfigCache;
+/** 站点人机验证配置；保留旧函数名，避免外部/缓存 bundle 断裂。 */
+export async function fetchReviewConfig(): Promise<HumanVerificationConfig> {
+  return fetchHumanVerificationConfig();
 }
 
 /** 综合分辅助：某课程全部教师 overall 均值（详情页头部「课程总体」用） */

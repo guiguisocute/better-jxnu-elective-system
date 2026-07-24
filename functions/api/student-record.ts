@@ -1,8 +1,19 @@
+import { verifyCaptcha } from "../lib/captcha";
+
 interface Env {
   DB: D1Database;
   // 教务实时课表服务（VPS）。二者都配了才启用实时；否则直接查 D1。
   LIVE_URL?: string;
   LIVE_SECRET?: string;
+  CAPTCHA_PROVIDER?: string;
+  CAPTCHA_REVIEWS_ENABLED?: string;
+  CAPTCHA_STUDENT_ENABLED?: string;
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET?: string;
+  CAP_API_ENDPOINT?: string;
+  CAP_SITE_KEY?: string;
+  CAP_SECRET?: string;
+  CAP_WASM_URL?: string;
 }
 
 // GET /api/student-record?sid=xxx
@@ -100,6 +111,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   if (!sid) {
     return Response.json({ error: "sid required" }, { status: 400 });
+  }
+
+  // The token is sent in a header so it never appears in browser history,
+  // proxy access logs, or a Referer URL. Keep the query parameter as a small
+  // compatibility fallback for older clients.
+  const captchaToken =
+    context.request.headers.get("X-Human-Verification-Token") ??
+    context.request.headers.get("X-Captcha-Token") ??
+    url.searchParams.get("captchaToken");
+  if (!(await verifyCaptcha(context.env, "student-record", captchaToken, context.request.headers.get("CF-Connecting-IP")))) {
+    return Response.json({ error: "human verification failed" }, { status: 403 });
   }
 
   // 1) 实时优先

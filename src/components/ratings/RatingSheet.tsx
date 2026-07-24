@@ -8,7 +8,7 @@ import {
   DIMENSION_STAR_TEXT,
   starTextFor,
 } from "../../lib/reviewDimensions";
-import { fetchMyReview, submitReview, fetchReviewConfig } from "../../lib/reviewsStore";
+import { fetchMyReview, submitReview } from "../../lib/reviewsStore";
 import {
   getAvatarSeed,
   setAvatarSeed,
@@ -18,7 +18,7 @@ import {
 import { AnonAvatar } from "./AnonAvatar";
 import { getVoterId } from "../../lib/voter";
 import { StarRatingInput } from "../StarRatingInput";
-import { useTheme } from "../../hooks/useTheme";
+import { HumanVerificationWidget, type HumanVerificationHandle } from "../HumanVerificationWidget";
 
 export interface RatingSheetTarget {
   teacherId: string;
@@ -75,33 +75,6 @@ function draftHasContent(d: Draft) {
     DIMENSIONS.some((dim) => (d.scores[dim] ?? 0) > 0) ||
     DIMENSIONS.some((dim) => (d.comments[dim] ?? "").trim() !== "")
   );
-}
-
-// ===== Cloudflare Turnstile（站点配置了 site key 才启用）=====
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (el: HTMLElement, opts: Record<string, unknown>) => string;
-      reset: (id?: string) => void;
-      remove: (id: string) => void;
-    };
-  }
-}
-
-let turnstileScript: Promise<void> | null = null;
-function loadTurnstileScript(): Promise<void> {
-  if (window.turnstile) return Promise.resolve();
-  if (!turnstileScript) {
-    turnstileScript = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("turnstile script failed"));
-      document.head.appendChild(s);
-    });
-  }
-  return turnstileScript;
 }
 
 /** 可搜索课程下拉（React 风格 combobox）：输入过滤 + 点击选择。 */
@@ -200,57 +173,16 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
   const [pendingDone, setPendingDone] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState(false);
 
-  // Turnstile
-  const [tsSiteKey, setTsSiteKey] = useState<string | null>(null); // null = 配置未加载
-  const [tsToken, setTsToken] = useState("");
-  const tsRef = useRef<HTMLDivElement | null>(null);
-  const tsWidgetId = useRef<string | null>(null);
-  // 挂件主题跟随站点主题（而非 Turnstile 默认的 auto=跟随系统），与用户在站内选的亮/暗一致
-  const { resolved: theme } = useTheme();
+  // 统一的人机验证（Turnstile / Cap 由后台互斥选择）
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaReady, setCaptchaReady] = useState(false);
+  const captchaRef = useRef<HumanVerificationHandle | null>(null);
 
   const hasScore = useMemo(
     () => DIMENSIONS.some((d) => (draft.scores[d] ?? 0) > 0),
     [draft.scores]
   );
-
-  // 站点配置：是否启用 Turnstile
-  useEffect(() => {
-    let cancelled = false;
-    fetchReviewConfig().then((cfg) => {
-      if (!cancelled) setTsSiteKey(cfg.turnstileSiteKey);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // 渲染 Turnstile 挂件
-  useEffect(() => {
-    if (!tsSiteKey || pendingDone) return;
-    let cancelled = false;
-    loadTurnstileScript()
-      .then(() => {
-        if (cancelled || !tsRef.current || !window.turnstile || tsWidgetId.current) return;
-        tsWidgetId.current = window.turnstile.render(tsRef.current, {
-          sitekey: tsSiteKey,
-          theme, // "light" | "dark"，跟随站点主题
-          callback: (token: string) => setTsToken(token),
-          "expired-callback": () => setTsToken(""),
-          "error-callback": () => setTsToken(""),
-        });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-      if (tsWidgetId.current && window.turnstile) {
-        try {
-          window.turnstile.remove(tsWidgetId.current);
-        } catch { /* ignore */ }
-        tsWidgetId.current = null;
-      }
-    };
-    // theme 变化时重建挂件以换肤（已取得的 token 仍有效，无需强制重新验证）
-  }, [tsSiteKey, pendingDone, theme]);
 
   // 打开/切课程：草稿优先，其次回填已提交的评价
   useEffect(() => {
@@ -309,11 +241,10 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
     } catch { /* 存储满等忽略 */ }
   }, [draft, nickname, seed, courseId, target.teacherId, pendingDone]);
 
-  const turnstileRequired = !!tsSiteKey;
-  const turnstileBlocking = turnstileRequired && !tsToken;
+  const captchaBlocking = !captchaReady || (captchaRequired && !captchaToken);
 
   const handleSubmit = async () => {
-    if (!courseId || !hasScore || submitting || turnstileBlocking) return;
+    if (!courseId || !hasScore || submitting || captchaBlocking) return;
     setSubmitting(true);
     setError("");
     setAvatarSeed(seed);
@@ -323,7 +254,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
       voterId: getVoterId(),
       avatar: seed,
       nickname: nickname.trim() || null,
-      turnstileToken: turnstileRequired ? tsToken : null,
+      captchaToken: captchaRequired ? captchaToken : null,
     };
     for (const d of DIMENSIONS) {
       const score = draft.scores[d];
@@ -346,12 +277,7 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
       }
     } else {
       setError("提交失败，请稍后再试（若页面出现人机验证请先完成）");
-      setTsToken("");
-      if (tsWidgetId.current && window.turnstile) {
-        try {
-          window.turnstile.reset(tsWidgetId.current);
-        } catch { /* ignore */ }
-      }
+      captchaRef.current?.reset();
     }
   };
 
@@ -514,8 +440,17 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
             );
           })}
 
-          {/* Turnstile 人机验证（站点开启时出现） */}
-          {turnstileRequired && <div ref={tsRef} className="flex justify-center" />}
+          {!pendingDone && (
+            <HumanVerificationWidget
+              ref={captchaRef}
+              feature="reviews"
+              onToken={setCaptchaToken}
+              onStateChange={(state) => {
+                setCaptchaRequired(state.required);
+                setCaptchaReady(state.ready);
+              }}
+            />
+          )}
 
           {error && <p className="text-[12px] text-red-500 text-center">{error}</p>}
         </div>
@@ -527,8 +462,8 @@ export function RatingSheet({ target, onClose, onSubmitted }: Props) {
           </p>
           <button
             onClick={handleSubmit}
-            disabled={!hasScore || !courseId || submitting || turnstileBlocking}
-            title={turnstileBlocking ? "请先完成人机验证" : undefined}
+            disabled={!hasScore || !courseId || submitting || captchaBlocking}
+            title={captchaBlocking ? "请先完成人机验证" : undefined}
             className="shrink-0 px-5 py-2.5 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white text-[13px] font-bold shadow-md shadow-rose-200/70 hover:from-red-600 hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
           >
             {submitting ? "发布中…" : "匿名发布"}

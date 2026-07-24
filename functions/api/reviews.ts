@@ -1,8 +1,16 @@
+import { verifyCaptcha } from "../lib/captcha";
+
 interface Env {
   DB: D1Database;
-  /** 兼容兜底（本地 .dev.vars 开发用）。生产密钥在 D1 app_settings.turnstile_secret ——
-   *  Pages 明文环境变量会被每小时的 git 构建按 wrangler.toml 清洗，不能作为开关载体。 */
+  CAPTCHA_PROVIDER?: string;
+  CAPTCHA_REVIEWS_ENABLED?: string;
+  CAPTCHA_STUDENT_ENABLED?: string;
+  TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET?: string;
+  CAP_API_ENDPOINT?: string;
+  CAP_SITE_KEY?: string;
+  CAP_SECRET?: string;
+  CAP_WASM_URL?: string;
 }
 
 // 评价系统 V2 主端点。契约镜像 src/lib/reviewDimensions.ts（functions/ 不在 tsc -b 范围，改形状两侧同步）。
@@ -72,42 +80,6 @@ function rowToDims(row: AggRow): Record<string, { avg: number; count: number }> 
   return dims;
 }
 
-/** Turnstile 服务端密钥：D1 app_settings.turnstile_secret 优先（面板即改即生效），
- *  空/表缺失时回落环境变量（本地开发）。返回空串 = 功能关闭。 */
-async function turnstileSecret(env: Env): Promise<string> {
-  try {
-    const row = await env.DB
-      .prepare("SELECT value FROM app_settings WHERE key = 'turnstile_secret'")
-      .first<{ value: string }>();
-    const v = row?.value?.trim();
-    if (v) return v;
-  } catch {
-    /* 表缺失 → 回落 env */
-  }
-  return env.TURNSTILE_SECRET?.trim() ?? "";
-}
-
-/** Turnstile 人机校验：密钥已配置时强制。未配置 = 功能关闭直接放行。 */
-async function verifyTurnstile(env: Env, token: unknown, ip: string | null): Promise<boolean> {
-  const secret = await turnstileSecret(env);
-  if (!secret) return true;
-  if (typeof token !== "string" || token.length === 0 || token.length > 2048) return false;
-  try {
-    const form = new FormData();
-    form.set("secret", secret);
-    form.set("response", token);
-    if (ip) form.set("remoteip", ip);
-    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      body: form,
-    });
-    const data = (await res.json()) as { success?: boolean };
-    return !!data.success;
-  } catch {
-    return false;
-  }
-}
-
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
@@ -141,8 +113,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return Response.json({ error: "missing fields" }, { status: 400 });
     }
 
-    if (!(await verifyTurnstile(context.env, body.turnstileToken, request.headers.get("CF-Connecting-IP")))) {
-      return Response.json({ error: "turnstile verification failed" }, { status: 403 });
+    const captchaToken = body.captchaToken ?? body.turnstileToken;
+    if (!(await verifyCaptcha(context.env, "reviews", captchaToken, request.headers.get("CF-Connecting-IP")))) {
+      return Response.json({ error: "human verification failed" }, { status: 403 });
     }
 
     const scores: Partial<Record<Dim, number | null>> = {};

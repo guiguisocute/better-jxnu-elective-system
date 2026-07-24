@@ -1,0 +1,33 @@
+services:
+  cap:
+    image: tiago2/cap:3.1.8
+    container_name: jxnu-cap
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      ADMIN_KEY: ${CAP_ADMIN_KEY:?CAP_ADMIN_KEY must be set in .env}
+      REDIS_URL: redis://valkey:6379
+      CORS_ORIGIN: ${CAP_CORS_ORIGIN:?CAP_CORS_ORIGIN must be set in .env}
+      ENABLE_ASSETS_SERVER: "true"
+      WIDGET_VERSION: "0.1.56"
+      WASM_VERSION: "0.0.7"
+    depends_on:
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:9-alpine
+    container_name: jxnu-cap-valkey
+    volumes:
+      - cap-valkey-data:/data
+    command: valkey-server --save 60 1 --loglevel warning --maxmemory-policy noeviction
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  cap-valkey-data:

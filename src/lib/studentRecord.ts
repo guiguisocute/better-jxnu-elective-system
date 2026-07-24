@@ -319,7 +319,7 @@ export function computeImportExclusions(record: StudentRecord, planCourses: Plan
  * 脱敏：全程不涉及姓名。学号查不到统一 404。
  * 注意：源数据无成绩字段，detailCourses 一律视为已通过（isPassed 返回 true）。
  */
-export async function importStudentRecord(studentId: string): Promise<StudentRecord> {
+export async function importStudentRecord(studentId: string, captchaToken = ""): Promise<StudentRecord> {
   const sid = studentId.trim();
   if (!sid) throw new Error("请输入学号。");
   const devDemo = import.meta.env.DEV && /^(demo|local|test)$/i.test(sid);
@@ -333,7 +333,9 @@ export async function importStudentRecord(studentId: string): Promise<StudentRec
   const url = `/api/student-record?sid=${encodeURIComponent(sid)}`;
   let res: Response;
   try {
-    res = await fetch(url);
+    res = await fetch(url, {
+      headers: captchaToken ? { "X-Human-Verification-Token": captchaToken } : undefined,
+    });
   } catch {
     throw new Error("网络异常，稍后再试。");
   }
@@ -347,6 +349,7 @@ export async function importStudentRecord(studentId: string): Promise<StudentRec
     throw new Error("接口未部署或返回了非 JSON。");
   }
 
+  if (res.status === 403) throw new Error("人机验证失败或已过期，请重新验证后再查。");
   if (res.status === 404) throw new Error("没有该学号的记录。");
   if (!res.ok) throw new Error(`服务异常（${res.status}）。`);
 

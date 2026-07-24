@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_reviews_teacher ON reviews(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_voter   ON reviews(voter_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_status  ON reviews(status);
 
--- 站点级开关（评价审核模式等）。key: review_moderation, value: 'on' | 'off'（缺省 off）。
+-- 站点级开关（评价审核/人机验证等）。key-value 具体键见 d1_schema.sql。
 CREATE TABLE IF NOT EXISTS app_settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
