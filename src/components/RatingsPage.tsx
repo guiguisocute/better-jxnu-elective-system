@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
 import { useFormalData } from "../hooks/useFormalData";
 import { useAllReviews, useReviewComments } from "../hooks/useReviews";
-import { useSimMode } from "../hooks/useSimMode";
-import { useCart } from "../hooks/useCart";
 import { usePlanCourses } from "../hooks/usePlanCourses";
 import { useCreditPlan } from "../hooks/useCreditPlan";
-import type { Course, FormalSection } from "../types";
+import type { FormalSection } from "../types";
 import type { Dimension, ReviewRow, TeacherDims } from "../lib/reviewDimensions";
 import { DIMENSIONS, compositeOf } from "../lib/reviewDimensions";
 import { toggleHelpful, fetchMyReview } from "../lib/reviewsStore";
@@ -66,7 +65,6 @@ function sortRows(rows: ReviewRow[], sort: SortMode): ReviewRow[] {
 // 课程评价子页面：与主页同一条红 banner（像切换页面而非跳转），左列实体列表（独立滚动 +
 // 基本筛选/排序）+ 右侧详情（综合评分 + 5 维彩条 + 写评价 + 全部评价卡片流 + 上学期快评）。
 export function RatingsPage() {
-  const navigate = useNavigate();
   const { courses } = useCourseData();
   const formal = useFormalData();
   const { dimsMap, getDims } = useAllReviews();
@@ -76,10 +74,9 @@ export function RatingsPage() {
   const [listDept, setListDept] = useState("");
   const [listSort, setListSort] = useState<ListSort>("rating");
   const [sheet, setSheet] = useState<RatingSheetTarget | null>(null);
+  const [quickOpen, setQuickOpen] = useState(false);
 
-  // ===== 模拟选课链路（悬浮球 + 上学期快评都要用；与 HomePage 同一套 localStorage 状态） =====
-  const sim = useSimMode();
-  const cart = useCart();
+  // ===== 上学期快评推导（学号导入状态在 localStorage，与主页共享）=====
   const [currentPlan] = useState<string>(() => {
     try {
       const raw = sessionStorage.getItem("jxnu_filters");
@@ -87,12 +84,10 @@ export function RatingsPage() {
     } catch { /* ignore */ }
     return "";
   });
-  const cartCourses = useMemo(
-    () => cart.ids.map((id) => courses.find((c) => c.id === id)).filter(Boolean) as Course[],
-    [cart.ids, courses],
-  );
-  const planCourses = usePlanCourses(sim.mode !== "browse", currentPlan);
-  const credit = useCreditPlan(currentPlan, cartCourses, planCourses.courses, planCourses.coursesOf);
+  // 只取 credit.term / stored.importedDetailCourses（均来自 localStorage）——
+  // 不加载 5MB 方案课程表（open=false），不渲染任何模拟选课 UI。
+  const planCourses = usePlanCourses(false, currentPlan);
+  const credit = useCreditPlan(currentPlan, [], planCourses.courses, planCourses.coursesOf);
 
   const quickReview = useMemo(
     () =>
@@ -381,15 +376,26 @@ export function RatingsPage() {
                 </button>
               ))}
             </div>
+            {/* 上学期快评入口：低调按钮（学号导入匹配到上学期班级时才出现） */}
+            {quickReview.sections.length > 0 && (
+              <button
+                onClick={() => setQuickOpen(true)}
+                title={`评价 ${quickReview.semester} 上过的 ${quickReview.sections.length} 门课`}
+                className="shrink-0 px-3 py-1 rounded-full text-[12px] font-semibold text-gray-500 ring-1 ring-gray-200 hover:text-red-600 hover:ring-red-200 transition-colors"
+              >
+                ⭐ 评价上学期课程
+                <span className="ml-1 tabular-nums text-gray-400">{quickReview.sections.length}</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       {/* 主体：左列表与右详情各自滚动（desktop）。banner 48 + 工具条 ~54 ≈ 102px。 */}
-      <main className="max-w-[2000px] mx-auto px-4 md:px-6 py-4 grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start lg:h-[calc(100vh-118px)]">
-        {/* 左列：实体列表（独立滚动） */}
+      <main className="max-w-[2000px] mx-auto px-4 md:px-6 py-4 grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start lg:h-[calc(100vh-118px)] overflow-x-clip">
+        {/* 左列：实体列表（独立滚动；px-1 给选中描边留位，避免被 overflow 裁掉） */}
         <aside
-          className={`${hasSelection ? "hidden lg:flex" : "flex"} flex-col gap-2 lg:h-full lg:overflow-y-auto lg:pr-1 pb-6`}
+          className={`${hasSelection ? "hidden lg:flex" : "flex"} min-w-0 flex-col gap-2 lg:h-full lg:overflow-y-auto lg:px-1 pb-6`}
         >
           {/* 左列筛选 + 排序 */}
           <div className="flex items-center gap-2 sticky top-0 bg-page z-10 pb-1">
@@ -486,7 +492,7 @@ export function RatingsPage() {
         </aside>
 
         {/* 右侧详情（独立滚动） */}
-        <section className={`${hasSelection ? "" : "hidden lg:block"} lg:h-full lg:overflow-y-auto lg:pr-1 pb-10`}>
+        <section className={`${hasSelection ? "" : "hidden lg:block"} min-w-0 lg:h-full lg:overflow-y-auto lg:pr-1 pb-10`}>
           {/* 移动端返回列表 */}
           {hasSelection && (
             <button
@@ -499,23 +505,6 @@ export function RatingsPage() {
             >
               ← 返回{view === "teacher" ? "教师" : "课程"}列表
             </button>
-          )}
-
-          {/* 上学期快评（学号导入后匹配到的班级；多维评价直接开 RatingSheet） */}
-          {quickReview.sections.length > 0 && (
-            <QuickReviewCard
-              semester={quickReview.semester}
-              sections={quickReview.sections}
-              defaultOpen={!hasSelection}
-              onWrite={(s) =>
-                setSheet({
-                  teacherId: s.teacherId,
-                  teacherName: s.teacher || s.teacherId,
-                  courseOptions: [{ id: s.id, name: s.name || s.id }],
-                  initialCourseId: s.id,
-                })
-              }
-            />
           )}
 
           {!hasSelection && (
@@ -618,7 +607,11 @@ export function RatingsPage() {
                     key={r.id}
                     row={r}
                     hot={r.id === hotId}
-                    courseLabel={view === "teacher" ? courseNameOf(r.courseId) : undefined}
+                    courseLabel={
+                      view === "teacher"
+                        ? courseNameOf(r.courseId)
+                        : `${teacherIndex.get(r.teacherId)?.name ?? r.teacherId} 老师`
+                    }
                     onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
                     onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
                   />
@@ -634,24 +627,24 @@ export function RatingsPage() {
         </section>
       </main>
 
-      {/* 模拟选课悬浮球（保留主页的存在感；点击回主页展开面板） */}
-      {sim.mode === "sim" && (
-        <button
-          onClick={() => navigate("/")}
-          title={`下学期已规划 ${credit.view.nextSemCredits}/${credit.view.nextSemCap} 学分 · 点击回选课页查看模拟面板`}
-          className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-white shadow-lg ring-1 ring-red-100 flex flex-col items-center justify-center hover:shadow-xl transition-shadow"
-        >
-          <span className="text-[10px] text-gray-400 leading-none">下学期</span>
-          <span className={`text-[15px] font-black tabular-nums leading-tight ${credit.view.nextSemOver ? "text-rose-600" : "text-red-500"}`}>
-            {credit.view.nextSemCredits}
-            <span className="text-[10px] text-gray-400 font-semibold">/{credit.view.nextSemCap}</span>
-          </span>
-          {cart.count > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-              {cart.count}
-            </span>
-          )}
-        </button>
+      {/* 模拟选课悬浮球不在此页复刻 —— SimPanel 状态深度耦合主页；
+          待面板提升到 App 层后再做真正的跨子页面共享，避免展示一个假状态的球。 */}
+
+      {quickOpen && (
+        <QuickReviewModal
+          semester={quickReview.semester}
+          sections={quickReview.sections}
+          onClose={() => setQuickOpen(false)}
+          onWrite={(s) => {
+            setQuickOpen(false);
+            setSheet({
+              teacherId: s.teacherId,
+              teacherName: s.teacher || s.teacherId,
+              courseOptions: [{ id: s.id, name: s.name || s.id }],
+              initialCourseId: s.id,
+            });
+          }}
+        />
       )}
 
       {sheet && (
@@ -701,7 +694,7 @@ function TeacherPanel({
         </button>
       </div>
 
-      <div className="mt-5 grid sm:grid-cols-[150px_1fr] gap-5 items-center">
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-[150px_minmax(0,1fr)] gap-5 items-center">
         {/* 综合评分（4 新维度等权平均；无新维度时退回总体分） */}
         <div className="text-center sm:border-r sm:border-gray-100 sm:pr-4">
           <p className="text-[11px] text-gray-400 mb-1">综合评分</p>
@@ -716,7 +709,9 @@ function TeacherPanel({
             {totalPeople} 人评价 · 授课 {entry.courseIds.length} 门
           </p>
         </div>
-        <DimensionBars dims={agg ?? null} />
+        <div className="min-w-0">
+          <DimensionBars dims={agg ?? null} />
+        </div>
       </div>
     </div>
   );
@@ -769,44 +764,50 @@ function QuickReviewRow({ section, onWrite }: { section: FormalSection; onWrite:
   );
 }
 
-function QuickReviewCard({
+function QuickReviewModal({
   semester,
   sections,
-  defaultOpen,
+  onClose,
   onWrite,
 }: {
   semester: string;
   sections: FormalSection[];
-  defaultOpen: boolean;
+  onClose: () => void;
   onWrite: (s: FormalSection) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="rounded-2xl bg-gradient-to-br from-amber-50/70 via-white to-white ring-1 ring-amber-100 p-4 sm:p-5 mb-5">
-      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between text-left">
-        <div>
-          <h2 className="text-[15px] font-bold text-gray-800 flex items-center gap-2">
-            <span aria-hidden>⭐</span> 评价上学期课程
-            <span className="text-[11px] font-semibold text-amber-600 bg-amber-100/70 rounded px-1.5 py-0.5 tabular-nums">
-              {semester} · {sections.length} 门
-            </span>
-          </h2>
-          <p className="text-[11px] text-gray-400 mt-0.5">学号导入匹配到的你上学期上过的班级 —— 五个维度都可以评，也可以只评在意的</p>
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-xl max-h-[85vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="text-[15px] font-bold text-gray-900">评价上学期课程</h2>
+            <p className="text-[11px] text-gray-400 mt-0.5 tabular-nums">
+              {semester} · 学号导入匹配到 {sections.length} 门 · 五个维度都可以评，也可以只评在意的
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="关闭"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <svg
-          className={`w-4 h-4 text-amber-400 transition-transform shrink-0 ${open ? "rotate-180" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="flex-1 overflow-y-auto px-5 py-4 grid gap-2 sm:grid-cols-2">
           {sections.map((s) => (
             <QuickReviewRow key={formalSectionKey(s)} section={s} onWrite={() => onWrite(s)} />
           ))}
         </div>
-      )}
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }
