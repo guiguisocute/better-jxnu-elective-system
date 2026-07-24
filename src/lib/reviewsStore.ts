@@ -176,6 +176,26 @@ export async function toggleHelpful(reviewId: number, voterId: string) {
   }
 }
 
+/** 举报一条评价（一人一条一次，重复幂等） */
+export async function reportReview(reviewId: number, voterId: string, reason: string): Promise<boolean> {
+  const res = await fetch("/api/reviews/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewId, voterId, reason: reason.trim().slice(0, 200) || undefined }),
+  });
+  const data = await readJson<{ ok?: boolean }>(res, {});
+  return !!data.ok;
+}
+
+/** 站点评价配置（Turnstile site key 等）；模块级缓存一次 */
+let reviewConfigCache: { turnstileSiteKey: string } | null = null;
+export async function fetchReviewConfig(): Promise<{ turnstileSiteKey: string }> {
+  if (reviewConfigCache) return reviewConfigCache;
+  const res = await fetch("/api/reviews/config");
+  reviewConfigCache = await readJson(res, { turnstileSiteKey: "" });
+  return reviewConfigCache;
+}
+
 /** 综合分辅助：某课程全部教师 overall 均值（详情页头部「课程总体」用） */
 export function courseOverallAvg(courseId: string): number | null {
   const teachers = dims.get(courseId);

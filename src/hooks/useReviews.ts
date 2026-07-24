@@ -101,3 +101,24 @@ export function useReviewComments(courseId: string | undefined, teacherId: strin
 
   return { rows, refresh };
 }
+
+/** 广场：全站最新评价流（无课程/教师过滤，updated_at 倒序） */
+export function useReviewFeed() {
+  useReviewsVersion();
+
+  useEffect(() => {
+    if (fetchedComments.has("|")) return;
+    fetchedComments.add("|");
+    fetchReviewComments(undefined, undefined, getVoterId()).catch(() => {
+      fetchedComments.delete("|");
+    });
+  }, []);
+
+  const rows: ReviewRow[] | null = getComments(undefined, undefined);
+
+  const refresh = useCallback(async () => {
+    await fetchReviewComments(undefined, undefined, getVoterId());
+  }, []);
+
+  return { rows, refresh };
+}

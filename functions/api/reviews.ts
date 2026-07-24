@@ -1,5 +1,7 @@
 interface Env {
   DB: D1Database;
+  /** Cloudflare Turnstile 服务端密钥（pages secret）。配置后发表评价必须携带有效 token。 */
+  TURNSTILE_SECRET?: string;
 }
 
 // 评价系统 V2 主端点。契约镜像 src/lib/reviewDimensions.ts（functions/ 不在 tsc -b 范围，改形状两侧同步）。
@@ -69,6 +71,27 @@ function rowToDims(row: AggRow): Record<string, { avg: number; count: number }> 
   return dims;
 }
 
+/** Turnstile 人机校验：TURNSTILE_SECRET 已配置时强制。未配置 = 功能关闭直接放行。 */
+async function verifyTurnstile(env: Env, token: unknown, ip: string | null): Promise<boolean> {
+  const secret = env.TURNSTILE_SECRET?.trim();
+  if (!secret) return true;
+  if (typeof token !== "string" || token.length === 0 || token.length > 2048) return false;
+  try {
+    const form = new FormData();
+    form.set("secret", secret);
+    form.set("response", token);
+    if (ip) form.set("remoteip", ip);
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form,
+    });
+    const data = (await res.json()) as { success?: boolean };
+    return !!data.success;
+  } catch {
+    return false;
+  }
+}
+
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
@@ -100,6 +123,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const voterId = body.voterId;
     if (!isValidId(courseId) || !isValidId(teacherId) || !isValidId(voterId)) {
       return Response.json({ error: "missing fields" }, { status: 400 });
+    }
+
+    if (!(await verifyTurnstile(context.env, body.turnstileToken, request.headers.get("CF-Connecting-IP")))) {
+      return Response.json({ error: "turnstile verification failed" }, { status: 403 });
     }
 
     const scores: Partial<Record<Dim, number | null>> = {};

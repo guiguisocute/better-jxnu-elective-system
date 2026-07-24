@@ -2,10 +2,11 @@ interface Env {
   DB: D1Database;
 }
 
-// GET /api/reviews/comments?courseId=xxx[&teacherId=xxx][&voterId=xxx][&limit=20][&offset=0]
+// GET /api/reviews/comments?[courseId=xxx][&teacherId=xxx][&voterId=xxx][&limit=20][&offset=0]
 // 评语流（评价卡列表）。voterId 可选：传了会标记 mine / myVote（是否投过「有用」）。
-// 只返回至少打了一个维度分的行（表约束已保证）。排序固定 updated_at DESC，
-// 「最有帮助 / 好评优先」由前端在已拉全量的小数据集上重排。
+// courseId / teacherId 都不传 = 广场模式：全站按时间倒序（分页拉取）。
+// 只返回审核通过的行。排序固定 updated_at DESC，
+// 「最有帮助 / 好评优先」由前端在已拉数据集上重排。
 // 行契约镜像 src/lib/reviewDimensions.ts 的 ReviewRow。
 
 interface RawRow {
@@ -38,9 +39,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const voterId = url.searchParams.get("voterId") ?? "";
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 50) || 50));
   const offset = Math.max(0, Number(url.searchParams.get("offset") ?? 0) || 0);
-  if (!courseId && !teacherId) {
-    return Response.json({ error: "courseId or teacherId required" }, { status: 400 });
-  }
 
   const where: string[] = ["r.status = 'approved'"];
   const binds: (string | number)[] = [voterId];

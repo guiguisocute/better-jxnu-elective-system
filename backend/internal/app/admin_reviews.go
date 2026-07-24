@@ -230,13 +230,31 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 		moderationOn = reviewText(m[0], "value") == "on"
 	}
 
+	// 未处理举报数（通知感）
+	openReports := 0
+	if rc, _, err := cloudflare.D1Query(ctx, `SELECT COUNT(*) AS n FROM review_reports WHERE status='open'`, nil); err == nil && len(rc) > 0 {
+		openReports = reviewInt(rc[0], "n")
+	}
+
+	// 未处理举报列表（仅在有 open 举报时查询）
+	var reportRows []map[string]any
+	if openReports > 0 {
+		if rr, _, err := cloudflare.D1Query(ctx, `SELECT rp.id AS report_id, rp.reason AS report_reason, rp.created_at AS reported_at, rp.voter_id AS reporter, r.* FROM review_reports rp LEFT JOIN reviews r ON r.id = rp.review_id WHERE rp.status='open' ORDER BY rp.created_at DESC LIMIT 20`, nil); err == nil {
+			reportRows = rr
+		}
+	}
+
 	courseName, teacherName := a.reviewNames()
 
 	var b strings.Builder
 	b.WriteString(`<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1><p>直连 Cloudflare D1 库 jxnu-ratings，可查看、编辑、删除、审核与批量清理评价。</p></div><a class="button primary" href="/reviews/edit">手工补录评价</a></section>`)
 
-	// stats: 4 cards
-	b.WriteString(fmt.Sprintf(`<div class="grid four"><section class="card"><h2>总评价数</h2><p class="big">%d</p></section><section class="card"><h2>待审核</h2><p class="big">%d</p></section><section class="card"><h2>总投票数</h2><p class="big">%d</p></section><section class="card"><h2>当前页</h2><p class="big">第 %d 页</p><p class="hint">每页 %d 条</p></section></div>`, totalReviews, pendingCount, totalVotes, page, reviewPageSize))
+	// stats: 5 cards（第 5 张「未处理举报」有通知感）
+	reportCard := fmt.Sprintf(`<section class="card"><h2>未处理举报</h2><p class="big">%d</p></section>`, openReports)
+	if openReports > 0 {
+		reportCard = fmt.Sprintf(`<section class="card report open"><h2>未处理举报</h2><p class="big" style="color:#c0363f">%d</p><p class="hint">有待处理的举报</p></section>`, openReports)
+	}
+	b.WriteString(fmt.Sprintf(`<div class="grid five"><section class="card"><h2>总评价数</h2><p class="big">%d</p></section><section class="card"><h2>待审核</h2><p class="big">%d</p></section><section class="card"><h2>总投票数</h2><p class="big">%d</p></section><section class="card"><h2>当前页</h2><p class="big">第 %d 页</p><p class="hint">每页 %d 条</p></section>%s</div>`, totalReviews, pendingCount, totalVotes, page, reviewPageSize, reportCard))
 
 	// moderation switch card
 	moderationBadge := `<span class="hint">关闭：评价即发即显</span>`
@@ -248,6 +266,17 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 		buttonLabel = "关闭审核模式"
 	}
 	b.WriteString(`<section class="card"><h2>审核模式</h2><p>` + moderationBadge + `</p><p class="hint">开启后，新提交的评价默认进入待审核，需在此页面手动通过后才对外可见。</p><form method="post" action="/action/review-moderation">` + csrf(session) + `<input type="hidden" name="enable" value="` + nextEnable + `"><button class="button" type="submit">` + buttonLabel + `</button></form></section>`)
+
+	// 举报处理 card
+	b.WriteString(`<section class="card report"><h2>举报处理</h2>`)
+	if len(reportRows) == 0 {
+		b.WriteString(`<p class="hint">暂无未处理举报。</p>`)
+	} else {
+		for _, rp := range reportRows {
+			b.WriteString(renderReportItem(rp, session, courseName, teacherName))
+		}
+	}
+	b.WriteString(`</section>`)
 
 	// search form (with status dropdown)
 	sel := func(name, cur, v, label string) string {
@@ -368,6 +397,40 @@ func renderReviewCard(row map[string]any, session adminSession, courseName, teac
 	b.WriteString(`</div>`)
 
 	b.WriteString(`</div>`)
+	return b.String()
+}
+
+// renderReportItem renders one open report: metadata + the reported review card
+// (or a deleted-notice) + resolve actions. `row` carries aliased report columns
+// (report_id / report_reason / reported_at / reporter) plus the joined review's
+// r.* columns (all NULL when the review was already deleted).
+func renderReportItem(row map[string]any, session adminSession, courseName, teacherName func(id string) string) string {
+	var b strings.Builder
+	reportID := reviewInt(row, "report_id")
+	reporter := reviewText(row, "reporter")
+	reason := strings.TrimSpace(reviewText(row, "report_reason"))
+	if reason == "" {
+		reason = "未填写理由"
+	}
+	reviewDeleted := row["id"] == nil
+
+	b.WriteString(`<div class="report-item">`)
+	b.WriteString(`<p class="hint">举报时间 ` + template.HTMLEscapeString(reviewText(row, "reported_at")) +
+		` · 举报人 <span title="` + template.HTMLEscapeString(reporter) + `">` + template.HTMLEscapeString(truncateRunes(reporter, 8)) + `</span>` +
+		` · 举报理由：` + template.HTMLEscapeString(reason) + `</p>`)
+
+	if reviewDeleted {
+		b.WriteString(`<p class="hint">原评价已删除。</p>`)
+	} else {
+		b.WriteString(renderReviewCard(row, session, courseName, teacherName))
+	}
+
+	b.WriteString(`<div class="rev-actions">`)
+	b.WriteString(`<form method="post" action="/action/resolve-report">` + csrf(session) + `<input type="hidden" name="reportId" value="` + strconv.Itoa(reportID) + `"><button class="button" type="submit">标记已处理</button></form>`)
+	if !reviewDeleted {
+		b.WriteString(`<form method="post" action="/action/resolve-report">` + csrf(session) + `<input type="hidden" name="reportId" value="` + strconv.Itoa(reportID) + `"><input type="hidden" name="deleteReview" value="1"><button class="link" type="submit" style="color:#c0363f">删除该评价并处理</button></form>`)
+	}
+	b.WriteString(`</div></div>`)
 	return b.String()
 }
 
@@ -735,6 +798,84 @@ func (a *AdminServer) saveD1Connection(w http.ResponseWriter, r *http.Request, s
 	}
 	a.setCloudflareClient(client)
 	a.result(w, "D1 已连接", "凭据已安全保存并立即生效。返回评价管理页即可查看与管理评价数据。", true, &session)
+}
+
+// parseResolveReport validates the resolve-report form. reportId must be a
+// positive integer; deleteReview is true only for the literal "1".
+func parseResolveReport(reportIDRaw, deleteRaw string) (reportID int, deleteReview bool, err error) {
+	reportID, err = strconv.Atoi(strings.TrimSpace(reportIDRaw))
+	if err != nil || reportID <= 0 {
+		return 0, false, fmt.Errorf("举报 id 不合法")
+	}
+	return reportID, strings.TrimSpace(deleteRaw) == "1", nil
+}
+
+// resolveReport marks a report resolved, optionally deleting the reported review
+// first. The review_id is looked up from review_reports (never trusted from the
+// form); deleting a review also resolves all other open reports on it.
+func (a *AdminServer) resolveReport(w http.ResponseWriter, r *http.Request, session adminSession) {
+	if !a.validPost(w, r, session) {
+		return
+	}
+	cloudflare := a.cloudflareClient()
+	if !cloudflare.D1Ready() {
+		a.result(w, "操作失败", "Cloudflare D1 凭据未配置", false, &session)
+		return
+	}
+	reportID, deleteReview, err := parseResolveReport(r.Form.Get("reportId"), r.Form.Get("deleteReview"))
+	if err != nil {
+		a.result(w, "操作失败", err.Error(), false, &session)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	// 从 review_reports 查出关联 review_id（不信任表单）
+	reviewID := 0
+	reviewExists := false
+	if rows, _, err := cloudflare.D1Query(ctx, `SELECT review_id FROM review_reports WHERE id=?`, []any{reportID}); err != nil {
+		a.result(w, "操作失败", err.Error(), false, &session)
+		return
+	} else if len(rows) == 0 {
+		a.result(w, "操作失败", "该举报不存在或已被处理", false, &session)
+		return
+	} else {
+		reviewID = reviewInt(rows[0], "review_id")
+	}
+
+	deletedReview := false
+	if deleteReview && reviewID > 0 {
+		if rows, _, err := cloudflare.D1Query(ctx, `SELECT id FROM reviews WHERE id=?`, []any{reviewID}); err == nil && len(rows) > 0 {
+			reviewExists = true
+		}
+		if reviewExists {
+			if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM review_votes WHERE review_id=?`, []any{reviewID}); err != nil {
+				a.result(w, "操作失败", err.Error(), false, &session)
+				return
+			}
+			if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM reviews WHERE id=?`, []any{reviewID}); err != nil {
+				a.result(w, "操作失败", err.Error(), false, &session)
+				return
+			}
+			deletedReview = true
+			// 该评价的其他 open 举报一并处理
+			if _, _, err := cloudflare.D1Query(ctx, `UPDATE review_reports SET status='resolved' WHERE review_id=?`, []any{reviewID}); err != nil {
+				a.result(w, "操作失败", err.Error(), false, &session)
+				return
+			}
+		}
+	}
+
+	if _, _, err := cloudflare.D1Query(ctx, `UPDATE review_reports SET status='resolved' WHERE id=?`, []any{reportID}); err != nil {
+		a.result(w, "操作失败", err.Error(), false, &session)
+		return
+	}
+
+	if deletedReview {
+		a.result(w, "举报已处理", fmt.Sprintf("已删除评价 #%d 及其投票，并标记相关举报为已处理。", reviewID), true, &session)
+		return
+	}
+	a.result(w, "举报已处理", fmt.Sprintf("已将举报 #%d 标记为已处理。", reportID), true, &session)
 }
 
 func (a *AdminServer) purgeReviews(w http.ResponseWriter, r *http.Request, session adminSession) {

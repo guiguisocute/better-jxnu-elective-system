@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Dimension, ReviewRow } from "../../lib/reviewDimensions";
 import {
   DIMENSION_COLORS,
@@ -7,6 +8,8 @@ import {
   starTextFor,
 } from "../../lib/reviewDimensions";
 import { FALLBACK_NICKNAME } from "../../lib/avatar";
+import { reportReview } from "../../lib/reviewsStore";
+import { getVoterId } from "../../lib/voter";
 import { AnonAvatar } from "./AnonAvatar";
 import { StarRating } from "../StarRating";
 
@@ -50,6 +53,17 @@ const COMMENT_KEYS: Record<Dimension, keyof ReviewRow> = {
 // 4 新维度小胶囊 → 分维度评语块（彩色左边框）→ 有用/修改 footer。
 export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine }: Props) {
   const chips = NEW_DIMENSIONS.filter((d) => row[d] != null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reported, setReported] = useState(false);
+
+  const submitReport = async () => {
+    const ok = await reportReview(row.id, getVoterId(), reportReason);
+    if (ok) {
+      setReported(true);
+      setReportOpen(false);
+    }
+  };
   const dimComments = NEW_DIMENSIONS.filter((d) => {
     const c = row[COMMENT_KEYS[d]];
     return typeof c === "string" && c.length > 0;
@@ -128,7 +142,7 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
             return (
               <div
                 key={d}
-                className="rounded-lg bg-gray-50/80 px-3 py-2"
+                className="rounded-lg bg-gray-50 px-3 py-2"
                 style={{ borderLeft: `3px solid ${c.bar}` }}
               >
                 <div className={`text-[10px] font-bold mb-0.5 ${c.chipText}`}>{DIMENSION_LABELS[d]}</div>
@@ -141,8 +155,8 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
         </div>
       )}
 
-      {/* footer：有用 / 修改 */}
-      <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-gray-50">
+      {/* footer：有用 / 修改 / 举报 */}
+      <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-gray-100">
         <button
           onClick={() => onToggleHelpful?.(row.id)}
           className={`inline-flex items-center gap-1.5 text-xs transition-colors ${
@@ -162,7 +176,33 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
             修改我的评价
           </button>
         )}
+        {!row.mine && (
+          <button
+            onClick={() => !reported && setReportOpen((v) => !v)}
+            className={`ml-auto text-[11px] transition-colors ${
+              reported ? "text-gray-300 cursor-default" : "text-gray-300 hover:text-rose-500"
+            }`}
+          >
+            {reported ? "已举报" : "举报"}
+          </button>
+        )}
       </div>
+      {reportOpen && !reported && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            value={reportReason}
+            onChange={(e) => setReportReason(e.target.value.slice(0, 200))}
+            placeholder="举报理由（可不填）"
+            className="flex-1 min-w-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] bg-gray-50"
+          />
+          <button
+            onClick={() => void submitReport()}
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-[11px] font-semibold hover:bg-rose-100 transition-colors"
+          >
+            提交举报
+          </button>
+        </div>
+      )}
     </div>
   );
 }

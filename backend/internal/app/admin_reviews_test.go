@@ -11,6 +11,40 @@ import (
 	"testing"
 )
 
+func TestParseResolveReport(t *testing.T) {
+	cases := []struct {
+		reportID   string
+		deleteRaw  string
+		wantID     int
+		wantDelete bool
+		wantErr    bool
+	}{
+		{"1", "", 1, false, false},
+		{"42", "1", 42, true, false},
+		{" 7 ", "0", 7, false, false},
+		{"3", "yes", 3, false, false},
+		{"0", "1", 0, false, true},
+		{"-5", "", 0, false, true},
+		{"", "", 0, false, true},
+		{"abc", "1", 0, false, true},
+	}
+	for _, c := range cases {
+		id, del, err := parseResolveReport(c.reportID, c.deleteRaw)
+		if c.wantErr {
+			if err == nil {
+				t.Fatalf("parseResolveReport(%q,%q) expected error", c.reportID, c.deleteRaw)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("parseResolveReport(%q,%q) unexpected error: %v", c.reportID, c.deleteRaw, err)
+		}
+		if id != c.wantID || del != c.wantDelete {
+			t.Fatalf("parseResolveReport(%q,%q) = %d,%v want %d,%v", c.reportID, c.deleteRaw, id, del, c.wantID, c.wantDelete)
+		}
+	}
+}
+
 func TestParseReviewScore(t *testing.T) {
 	cases := []struct {
 		raw     string

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
 import { useFormalData } from "../hooks/useFormalData";
-import { useAllReviews, useReviewComments } from "../hooks/useReviews";
+import { useAllReviews, useReviewComments, useReviewFeed } from "../hooks/useReviews";
 import { usePlanCourses } from "../hooks/usePlanCourses";
 import { useCreditPlan } from "../hooks/useCreditPlan";
 import type { FormalSection } from "../types";
@@ -75,6 +75,8 @@ export function RatingsPage() {
   const [listSort, setListSort] = useState<ListSort>("rating");
   const [sheet, setSheet] = useState<RatingSheetTarget | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
+  // 移动端「广场」模式（桌面端无选中即广场）
+  const [mobileFeed, setMobileFeed] = useState(false);
 
   // ===== 上学期快评推导（学号导入状态在 localStorage，与主页共享）=====
   const [currentPlan] = useState<string>(() => {
@@ -257,8 +259,14 @@ export function RatingsPage() {
   const select = (id: string) => {
     const next = new URLSearchParams(params);
     next.set("view", view);
-    next.set(view === "course" ? "course" : "teacher", id);
+    if (selectedId === id) {
+      // 再点一次取消选中 → 回到广场
+      next.delete(view === "course" ? "course" : "teacher");
+    } else {
+      next.set(view === "course" ? "course" : "teacher", id);
+    }
     setParams(next, { replace: false });
+    setMobileFeed(false);
   };
 
   const switchView = (v: ViewMode) => {
@@ -281,6 +289,7 @@ export function RatingsPage() {
   );
   const rows = view === "teacher" ? teacherRows : courseRows;
   const refreshRows = view === "teacher" ? refreshTeacherRows : refreshCourseRows;
+  const feed = useReviewFeed();
 
   const sortedRows = useMemo(() => sortRows(rows ?? [], sort), [rows, sort]);
   const hotId = useMemo(() => {
@@ -305,6 +314,10 @@ export function RatingsPage() {
   };
 
   const hasSelection = !!(selTeacher || selCourse);
+  const teacherLabelOf = (tid: string) => teacherIndex.get(tid)?.name ?? tid;
+  /** 广场卡片标识行：评 xxx（老师）的 xxxx（课程） */
+  const feedLabelOf = (r: ReviewRow) => `评 ${teacherLabelOf(r.teacherId)} 老师 的《${courseNameOf(r.courseId)}》`;
+  const sortedFeed = useMemo(() => sortRows(feed.rows ?? [], sort), [feed.rows, sort]);
 
   return (
     <div className="min-h-screen bg-page">
@@ -351,6 +364,22 @@ export function RatingsPage() {
                 </button>
               ))}
             </div>
+            {/* 移动端广场入口（桌面端不选中任何详情即广场） */}
+            <button
+              onClick={() => {
+                const next = new URLSearchParams();
+                next.set("view", view);
+                setParams(next);
+                setMobileFeed(true);
+              }}
+              className={`lg:hidden px-3 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
+                mobileFeed && !hasSelection
+                  ? "bg-red-50 text-red-600 ring-1 ring-red-200"
+                  : "text-gray-500 ring-1 ring-gray-200 hover:text-gray-700"
+              }`}
+            >
+              🏛️ 广场
+            </button>
             <div className="relative flex-1 min-w-[180px] max-w-sm">
               <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -403,7 +432,7 @@ export function RatingsPage() {
       <main className="max-w-[2000px] mx-auto px-4 md:px-6 py-4 grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start lg:h-[calc(100vh-118px)] overflow-x-clip">
         {/* 左列：实体列表（独立滚动；px-1 给选中描边留位，避免被 overflow 裁掉） */}
         <aside
-          className={`${hasSelection ? "hidden lg:flex" : "flex"} min-w-0 flex-col gap-2 lg:h-full lg:overflow-y-auto lg:px-1 pb-6`}
+          className={`${hasSelection || mobileFeed ? "hidden lg:flex" : "flex"} min-w-0 flex-col gap-2 lg:h-full lg:overflow-y-auto lg:px-1 pb-6`}
         >
           {/* 左列筛选 + 排序 */}
           <div className="flex items-center gap-2 sticky top-0 bg-page z-10 pb-1">
@@ -500,22 +529,23 @@ export function RatingsPage() {
           {view === "teacher" && teacherList.length > listLimit && (
             <button
               onClick={() => setListLimit((l) => l + LIST_BATCH)}
-              className="w-full shrink-0 rounded-xl border border-dashed border-gray-200 bg-white/70 py-2.5 text-[12px] text-gray-500 hover:text-red-500 hover:border-red-200 transition-colors tabular-nums"
+              className="w-full shrink-0 rounded-xl border border-dashed border-gray-200 bg-white py-2.5 text-[12px] text-gray-500 hover:text-red-500 hover:border-red-200 transition-colors tabular-nums"
             >
               显示更多（已显示 {Math.min(listLimit, teacherList.length)} / {teacherList.length} 位）
             </button>
           )}
         </aside>
 
-        {/* 右侧详情（独立滚动） */}
-        <section className={`${hasSelection ? "" : "hidden lg:block"} min-w-0 lg:h-full lg:overflow-y-auto lg:pr-1 pb-10`}>
+        {/* 右侧详情（独立滚动；无选中 = 广场） */}
+        <section className={`${hasSelection || mobileFeed ? "" : "hidden lg:block"} min-w-0 lg:h-full lg:overflow-y-auto lg:pr-1 pb-10`}>
           {/* 移动端返回列表 */}
-          {hasSelection && (
+          {(hasSelection || mobileFeed) && (
             <button
               onClick={() => {
                 const next = new URLSearchParams();
                 next.set("view", view);
                 setParams(next);
+                setMobileFeed(false);
               }}
               className="lg:hidden mb-3 text-[13px] text-gray-500 inline-flex items-center gap-1 hover:text-red-500"
             >
@@ -523,10 +553,32 @@ export function RatingsPage() {
             </button>
           )}
 
+          {/* ===== 广场：无选中时按时间刷全站评价 ===== */}
           {!hasSelection && (
-            <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-24 text-center text-gray-300 text-sm">
-              从左侧选择{view === "teacher" ? "一位老师" : "一门课程"}查看评价
-            </div>
+            <>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h2 className="text-[15px] font-bold text-gray-800">
+                  广场 · 最新评价 <span className="text-gray-400 font-normal text-[13px]">{feed.rows?.length ?? 0}</span>
+                </h2>
+                <span className="text-[11px] text-gray-400">点左侧任意老师/课程查看专页 · 再点一次回到广场</span>
+              </div>
+              <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
+                {sortedFeed.map((r) => (
+                  <ReviewCard
+                    key={r.id}
+                    row={r}
+                    courseLabel={feedLabelOf(r)}
+                    onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
+                    onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
+                  />
+                ))}
+              </div>
+              {(feed.rows?.length ?? 0) === 0 && (
+                <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-24 text-center text-gray-300 text-sm">
+                  广场还空着 —— 从左侧挑一位老师抢首评
+                </div>
+              )}
+            </>
           )}
 
           {/* ===== 按老师 ===== */}
@@ -539,7 +591,7 @@ export function RatingsPage() {
             />
           )}
 
-          {/* ===== 按课程 ===== */}
+          {/* ===== 按课程：头卡（教师维度分放在全部评价之后） ===== */}
           {selCourse && (
             <div className="rounded-2xl bg-white ring-1 ring-gray-100 p-5 sm:p-6 mb-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -549,7 +601,7 @@ export function RatingsPage() {
                     <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 text-[10px] font-semibold">课程</span>
                   </h1>
                   <p className="text-[12px] text-gray-400 mt-1">
-                    {selCourse.dept} · <span className="font-mono">{selCourse.id}</span>
+                    {selCourse.dept} · <span className="font-mono">{selCourse.id}</span> · {selCourse.teacherIds.length} 位授课老师
                   </p>
                 </div>
                 {courseOverall.get(selCourse.id) && (
@@ -562,47 +614,6 @@ export function RatingsPage() {
                       {courseOverall.get(selCourse.id)!.count} 人评价 · {selCourse.teacherIds.length} 位老师
                     </div>
                   </div>
-                )}
-              </div>
-              {/* 每位授课老师 */}
-              <div className="mt-5 space-y-4">
-                {selCourse.teacherIds.map((tid) => {
-                  const t = teacherIndex.get(tid);
-                  const dims = getDims(selCourse.id, tid);
-                  return (
-                    <div key={tid} className="rounded-xl bg-gray-50/70 px-4 py-3.5">
-                      <div className="flex items-center justify-between gap-3 mb-2.5">
-                        <button
-                          onClick={() => {
-                            const next = new URLSearchParams();
-                            next.set("view", "teacher");
-                            next.set("teacher", tid);
-                            setParams(next);
-                          }}
-                          title="点击查看这位老师的主页与全部评价"
-                          className="group/t text-left text-[14px] font-bold text-gray-800 hover:text-red-600 transition-colors cursor-pointer"
-                        >
-                          <span className="border-b border-dashed border-transparent group-hover/t:border-red-300">
-                            {t?.name ?? tid}
-                          </span>
-                          <span className="text-[11px] text-gray-400 font-normal ml-2">{t?.dept}</span>
-                          <span className="inline-flex items-center ml-1.5 text-[11px] text-red-400 opacity-0 group-hover/t:opacity-100 transition-opacity" aria-hidden>
-                            查看主页 →
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => openSheetForTeacher(tid, selCourse.id)}
-                          className="shrink-0 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white text-[12px] font-bold shadow-sm shadow-rose-200/60 hover:from-red-600 hover:to-rose-600 transition-all active:scale-[0.97]"
-                        >
-                          ✎ 写评价
-                        </button>
-                      </div>
-                      <DimensionBars dims={dims} compact />
-                    </div>
-                  );
-                })}
-                {selCourse.teacherIds.length === 0 && (
-                  <p className="text-[12px] text-gray-400">暂无该课程的教师记录</p>
                 )}
               </div>
             </div>
@@ -640,6 +651,22 @@ export function RatingsPage() {
               )}
             </>
           )}
+
+          {/* ===== 按课程：各教师维度分（有评分在前；无评分自动折叠但仍可见标识） ===== */}
+          {selCourse && (
+            <CourseTeachersCard
+              course={selCourse}
+              teacherIndex={teacherIndex}
+              getDims={(tid) => getDims(selCourse.id, tid)}
+              onOpenTeacher={(tid) => {
+                const next = new URLSearchParams();
+                next.set("view", "teacher");
+                next.set("teacher", tid);
+                setParams(next);
+              }}
+              onWrite={(tid) => openSheetForTeacher(tid, selCourse.id)}
+            />
+          )}
         </section>
       </main>
 
@@ -669,6 +696,118 @@ export function RatingsPage() {
           onClose={() => setSheet(null)}
           onSubmitted={() => void refreshRows()}
         />
+      )}
+    </div>
+  );
+}
+
+/** 按课程视图的教师维度卡：有评分的完整展示，无评分的折叠成一行标识（点开可写评价） */
+function CourseTeachersCard({
+  course,
+  teacherIndex,
+  getDims,
+  onOpenTeacher,
+  onWrite,
+}: {
+  course: CourseEntry;
+  teacherIndex: Map<string, TeacherEntry>;
+  getDims: (tid: string) => TeacherDims | null;
+  onOpenTeacher: (tid: string) => void;
+  onWrite: (tid: string) => void;
+}) {
+  const [unratedOpen, setUnratedOpen] = useState(false);
+  const rated: string[] = [];
+  const unrated: string[] = [];
+  for (const tid of course.teacherIds) {
+    const dims = getDims(tid);
+    (dims && Object.keys(dims).length > 0 ? rated : unrated).push(tid);
+  }
+
+  const teacherHead = (tid: string) => {
+    const t = teacherIndex.get(tid);
+    return (
+      <button
+        onClick={() => onOpenTeacher(tid)}
+        title="点击查看这位老师的主页与全部评价"
+        className="group/t text-left text-[14px] font-bold text-gray-800 hover:text-red-600 transition-colors cursor-pointer min-w-0"
+      >
+        <span className="border-b border-dashed border-transparent group-hover/t:border-red-300">
+          {t?.name ?? tid}
+        </span>
+        <span className="text-[11px] text-gray-400 font-normal ml-2">{t?.dept}</span>
+        <span className="inline-flex items-center ml-1.5 text-[11px] text-red-400 opacity-0 group-hover/t:opacity-100 transition-opacity" aria-hidden>
+          查看主页 →
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="rounded-2xl bg-white ring-1 ring-gray-100 p-5 sm:p-6 mt-5">
+      <h2 className="text-[15px] font-bold text-gray-800 mb-4">
+        各教师维度评分
+        <span className="text-gray-400 font-normal text-[13px] ml-2">
+          {rated.length} 位有评分 · {unrated.length} 位暂无
+        </span>
+      </h2>
+      <div className="space-y-4">
+        {rated.map((tid) => (
+          <div key={tid} className="rounded-xl bg-gray-50 px-4 py-3.5">
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+              {teacherHead(tid)}
+              <button
+                onClick={() => onWrite(tid)}
+                className="shrink-0 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white text-[12px] font-bold shadow-sm shadow-rose-200/60 hover:from-red-600 hover:to-rose-600 transition-all active:scale-[0.97]"
+              >
+                ✎ 写评价
+              </button>
+            </div>
+            <DimensionBars dims={getDims(tid)} compact />
+          </div>
+        ))}
+        {rated.length === 0 && (
+          <p className="text-[12px] text-gray-400">这门课还没有任何教师收到评分</p>
+        )}
+      </div>
+
+      {/* 无评分教师：默认折叠，但保留身份标识区域 */}
+      {unrated.length > 0 && (
+        <div className="mt-4">
+          <button
+            onClick={() => setUnratedOpen((v) => !v)}
+            className="w-full flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 text-left hover:bg-gray-100 transition-colors"
+          >
+            <span className="text-[13px] font-semibold text-gray-600">
+              暂无评分的老师
+              <span className="text-gray-400 font-normal ml-1.5 tabular-nums">{unrated.length} 位</span>
+              <span className="text-[11px] text-gray-400 font-normal ml-2 hidden sm:inline">
+                {unrated.slice(0, 4).map((tid) => teacherIndex.get(tid)?.name ?? tid).join("、")}
+                {unrated.length > 4 && " 等"}
+              </span>
+            </span>
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${unratedOpen ? "rotate-180" : ""}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {unratedOpen && (
+            <div className="mt-2 space-y-1.5">
+              {unrated.map((tid) => (
+                <div key={tid} className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 px-4 py-2.5">
+                  {teacherHead(tid)}
+                  <button
+                    onClick={() => onWrite(tid)}
+                    className="shrink-0 px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-100 transition-colors"
+                  >
+                    抢首评
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

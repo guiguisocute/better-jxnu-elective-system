@@ -85,6 +85,8 @@ export interface ReviewRow {
   helpful: number;
   myVote: boolean;
   mine: boolean;
+  /** 审核状态（mine 接口返回；approved/pending/rejected，公开列表恒为 approved） */
+  status?: string;
 }
 
 /** POST /api/reviews body（≥1 维非空；评语可只在打了分的维度上填） */
@@ -104,6 +106,8 @@ export interface ReviewSubmit {
   attendanceC?: string | null;
   difficultyC?: string | null;
   teachingC?: string | null;
+  /** Cloudflare Turnstile token（站点开启人机校验时必带） */
+  turnstileToken?: string | null;
 }
 
 /** 4 新维度等权平均（忽略无人评的维度）；一个维度都没有 → null */
