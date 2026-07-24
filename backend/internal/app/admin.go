@@ -71,6 +71,8 @@ func (a *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("/action/delete-review", a.auth(a.deleteReview))
 	mux.HandleFunc("/action/purge-reviews", a.auth(a.purgeReviews))
 	mux.HandleFunc("/action/review-moderation", a.auth(a.toggleReviewModeration))
+	mux.HandleFunc("/action/save-turnstile", a.auth(a.saveTurnstile))
+	mux.HandleFunc("/action/turnstile-off", a.auth(a.disableTurnstile))
 	mux.HandleFunc("/action/moderate-review", a.auth(a.moderateReview))
 	mux.HandleFunc("/action/resolve-report", a.auth(a.resolveReport))
 	mux.HandleFunc("/action/save-d1", a.auth(a.saveD1Connection))

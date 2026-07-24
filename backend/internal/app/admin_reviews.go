@@ -267,6 +267,9 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 	}
 	b.WriteString(`<section class="card"><h2>审核模式</h2><p>` + moderationBadge + `</p><p class="hint">开启后，新提交的评价默认进入待审核，需在此页面手动通过后才对外可见。</p><form method="post" action="/action/review-moderation">` + csrf(session) + `<input type="hidden" name="enable" value="` + nextEnable + `"><button class="button" type="submit">` + buttonLabel + `</button></form></section>`)
 
+	// 人机验证（Turnstile）开关：写评价提交的人机校验，与审核模式并列
+	b.WriteString(a.turnstileCard(session))
+
 	// 举报处理 card
 	b.WriteString(`<section class="card report"><h2>举报处理</h2>`)
 	if len(reportRows) == 0 {
