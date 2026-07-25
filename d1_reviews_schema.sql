@@ -1,6 +1,6 @@
 -- 评价系统 V2 schema（宽表：一行 = 一个 voter 对 (course, teacher) 的完整评价）
--- 本地:  npx wrangler d1 execute jxnu-ratings --local  --file=d1_reviews_schema.sql
--- 远端:  npx wrangler d1 execute jxnu-ratings --remote --file=d1_reviews_schema.sql
+-- 本地:  npx wrangler d1 execute jxnu-reviews --local  --file=d1_reviews_schema.sql
+-- 远端:  npx wrangler d1 execute jxnu-reviews --remote --file=d1_reviews_schema.sql
 --
 -- 5 个维度固定列（overall=总体评分 承接旧 ratings.rating；assess=考核给分;
 -- attendance=考勤频率; difficulty=课程强度; teaching=教学质量），全部可空 ——

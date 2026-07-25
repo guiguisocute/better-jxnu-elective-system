@@ -1,6 +1,6 @@
 -- 举报表增量迁移（幂等）。
--- 本地:  npx wrangler d1 execute jxnu-ratings --local  --file=d1_reviews_reports_migrate.sql
--- 远端:  npx wrangler d1 execute jxnu-ratings --remote --file=d1_reviews_reports_migrate.sql
+-- 本地:  npx wrangler d1 execute jxnu-reviews --local  --file=d1_reviews_reports_migrate.sql
+-- 远端:  npx wrangler d1 execute jxnu-reviews --remote --file=d1_reviews_reports_migrate.sql
 CREATE TABLE IF NOT EXISTS review_reports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   review_id INTEGER NOT NULL,

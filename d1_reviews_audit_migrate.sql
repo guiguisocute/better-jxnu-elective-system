@@ -4,8 +4,8 @@
 -- 执行同样的建表语句，正常情况下**不需要**手工跑这个文件；保留它是为了 schema 有
 -- 一处可读的权威定义，以及在没有面板的环境里手动建表。
 --
--- 本地:  npx wrangler d1 execute jxnu-ratings --local  --file=d1_reviews_audit_migrate.sql
--- 远端:  npx wrangler d1 execute jxnu-ratings --remote --file=d1_reviews_audit_migrate.sql
+-- 本地:  npx wrangler d1 execute jxnu-reviews --local  --file=d1_reviews_audit_migrate.sql
+-- 远端:  npx wrangler d1 execute jxnu-reviews --remote --file=d1_reviews_audit_migrate.sql
 
 -- 回收站：评价删除改为「先快照、再删」。payload 是删除瞬间 reviews 整行的 JSON
 -- 快照，votes 是它的 review_votes 快照，因此还原可以把评价连同「有用」票一起复原。

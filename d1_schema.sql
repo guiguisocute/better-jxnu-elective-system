@@ -1,6 +1,6 @@
 -- D1 Schema for JXNU选课PLUS
 -- Run in Cloudflare Dashboard > D1 > your database > Console
--- Or:  npx wrangler d1 execute jxnu-ratings --remote --file=d1_schema.sql
+-- Or:  npx wrangler d1 execute jxnu-reviews --remote --file=d1_schema.sql
 
 -- 教师评分（每 voter 每 (course, teacher) 一条；upsert 走 ON CONFLICT）
 CREATE TABLE IF NOT EXISTS ratings (

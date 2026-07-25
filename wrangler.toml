@@ -6,14 +6,19 @@ pages_build_output_dir = "dist"
 # fork 必改：database_name / database_id 换成你自己的 D1 库（Dashboard → D1 可见）。
 # 这是构建期绑定，管理面板改不到；面板里的 CF_D1_DATABASE_ID 必须与这里的 DB 一致。
 #
-# 刻意分成两个库。DB 存评价/举报/开关这类事务数据，只有约 1MB；DB_STUDENTS 存学号
-# 快照，28818 行、289MB。D1 是按页从远端惰性拉取的，两者同库时评价查询要为学号数据
-# 的体量买单：同一条评价列表语句 D1 自报 sql_duration_ms=0.8，HTTP 却要 26s，页面
-# 一冷就是 20 秒起。拆开之后评价库小到冷启动不再有感知。
+# 刻意分成两个库。DB（jxnu-reviews）存评价/评分/举报/回收站/操作日志/站点开关，
+# 只有 180KB；DB_STUDENTS（jxnu-students）存学号快照，28818 行、367MB。
+#
+# D1 是按页从远端惰性拉取的，两者同库时评价查询要为学号数据的体量买单：同一条评价
+# 列表语句 D1 自报 sql_duration_ms=0.8，HTTP 却要 26s，且约 20~25s 不访问就再次变冷。
+# 注意光 DROP 掉大表不够——SQLite 不会自动收缩文件，评价数据仍然散落在几百 MB 里；
+# 所以这里是把小表导进一个**全新**的库（jxnu-reviews），从 367MB 变成 180KB。
+#
+# 旧库 jxnu-ratings 暂时保留不动，作为回滚余地。
 [[d1_databases]]
 binding = "DB"
-database_name = "jxnu-ratings"
-database_id = "fa430b25-33a9-46d5-bd0c-52442971bac7"
+database_name = "jxnu-reviews"
+database_id = "3c327e9e-df40-4839-ba43-be9c94452931"
 
 [[d1_databases]]
 binding = "DB_STUDENTS"
