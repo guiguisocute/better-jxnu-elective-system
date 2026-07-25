@@ -330,6 +330,8 @@ export function HomePage() {
       if (sim.mode !== "sim") return true;
       const c = courses.find((cc) => cc.id === id);
       if (!c) return true;
+      // 提示文案统一用具体学期号，别让用户在「下学期」到底指哪一学期上犯嘀咕。
+      const nextSemName = credit.view.nextSemKey || "下学期";
       const isGeneral = c.tags.some((t) => t === "公选课" || t.startsWith("公选课-"));
       if (isGeneral) {
         const count = cartCourses.filter((x) =>
@@ -338,7 +340,7 @@ export function HomePage() {
         if (count >= 2) {
           const ok = await askCartConfirm(
             "超出公选课建议上限",
-            `下学期待选清单已有 ${count} 门公选课（学校要求每学期不超过 2 门）。仍要加入《${c.name}》吗？`,
+            `${nextSemName}待选清单已有 ${count} 门公选课（学校要求每学期不超过 2 门）。仍要加入《${c.name}》吗？`,
           );
           if (!ok) return false;
         }
@@ -347,7 +349,7 @@ export function HomePage() {
         if (count >= 2) {
           const ok = await askCartConfirm(
             "超出任意选修建议上限",
-            `下学期待选清单已有 ${count} 门任意选修课（学校要求每学期不超过 2 门）。仍要加入《${c.name}》吗？`,
+            `${nextSemName}待选清单已有 ${count} 门任意选修课（学校要求每学期不超过 2 门）。仍要加入《${c.name}》吗？`,
           );
           if (!ok) return false;
         }
@@ -361,7 +363,7 @@ export function HomePage() {
           const over = totalAfter - minTotal;
           const ok = await askCartConfirm(
             "已超出毕业总学分要求",
-            `加入《${c.name}》(${c.credits} 学分) 后，已修 + 下学期理论学分共 ${totalAfter.toFixed(1)} 分，超毕业要求 ${minTotal} 分 ${over.toFixed(1)} 分。仍要加入吗？`,
+            `加入《${c.name}》(${c.credits} 学分) 后，已修 + ${nextSemName}理论学分共 ${totalAfter.toFixed(1)} 分，超毕业要求 ${minTotal} 分 ${over.toFixed(1)} 分。仍要加入吗？`,
           );
           if (!ok) return false;
         }
@@ -1476,7 +1478,7 @@ export function HomePage() {
       <ConfirmDialog
         open={enableSimPrompt}
         title="模拟选课模式未开启"
-        message="开启模拟选课后即可把课程加入待选清单，并模拟下学期课表与毕业学分核算。现在开启吗？"
+        message={`开启模拟选课后即可把课程加入待选清单，并模拟${credit.view.nextSemKey || "下学期"}课表与毕业学分核算。现在开启吗？`}
         confirmText="开启模拟选课"
         cancelText="暂不"
         onConfirm={() => { setEnableSimPrompt(false); enterSim(); }}

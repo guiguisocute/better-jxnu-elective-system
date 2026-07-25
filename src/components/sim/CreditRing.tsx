@@ -39,6 +39,8 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
     chart.resize({ width: size, height: size });
 
     const proj = view.projection.value;
+    // tooltip 里写具体学期号（"2026-09理论"），别让用户去猜「下学期」是哪一学期。
+    const nextSemName = view.nextSemKey || "下学期";
     const denom = view.minTotal ?? Math.max(1, view.earned + proj + 1);
     const inner = Math.max(0, size / 2 - stroke);
     const outer = size / 2;
@@ -80,14 +82,14 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
         const slices: { name: string; value: number; itemStyle: object }[] = [];
         if (ownPlanned > 0) {
           slices.push({
-            name: `${b.label}·下学期理论`,
+            name: `${b.label}·${nextSemName}理论`,
             value: ownPlanned,
             itemStyle: { color: b.color, decal: stripeDecal },
           });
         }
         if (subPlanned > 0 && b.subTarget) {
           slices.push({
-            name: `${b.subTarget.label}·下学期理论`,
+            name: `${b.subTarget.label}·${nextSemName}理论`,
             value: subPlanned,
             itemStyle: { color: b.subTarget.color, decal: stripeDecal },
           });
@@ -167,19 +169,27 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
 }
 
 type LegendItem = { label: string; color: string; striped?: boolean };
-const LEGEND: LegendItem[] = [
-  { label: "非本学期必修", color: "#2563EB" },
-  { label: "本学期必修", color: "#93C5FD" },
-  { label: "选修", color: "#10B981" },
-  { label: "专业限选", color: "#8B5CF6" },
-  { label: "斜纹 = 下学期理论", color: "#9CA3AF", striped: true },
-];
+
+// 图例文案带上具体学期号：「本学期 / 下学期」在寒暑假之间指向哪一学期并不显然，
+// 而环图的蓝色块和红色斜纹分别对应在读学期与规划学期，写死相对说法最容易被误读。
+function legendItems(readingSemKey?: string, nextSemKey?: string): LegendItem[] {
+  const reading = readingSemKey || "本学期";
+  const next = nextSemKey || "下学期";
+  return [
+    { label: `非${reading}必修`, color: "#2563EB" },
+    { label: `${reading}必修`, color: "#93C5FD" },
+    { label: "选修", color: "#10B981" },
+    { label: "专业限选", color: "#8B5CF6" },
+    { label: `斜纹 = ${next}理论`, color: "#9CA3AF", striped: true },
+  ];
+}
 const FUTURE_LEGEND: LegendItem = { label: "未来必修", color: "#E0F2FE" };
 
 /** 环图图例（主色说明），供面板 / 引导复用。斜纹项表示「下学期理论」用所属块色。
  *  showFuture=true 时追加「未来必修」浅蓝项（与开关联动）。 */
-export function CreditRingLegend({ className = "", showFuture = false }: { className?: string; showFuture?: boolean }) {
-  const items = showFuture ? [...LEGEND.slice(0, 2), FUTURE_LEGEND, ...LEGEND.slice(2)] : LEGEND;
+export function CreditRingLegend({ className = "", showFuture = false, readingSemKey, nextSemKey }: { className?: string; showFuture?: boolean; readingSemKey?: string; nextSemKey?: string }) {
+  const base = legendItems(readingSemKey, nextSemKey);
+  const items = showFuture ? [...base.slice(0, 2), FUTURE_LEGEND, ...base.slice(2)] : base;
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">

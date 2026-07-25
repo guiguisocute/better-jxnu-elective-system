@@ -209,7 +209,7 @@ export function AiTab({
     });
     if (bundle.stats.courses === 0) {
       setPhase("error");
-      setErrorMsg("没有可推荐的候选课程（下学期课表可能尚未发布，或候选都已在清单/已修）");
+      setErrorMsg(`没有可推荐的候选课程（${view.nextSemKey || "下学期"}课表可能尚未发布，或候选都已在清单/已修）`);
       return;
     }
     setCandidateCount(bundle.stats.courses);

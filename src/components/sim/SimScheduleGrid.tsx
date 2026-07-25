@@ -21,7 +21,9 @@ const SLOT_LABEL: Record<string, string> = {
 // 浮窗 / 选班列表里的「本学期必修 / 待选」类型标签按 kind 区分（required / cart 不同语义）。
 // 小圆点改随课程性质（natureColor），与格子/标签同色；类型标签用静态 tailwind chip 类（比 inline 10% alpha 易辨认）。
 const KIND_STYLE: Record<PlacedKind, { label: string; chip: string }> = {
-  required: { label: "本学期必修", chip: "bg-blue-100 text-blue-700" },
+  // 注意：这里的 required 来自 view.nextSemRequired，是**下学期**要选的必修，
+  // 原文案写成「本学期必修」是反的。标签在渲染处按具体学期号覆盖。
+  required: { label: "下学期必修", chip: "bg-blue-100 text-blue-700" },
   cart: { label: "待选", chip: "bg-red-100 text-red-700" },
   imported: { label: "已选课程", chip: "bg-emerald-100 text-emerald-700" },
 };

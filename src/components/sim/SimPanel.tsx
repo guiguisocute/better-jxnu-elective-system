@@ -422,9 +422,9 @@ export function SimPanel({
                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border shrink-0 ${
                   over ? "text-rose-700 bg-rose-50 border-rose-200" : "text-gray-500 bg-gray-50 border-gray-200"
                 }`}
-                title="下学期已规划学分 / 每学期上限 30"
+                title={`${view.nextSemKey || "下学期"} 已规划学分 / 每学期上限 ${cap}`}
               >
-                下学期 {used}/{cap}{over ? " 超限" : ""}
+                {view.nextSemKey || "下学期"} {used}/{cap}{over ? " 超限" : ""}
               </span>
             </div>
             <div className="inline-flex items-center gap-1 text-[11px] text-gray-400">
@@ -485,7 +485,7 @@ export function SimPanel({
                       className="w-full flex items-center gap-1.5 px-3 py-2 text-left hover:bg-blue-50/70 transition-colors"
                     >
                       <span className="inline-block w-2 h-2 rounded-sm bg-blue-500 shrink-0" />
-                      <span className="text-[12px] font-bold text-gray-700">下学期必修 · {view.nextSemRequired.length} 门</span>
+                      <span className="text-[12px] font-bold text-gray-700">{view.nextSemKey || "下学期"} 必修 · {view.nextSemRequired.length} 门</span>
                       {view.nextSemRequiredExcluded.length > 0 && (
                         <span className="text-[10px] text-gray-400">已取消 {view.nextSemRequiredExcluded.length}</span>
                       )}
@@ -497,7 +497,7 @@ export function SimPanel({
                     {reqOpen && (
                       <div className="px-2 pb-2 space-y-1.5">
                         <div className="px-1 pt-1 text-[10px] text-gray-400 leading-relaxed">
-                          必修按培养方案自动排入下学期。取消后仍可恢复。
+                          必修按培养方案自动排入 {view.nextSemKey || "下学期"}。取消后仍可恢复。
                         </div>
                         {view.nextSemRequired.map((c) => {
                           const info = sectionInfo[c.cid];
@@ -738,7 +738,7 @@ export function SimPanel({
                 ) : (
                   <>
                     <CreditRing view={view} size={120} stroke={12} />
-                    <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} />
+                    <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} readingSemKey={view.readingSemKey} nextSemKey={view.nextSemKey} />
                     <FutureRequiredToggle
                       checked={showFutureRequired}
                       onChange={setShowFutureRequired}
@@ -746,7 +746,7 @@ export function SimPanel({
                     />
                     <div className="mt-3 w-full space-y-0">
                       {view.blocks.map((b) => (
-                        <CreditBar key={b.key} block={b} />
+                        <CreditBar key={b.key} block={b} nextSemKey={view.nextSemKey} />
                       ))}
                     </div>
                     <div className="mt-2 w-full flex items-baseline justify-between">

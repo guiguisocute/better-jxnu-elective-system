@@ -77,7 +77,7 @@ const STEPS = [
   { label: "方案", title: "确认培养方案", hint: "决定课程性质归类与毕业学分要求。" },
   { label: "学分", title: "导入已修学分", hint: "通过学籍预警填上你已经修过的课程的学分。" },
   { label: "限选", title: "勾选已修专业限选", hint: "勾出你已经修过的专业限选课，核算专业限选进度。" },
-  { label: "核对", title: "核对必修", hint: "重修/未修可取消勾选；本学期在读必修默认计入。" },
+  { label: "核对", title: "核对必修", hint: "重修/未修可取消勾选；在读学期必修默认计入。" },
   { label: "课表", title: "下学期必修排课表", hint: "点击单元格可查看详情、换班、退选。" },
 ];
 const TOTAL = STEPS.length;
@@ -575,7 +575,7 @@ export function OnboardingModal({
           {step === 2 && (
             <div className="min-h-[320px] space-y-4">
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">当前所修学分总数（不含本学期）</label>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">当前所修学分总数（不含 {view.readingSemKey || "本"}学期）</label>
                 <input
                   type="number" min={0}
                   value={totalEarned || ""}
@@ -588,7 +588,7 @@ export function OnboardingModal({
                 </p>
               </div>
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">本学期（在读）已选选修学分（可留空）</label>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">{view.readingSemKey || "本学期"}（在读）已选选修学分（可留空）</label>
                 <input
                   type="number" min={0}
                   value={electiveThisSem || ""}
@@ -596,7 +596,7 @@ export function OnboardingModal({
                   placeholder="0"
                   className="w-40 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium outline-none focus:bg-white focus:border-red-300"
                 />
-                  <p className="mt-1.5 text-[11px] text-gray-400">请手算<strong className="text-gray-500">本学期在读的选修课学分</strong>填写到此框。</p>
+                  <p className="mt-1.5 text-[11px] text-gray-400">请手算<strong className="text-gray-500">{view.readingSemKey || "本学期"}在读的选修课学分</strong>填写到此框。</p>
               </div>
             </div>
           )}
@@ -689,7 +689,7 @@ export function OnboardingModal({
             <div className="min-h-[320px] grid sm:grid-cols-[180px_1fr] gap-5">
               <div className="flex flex-col items-center">
                 <CreditRing view={view} size={130} stroke={13} />
-                <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} />
+                <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} readingSemKey={view.readingSemKey} nextSemKey={view.nextSemKey} />
                 <div className="mt-3 w-full space-y-1.5 text-[12px]">
                   {view.blocks.map((b) => (
                     <div key={b.key}>
@@ -844,7 +844,7 @@ export function OnboardingModal({
                                 <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 rounded px-1 py-0.5">转专业·已学分认证</span>
                               )}
                               {isReading && !isTransferEarly && (
-                                <span className="text-[9px] font-semibold text-sky-600 bg-sky-100 rounded px-1 py-0.5">本学期·仅理论</span>
+                                <span className="text-[9px] font-semibold text-sky-600 bg-sky-100 rounded px-1 py-0.5">{view.readingSemKey || "本学期"}·仅理论</span>
                               )}
                               <span className="text-[10px] text-gray-400 font-mono">{c.semester}</span>
                             </span>
@@ -857,7 +857,7 @@ export function OnboardingModal({
                     <>
                       <div className="mt-3 mb-1 flex items-center gap-1.5 text-[11px] font-bold text-sky-600">
                         <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#E0F2FE] border border-sky-200" />
-                        下学期 · 仅规划展示（不计入待选清单）
+                        {view.nextSemKey || "下学期"} · 仅规划展示（不计入待选清单）
                       </div>
                       {view.nextSemRequired.map((c) => (
                         <div
@@ -886,7 +886,7 @@ export function OnboardingModal({
                             </button>
                           </span>
                           <span className="flex-1" />
-                          <span className="text-[9px] font-semibold text-sky-700 bg-sky-100 rounded px-1 py-0.5 shrink-0">下学期·仅规划</span>
+                          <span className="text-[9px] font-semibold text-sky-700 bg-sky-100 rounded px-1 py-0.5 shrink-0">{view.nextSemKey || "下学期"}·仅规划</span>
                           <span className="text-[10px] text-gray-400 font-mono shrink-0">{c.semester}</span>
                           <span className="text-[11px] font-bold text-gray-600 shrink-0">{c.credits}分</span>
                         </div>
@@ -1115,7 +1115,7 @@ export function OnboardingModal({
                       )}
                       <div className="text-gray-500">在读学期</div>
                       <div className="font-semibold text-gray-800">{preview.sug.term ? `第 ${preview.sug.term} 学期` : "无法推算"}</div>
-                      <div className="text-gray-500">已修学分（不含本学期）</div>
+                      <div className="text-gray-500">已修学分（不含 {view.readingSemKey || "本"}学期）</div>
                       <div className="flex items-center gap-1.5 font-semibold text-gray-800">
                         <input
                           type="number" min={0}
@@ -1125,7 +1125,7 @@ export function OnboardingModal({
                         />
                         <span className="text-gray-400 font-normal">分 · {preview.sug.takenCount} 门</span>
                       </div>
-                      <div className="text-gray-500">本学期已选选修</div>
+                      <div className="text-gray-500">{view.readingSemKey || "本学期"}已选选修</div>
                       <div className="flex items-center gap-1.5 font-semibold text-gray-800">
                         <input
                           type="number" min={0}
@@ -1185,7 +1185,7 @@ export function OnboardingModal({
                   {/* 本学期课表（含班级），仅展示参考 */}
                   {preview.rec.scheduleItems.length > 0 && (
                     <div className="rounded-xl border border-gray-200 p-3">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">本学期课表（{preview.rec.scheduleItems.length} 节，参考）</div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">{preview.rec.planningSemester || "本"}学期课表（{preview.rec.scheduleItems.length} 节，参考）</div>
                       <div className="space-y-1 max-h-44 overflow-y-auto">
                         {preview.rec.scheduleItems.map((it, i) => (
                           <div key={i} className="flex items-center gap-2 text-[12px]">

@@ -1,6 +1,6 @@
 import type { Course, MajorRequirement, PlanCourse } from "../types";
 import { matchedPlans } from "./planMatch";
-import { termIndexOf, effectiveTermIndex, isDeferredSettlement } from "./term";
+import { termIndexOf, effectiveTermIndex, isDeferredSettlement, enrollYear, termToCalLabel } from "./term";
 
 // 学分核算视图模型 —— 纯派生，零持久化。两大块（用户口径）：
 //   必修 = 公共必修(课) + 专业主干 + 专业类基础 + 教师教育必修（强制修满）
@@ -131,6 +131,16 @@ export interface CreditPlanView {
   futureReqCredits: number;
   /** 环图实际画出的浅蓝「未来必修」学分（showFutureRequired 关时为 0；封顶在剩余缺口）。 */
   futureReqShown: number;
+  /**
+   * 「在读学期 / 下学期」对应的具体学期号（"2026-03" / "2026-09"）。
+   *
+   * 页面上单说「本学期」「下学期」是会歧义的：学号导入展示的是教务当前学期的课表，
+   * 学分核算里的「本学期」指的却是在读学期，寒暑假期间这两者根本不是同一个学期。
+   * 所以凡是能算出具体学期号的文案一律显示它。年级取不到时为空串，此时调用方
+   * 回退到原来的相对说法。
+   */
+  readingSemKey: string;
+  nextSemKey: string;
 }
 
 // 子类着色色板。
@@ -216,6 +226,7 @@ export function buildCreditPlan(
 ): CreditPlanView {
   const { totalEarned, electiveThisSem, term, takenMajorElectives, excludedRequired, transferMode, transferEarlyCids, transferOffsetCids, showFutureRequired, moocOffset, competitionOffset } = inputs;
   const planTerm = term + 1;
+  const readingSemName = termToCalLabel(enrollYear(selectedPlan), term) || "本学期";
 
   // 必修 / 限选 应修（byNature.sumXf + minMajorElective 权威）。
   const requiredTotal = requirement
@@ -351,8 +362,10 @@ export function buildCreditPlan(
     "必修",
     requirement ? requiredTotal : null,
     [
-      { key: "prevReq", label: "非本学期必修", value: effectivePrevReq, color: SEG_COLOR.prevReq },
-      { key: "readReq", label: "本学期必修", value: readReqCredits, color: SEG_COLOR.readReq },
+      // 段名带上具体学期号：这些名字会出现在环图 tooltip 和进度条里，
+      // 而「本学期」到底指哪一学期在寒暑假期间并不显然。
+      { key: "prevReq", label: `非${readingSemName}必修`, value: effectivePrevReq, color: SEG_COLOR.prevReq },
+      { key: "readReq", label: `${readingSemName}必修`, value: readReqCredits, color: SEG_COLOR.readReq },
       // 未来必修也算进必修块，让条/数值随勾选同步增长（封顶在剩余缺口，避免画过界）。
       ...(futureReqShown > 0 ? [{ key: "futureReq", label: "未来必修", value: futureReqShown, color: SEG_COLOR.futureReq }] : []),
     ],
@@ -400,5 +413,7 @@ export function buildCreditPlan(
     futureSemRequired,
     futureReqCredits,
     futureReqShown,
+    readingSemKey: termToCalLabel(enrollYear(selectedPlan), term),
+    nextSemKey: termToCalLabel(enrollYear(selectedPlan), planTerm),
   };
 }

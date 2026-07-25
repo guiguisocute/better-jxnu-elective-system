@@ -4,7 +4,8 @@ import type { CreditBlock } from "../../lib/creditPlan";
 // required 为 null（培养方案未匹配）时退化为子段实色 + 灰底 + "?"。
 // 选修块带「专业限选」硬性子目标的细进度。
 
-export function CreditBar({ block }: { block: CreditBlock }) {
+export function CreditBar({ block, nextSemKey }: { block: CreditBlock; nextSemKey?: string }) {
+  const nextSemName = nextSemKey || "下学期";
   const { label, required, earned, planned, remaining, segments, subTarget } = block;
   const unknown = required == null;
   const denom = unknown ? 0 : required;
@@ -74,7 +75,7 @@ export function CreditBar({ block }: { block: CreditBlock }) {
               background: block.color,
               backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px)",
             }}
-            title={`下学期理论（${label}）+${planned} 分`}
+            title={`${nextSemName}理论（${label}）+${planned} 分`}
           />
         )}
         {unknown && (
@@ -129,7 +130,7 @@ export function CreditBar({ block }: { block: CreditBlock }) {
                       background: subTarget.color,
                       backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px)",
                     }}
-                    title={`下学期理论（${subTarget.label}）+${subTarget.planned} 分`}
+                    title={`${nextSemName}理论（${subTarget.label}）+${subTarget.planned} 分`}
                   />
                 )}
               </div>
