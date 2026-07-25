@@ -25,6 +25,9 @@ const (
 var (
 	semesterPattern = regexp.MustCompile(`^\d{4}-(03|09)$`)
 	termPattern     = regexp.MustCompile(`^\d{2}-\d{2}第\d{1,2}学期$`)
+	// 入学年份。1900/2100 这种明显不是年级的值挡掉即可，不必按当前年份收窄——
+	// 补抓往届是合法用法。
+	freshmanGradePattern = regexp.MustCompile(`^20\d{2}$`)
 )
 
 // AcquisitionTarget is one collector's term identity. The repository key is
@@ -90,6 +93,12 @@ type RuntimeConfig struct {
 	CourseDetailsRefreshHours      int      `json:"courseDetailsRefreshHours"`
 	CourseDetailsMaxPerRun         int      `json:"courseDetailsMaxPerRun"`
 	CourseDetailsDelayMilliseconds int      `json:"courseDetailsDelayMilliseconds"`
+	// 新生嗅探。FreshmanGrade 是要盯的那一届（入学年份四位数），两个面各自开关，
+	// 共用一个轮询间隔。默认关闭：它只在每年新生入学前后有意义，平时白跑。
+	FreshmanGrade              string `json:"freshmanGrade"`
+	FreshmanRosterWatchEnabled bool   `json:"freshmanRosterWatchEnabled"`
+	FreshmanPlanWatchEnabled   bool   `json:"freshmanPlanWatchEnabled"`
+	FreshmanWatchIntervalHours int    `json:"freshmanWatchIntervalHours"`
 }
 
 func DefaultRuntimeConfig() RuntimeConfig {
@@ -115,6 +124,10 @@ func DefaultRuntimeConfig() RuntimeConfig {
 		CourseDetailsRefreshHours:      168,
 		CourseDetailsMaxPerRun:         30,
 		CourseDetailsDelayMilliseconds: 300,
+		FreshmanGrade:                  "",
+		FreshmanRosterWatchEnabled:     false,
+		FreshmanPlanWatchEnabled:       false,
+		FreshmanWatchIntervalHours:     6,
 		// Only local development origins ship as defaults. A deployment's real
 		// origin comes from SiteOrigin (部署配置) — hardcoding the upstream
 		// author's domains here meant every fork started with a CORS allowlist
@@ -233,6 +246,12 @@ func (c RuntimeConfig) Validate() error {
 	}
 	if c.CourseDetailsDelayMilliseconds < 100 || c.CourseDetailsDelayMilliseconds > 10000 {
 		return errors.New("课程详情请求间隔须为 100–10000 毫秒")
+	}
+	if c.FreshmanGrade != "" && !freshmanGradePattern.MatchString(c.FreshmanGrade) {
+		return errors.New("新生年级必须是四位入学年份，例如 2026")
+	}
+	if c.FreshmanWatchIntervalHours < 1 || c.FreshmanWatchIntervalHours > 168 {
+		return errors.New("新生嗅探间隔须为 1–168 小时")
 	}
 	for _, origin := range c.AllowedOrigins {
 		if !strings.HasPrefix(origin, "http://") && !strings.HasPrefix(origin, "https://") {

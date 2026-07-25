@@ -186,6 +186,27 @@ func (s *LiveStudentService) RefreshRecord(ctx context.Context, sid string) (Bui
 	return built, nil
 }
 
+// WithClient runs fn against the shared 教务 session, serialized against student
+// queries by the same mutex their stateful postbacks use.
+//
+// 新生嗅探必须共用这个 client 而不是自己 new 一个：另起一个 JWCClient 就是另一次
+// CAS 登录，学校侧同账号并发会话会把正在服务用户的那条会话顶掉。代价是嗅探期间
+// 学号查询要排队——嗅探本身是低频后台任务，这个取舍是划算的。
+func (s *LiveStudentService) WithClient(ctx context.Context, fn func(*JWCClient) error) error {
+	s.fetchMu.Lock()
+	defer s.fetchMu.Unlock()
+	if !s.client.IsAuthed() {
+		if err := s.client.Login(ctx); err != nil {
+			return err
+		}
+	}
+	return fn(s.client)
+}
+
+// EnsureMaster exposes the lazily-loaded master context (course + plan lookup
+// tables) to other services, reusing this one's mtime-based cache.
+func (s *LiveStudentService) EnsureMaster() (*MasterContext, error) { return s.ensureMaster() }
+
 func (s *LiveStudentService) ensureMaster() (*MasterContext, error) {
 	path := filepath.Join(s.env.RepoDir, "data", "master", "courses.json")
 	info, err := os.Stat(path)

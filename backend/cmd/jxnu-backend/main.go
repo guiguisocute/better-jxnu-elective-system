@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/guiguisocute/better-jxnu-elective-system/backend/internal/app"
@@ -52,6 +53,34 @@ func main() {
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(result); err != nil {
 			logger.Error("输出课程详情结果失败", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "probe-newstudents" {
+		pageURL := ""
+		rest := os.Args[2:]
+		if len(rest) > 0 && strings.HasPrefix(rest[0], "https://") {
+			pageURL, rest = rest[0], rest[1:]
+		}
+		var steps []map[string]string
+		for _, raw := range rest {
+			step := map[string]string{}
+			for _, pair := range strings.Split(raw, "&") {
+				key, value, _ := strings.Cut(pair, "=")
+				step[key] = value
+			}
+			steps = append(steps, step)
+		}
+		probe, probeErr := app.NewJWCClient(env.XKUsername, env.XKPassword).ProbeStudentSearch(ctx, pageURL, steps...)
+		if probeErr != nil {
+			logger.Error("探测新生查询页失败", "error", probeErr)
+			os.Exit(1)
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(probe); err != nil {
+			logger.Error("输出探测结果失败", "error", err)
 			os.Exit(1)
 		}
 		return

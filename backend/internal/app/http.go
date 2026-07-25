@@ -20,6 +20,7 @@ type Servers struct {
 	logger     *slog.Logger
 	admin      *AdminServer
 	finalize   *FinalizeService
+	freshman   *FreshmanService
 }
 
 func NewServers(env Environment, config *ConfigStore, enrollment *EnrollmentService, live *LiveStudentService, syncRunner *SyncRunner, logger *slog.Logger) *Servers {
@@ -27,6 +28,8 @@ func NewServers(env Environment, config *ConfigStore, enrollment *EnrollmentServ
 	servers.admin = NewAdminServer(env, config, enrollment, live, syncRunner, logger)
 	servers.finalize = NewFinalizeService(env, config, live, logger, servers.admin.cloudflareClient)
 	servers.admin.finalize = servers.finalize
+	servers.freshman = NewFreshmanService(env, config, live, logger, servers.admin.cloudflareClient)
+	servers.admin.freshman = servers.freshman
 	return servers
 }
 
@@ -39,6 +42,8 @@ func (s *Servers) Run(ctx context.Context) error {
 	admin.WriteTimeout = D1RequestTimeout + 45*time.Second
 	// 让 D1 保持热态：这个库有 380MB，闲置后首个查询要 20–25s。
 	go s.admin.RunD1Warmer(ctx)
+	// 新生嗅探：低频守候，只做检查不写库（写库是面板上的手动动作）。
+	go s.freshman.Run(ctx)
 	type result struct {
 		name string
 		err  error
