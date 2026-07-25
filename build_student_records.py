@@ -9,7 +9,7 @@
 
 输出：
   studentjson/out/student_records_NN.sql  分块的 INSERT OR REPLACE，配合
-    npx wrangler d1 execute jxnu-ratings --remote --file=studentjson/out/student_records_01.sql
+    npx wrangler d1 execute jxnu-students --remote --file=studentjson/out/student_records_01.sql
     ... 逐个 import。
 
 不修改任何源数据；幂等，重跑覆盖。
@@ -251,7 +251,7 @@ def main():
 
     print(f"\nDone. 共 {len(out_rows)} 行，分 {total_chunks} 个 SQL 文件。")
     print("部署：对每个 chunk 执行：")
-    print("  npx wrangler d1 execute jxnu-ratings --remote --file=studentjson/out/student_records_01.sql")
+    print("  npx wrangler d1 execute jxnu-students --remote --file=studentjson/out/student_records_01.sql")
     print("  （首次记得先 d1 execute --file=d1_schema.sql 建表）")
 
 

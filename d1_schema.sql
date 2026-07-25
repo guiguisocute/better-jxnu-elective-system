@@ -23,6 +23,11 @@ CREATE INDEX IF NOT EXISTS idx_ratings_course_teacher ON ratings(course_id, teac
 --   { planningSemester: string, noSchedule: boolean,
 --     scheduleItems: [{courseId, courseName, teacher?, classroom?, schedule?, credits?, ...}],
 --     detailCourses: [{courseId, courseName, credits, nature?, planTermIndex?, semester?, ...}] }
+-- 注意：这张表住在**独立的 D1 库 jxnu-students**（绑定 DB_STUDENTS），不在
+-- jxnu-ratings 里。它有 28818 行 / 289MB，而评价数据只有 0.4MB；D1 按页从远端惰性
+-- 拉取，同库时评价查询要为这堆数据的体量买单（同一条评价列表语句 D1 自报
+-- sql_duration_ms=0.8，HTTP 却要 26s）。建表用：
+--   npx wrangler d1 execute jxnu-students --remote --file=d1_schema.sql
 CREATE TABLE IF NOT EXISTS student_records (
   student_id   TEXT PRIMARY KEY,
   class_name   TEXT,

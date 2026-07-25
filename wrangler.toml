@@ -4,11 +4,21 @@ compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
 # fork 必改：database_name / database_id 换成你自己的 D1 库（Dashboard → D1 可见）。
-# 这是构建期绑定，管理面板改不到；面板里的 CF_D1_DATABASE_ID 必须与这里一致。
+# 这是构建期绑定，管理面板改不到；面板里的 CF_D1_DATABASE_ID 必须与这里的 DB 一致。
+#
+# 刻意分成两个库。DB 存评价/举报/开关这类事务数据，只有约 1MB；DB_STUDENTS 存学号
+# 快照，28818 行、289MB。D1 是按页从远端惰性拉取的，两者同库时评价查询要为学号数据
+# 的体量买单：同一条评价列表语句 D1 自报 sql_duration_ms=0.8，HTTP 却要 26s，页面
+# 一冷就是 20 秒起。拆开之后评价库小到冷启动不再有感知。
 [[d1_databases]]
 binding = "DB"
 database_name = "jxnu-ratings"
 database_id = "fa430b25-33a9-46d5-bd0c-52442971bac7"
+
+[[d1_databases]]
+binding = "DB_STUDENTS"
+database_name = "jxnu-students"
+database_id = "c99cb583-53b7-45c3-80e7-81fe5fbd6b57"
 
 [vars]
 # fork 必改：换成你自己 VPS 的域名（管理面板「部署配置」页会按你填的地址生成这一行）。

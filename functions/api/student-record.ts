@@ -2,6 +2,11 @@ import { verifyCaptcha } from "../lib/captcha";
 
 interface Env {
   DB: D1Database;
+  // 学号快照的专用库（jxnu-students）。它和评价库分开，是因为这张表有 289MB /
+  // 28818 行，而评价数据只有 0.4MB：D1 按页从远端惰性拉取，两者同库时评价查询要为
+  // 这堆数据的体量买单（同一条语句 D1 自报 sql_duration_ms=0.8，HTTP 却要 26s）。
+  // 可选 + 回落到 DB，这样绑定还没生效的那次构建也不会 500。
+  DB_STUDENTS?: D1Database;
   // 教务实时课表服务（VPS）。二者都配了才启用实时；否则直接查 D1。
   LIVE_URL?: string;
   LIVE_SECRET?: string;
@@ -67,10 +72,15 @@ function shapeResponse(record: Record<string, unknown>, row: {
   };
 }
 
+/** 学号快照所在的库：优先专用库，未绑定时回落到评价库（迁移期兼容）。 */
+function studentDB(env: Env): D1Database {
+  return env.DB_STUDENTS ?? env.DB;
+}
+
 /** 实时结果回写 D1，让快照兜底自动保鲜（后台跑，不阻塞响应）。 */
 async function upsertD1(env: Env, sid: string, payload: LivePayload): Promise<void> {
   try {
-    await env.DB.prepare(
+    await studentDB(env).prepare(
       `INSERT OR REPLACE INTO student_records
          (student_id, class_name, plan_key, total_earned, taken_count, record_json, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
@@ -136,7 +146,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   // 2) 回落 D1 快照
-  const row = await context.env.DB.prepare(
+  const row = await studentDB(context.env).prepare(
     "SELECT student_id, class_name, plan_key, total_earned, taken_count, record_json FROM student_records WHERE student_id = ?"
   ).bind(sid).first<Row>();
 
