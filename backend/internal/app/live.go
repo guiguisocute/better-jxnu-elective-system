@@ -121,7 +121,7 @@ func (s *LiveStudentService) GetRecord(ctx context.Context, sid string) (map[str
 		s.setError(err)
 		return nil, err
 	}
-	built := BuildStudentRecord(sid, aggregate, master)
+	built := BuildStudentRecord(sid, aggregate, master, cfg.FinalizedTerm)
 	payload := map[string]any{"source": "live", "row": map[string]any{
 		"className": built.Row["class_name"], "planKey": built.Row["plan_key"], "totalEarned": built.Row["total_earned"], "takenCount": built.Row["taken_count"],
 	}, "record": built.Record}

@@ -226,7 +226,10 @@ func (a *AdminServer) settings(w http.ResponseWriter, r *http.Request, session a
 		`<section class="card"><h2>2. 预选数据写入哪个学期？ ` + activeBadge(cfg.DefaultDataSource == "pre") + `</h2><p class="hint">目标文件：<code>raw/preselect_catalog.json</code>。它只能由选课系统 CAS 页面提供；KKAP 无法代替。当前联网采集器保持关闭，系统只接收已有/手工 raw，也绝不探测人数或容量。</p>` + targetField("preselectSemester", cfg.PreselectSemester) + `</section>` +
 		`<section class="card"><h2>3. 正选/补退选数据写入哪个学期？ ` + activeBadge(cfg.DefaultDataSource == "formal") + `</h2><p class="hint">唯一目标文件：<code>raw/formal_schedule.json</code>。两个时段的课程课表完全一致；阶段变化只在高级设置里切换容量嗅探 URL。</p>` + targetField("selectionSemester", cfg.SelectionSemester) + `</section>` +
 		`<datalist id="semester-target-options">` + options(targetSemesters, "") + `</datalist>` +
-		`<section class="card"><h2>4. 查学号时使用哪一学期的实时课表？</h2><p class="hint">“自动”使用教务当前选中的学期；“指定”会让后端真正切换到所选学期。</p><label class="inline"><input type="radio" name="studentTermMode" value="auto" ` + checked(cfg.StudentScheduleTerm == "") + `> 自动跟随教务</label><label class="inline"><input type="radio" name="studentTermMode" value="fixed" ` + checked(cfg.StudentScheduleTerm != "") + `> 指定学期</label><input name="studentScheduleTerm" list="term-options" value="` + template.HTMLEscapeString(cfg.StudentScheduleTerm) + `" placeholder="例如 26-27第1学期"><datalist id="term-options">` + options(terms, cfg.StudentScheduleTerm) + `</datalist></section><button class="button primary" type="submit">保存并立即应用</button></form>`
+		`<section class="card"><h2>4. 查学号时使用哪一学期的实时课表？</h2><p class="hint">“自动”使用教务当前选中的学期；“指定”会让后端真正切换到所选学期。</p><label class="inline"><input type="radio" name="studentTermMode" value="auto" ` + checked(cfg.StudentScheduleTerm == "") + `> 自动跟随教务</label><label class="inline"><input type="radio" name="studentTermMode" value="fixed" ` + checked(cfg.StudentScheduleTerm != "") + `> 指定学期</label><input name="studentScheduleTerm" list="term-options" value="` + template.HTMLEscapeString(cfg.StudentScheduleTerm) + `" placeholder="例如 26-27第1学期"><datalist id="term-options">` + options(terms, cfg.StudentScheduleTerm) + `</datalist></section>` +
+		`<section class="card"><h2>5. 哪一学期的成绩已经出完？ ` + finalizedBadge(cfg.FinalizedTerm) + `</h2><p class="hint">决定「已修学分（不含本学期）」算到哪为止。教务问不出来这件事——它一开放选课就把当前学期切到下一个，于是刚读完的学期在系统看来仍是「在读」，那一学期的学分会被扣住不算。每学期补退选结束、成绩出完后，把这里往前推一个学期即可（<b>固化学期</b>操作会自动帮你设好）。</p>` +
+		`<input name="finalizedTerm" list="term-options" value="` + template.HTMLEscapeString(cfg.FinalizedTerm) + `" placeholder="留空 = 沿用旧口径（整个在读学期都不算）"><p class="hint">留空时行为不变：在读学期的学分一律不计入已修。</p></section>` +
+		`<button class="button primary" type="submit">保存并立即应用</button></form>`
 	a.render(w, "日常设置", body, &session)
 }
 func (a *AdminServer) operations(w http.ResponseWriter, r *http.Request, session adminSession) {
@@ -269,6 +272,7 @@ func (a *AdminServer) saveDaily(w http.ResponseWriter, r *http.Request, session 
 	} else {
 		cfg.StudentScheduleTerm = strings.TrimSpace(r.Form.Get("studentScheduleTerm"))
 	}
+	cfg.FinalizedTerm = strings.TrimSpace(r.Form.Get("finalizedTerm"))
 	if err := a.config.Save(cfg); err != nil {
 		a.result(w, "保存失败", err.Error(), false, &session)
 		return
@@ -495,6 +499,16 @@ func dataSourceLabel(value string) string {
 	}
 	return label
 }
+
+// finalizedBadge shows whether 已修学分 is using the explicit finalized term or
+// the older "exclude the whole reading semester" fallback.
+func finalizedBadge(term string) string {
+	if term == "" {
+		return `<span class="badge warn">未设置（在读学期学分不计入）</span>`
+	}
+	return `<span class="badge">` + template.HTMLEscapeString(term) + ` 及以前计入已修</span>`
+}
+
 func activeBadge(active bool) string {
 	if active {
 		return `<span class="badge">当前生效</span>`

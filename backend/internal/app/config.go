@@ -61,12 +61,18 @@ type RuntimeConfig struct {
 	// allowlist plus the copy-paste frontend wiring the panel prints.
 	// Empty is allowed — the backend still serves; only the derived hints and
 	// the auto-CORS entry are skipped.
-	SiteOrigin                     string   `json:"siteOrigin"`
-	BackendPublicURL               string   `json:"backendPublicUrl"`
-	DefaultDataSource              string   `json:"defaultDataSource"`
-	PreselectSemester              string   `json:"preselectSemester"`
-	SelectionSemester              string   `json:"selectionSemester"`
-	StudentScheduleTerm            string   `json:"studentScheduleTerm"`
+	SiteOrigin          string `json:"siteOrigin"`
+	BackendPublicURL    string `json:"backendPublicUrl"`
+	DefaultDataSource   string `json:"defaultDataSource"`
+	PreselectSemester   string `json:"preselectSemester"`
+	SelectionSemester   string `json:"selectionSemester"`
+	StudentScheduleTerm string `json:"studentScheduleTerm"`
+	// FinalizedTerm is the newest academic term whose grades are final
+	// ("25-26第2学期"). It decides where 已修学分 stops. 教务 cannot tell us this —
+	// it moves its selected term to the next one the moment 选课 opens, so between
+	// semesters an already-finished term still looks "在读" and its credits get
+	// withheld. Empty keeps the old behaviour (exclude the whole reading term).
+	FinalizedTerm                  string   `json:"finalizedTerm"`
 	EnrollmentRefreshSeconds       int      `json:"enrollmentRefreshSeconds"`
 	StudentCacheSeconds            int      `json:"studentCacheSeconds"`
 	SelectionCapacityEnabled       bool     `json:"selectionCapacityEnabled"`
@@ -194,6 +200,9 @@ func (c RuntimeConfig) Validate() error {
 	}
 	if c.StudentScheduleTerm != "" && !termPattern.MatchString(c.StudentScheduleTerm) {
 		return errors.New("学号课表学期必须类似 26-27第1学期，留空表示自动跟随教务")
+	}
+	if c.FinalizedTerm != "" && !termPattern.MatchString(c.FinalizedTerm) {
+		return errors.New("已结束学期必须类似 25-26第2学期，留空表示沿用「不含在读学期」的旧口径")
 	}
 	if c.EnrollmentRefreshSeconds < 10 || c.EnrollmentRefreshSeconds > 3600 {
 		return errors.New("实时人数刷新间隔须为 10–3600 秒")
@@ -554,6 +563,9 @@ func ParseRuntimeForm(values map[string]string, current RuntimeConfig) (RuntimeC
 		next.StudentScheduleTerm = ""
 	} else {
 		next.StudentScheduleTerm = strings.TrimSpace(values["studentScheduleTerm"])
+	}
+	if value, present := values["finalizedTerm"]; present {
+		next.FinalizedTerm = strings.TrimSpace(value)
 	}
 	var err error
 	if next.EnrollmentRefreshSeconds, err = parseInt(values, "enrollmentRefreshSeconds"); err != nil {

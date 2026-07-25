@@ -100,12 +100,32 @@ type BuiltStudentRecord struct {
 	MissingCredits []string
 }
 
-func BuildStudentRecord(sid string, aggregate StudentAggregate, ctx *MasterContext) BuiltStudentRecord {
+// BuildStudentRecord derives one student's record from a live 教务 fetch.
+//
+// finalizedTerm ("25-26第2学期" style, empty = 未设置) is the newest academic term
+// whose grades are final. It exists because "已修学分（不含本学期）" has to know
+// which semester is still in progress, and 教务 cannot tell us: it switches its
+// selected term to the *next* one as soon as 选课 opens, so between semesters the
+// model would treat an already-finished term as "在读" and withhold its credits.
+// For 999999999999 in July 2026 that hid 22 earned credits (87 instead of 109).
+//
+// The operator sets it in 日常设置, and 固化学期 sets it automatically — declaring
+// a semester finalized is exactly the same act as freezing its timetable.
+func BuildStudentRecord(sid string, aggregate StudentAggregate, ctx *MasterContext, finalizedTerm string) BuiltStudentRecord {
 	planKey := classNameToPlanKey(aggregate.ClassName, ctx.ValidPlanKeys)
 	enrollYear := enrollYearOf(planKey, aggregate.ClassName)
 	planningCal, _ := parseStudentSemester(aggregate.PlanningTerm)
 	planningSemester := calendarTermKey(planningCal)
 	readingPlanTerm := planTermFromCalendar(enrollYear, previousCalendarTerm(planningCal))
+	// earnedThroughTerm is the last plan term that counts as 已修. Without an
+	// explicit finalized term this stays readingPlanTerm-1, i.e. the original
+	// "exclude the whole reading semester" behaviour.
+	earnedThroughTerm := readingPlanTerm - 1
+	if finalCal, ok := parseStudentSemester(finalizedTerm); ok {
+		if final := planTermFromCalendar(enrollYear, finalCal); final > earnedThroughTerm {
+			earnedThroughTerm = final
+		}
+	}
 	planCourses := ctx.PlanCourses[planKey]
 	natureOf := map[string]string{}
 	var requiredUpToReading []string
@@ -139,7 +159,7 @@ func BuildStudentRecord(sid string, aggregate StudentAggregate, ctx *MasterConte
 			"semester": nullableString(course.Semester), "planTermIndex": planTermIndex,
 			"nature": nullableString(nature), "teacher": nullableString(course.Teacher), "teachingClass": nullableString(course.TeachingClass),
 		})
-		if readingPlanTerm <= 0 || planTermIndex == 0 || planTermIndex < readingPlanTerm {
+		if readingPlanTerm <= 0 || planTermIndex == 0 || planTermIndex <= earnedThroughTerm {
 			totalEarned += numberValue(credits)
 		}
 	}
