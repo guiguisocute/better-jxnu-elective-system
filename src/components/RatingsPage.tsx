@@ -16,6 +16,7 @@ import { StarRating } from "./StarRating";
 import { ThemeToggle } from "./ThemeToggle";
 import { DimensionBars } from "./ratings/DimensionBars";
 import { ReviewCard } from "./ratings/ReviewCard";
+import { ReviewMasonry } from "./ratings/ReviewMasonry";
 import { RatingSheet, type RatingSheetTarget } from "./ratings/RatingSheet";
 
 type ViewMode = "course" | "teacher";
@@ -713,17 +714,19 @@ export function RatingsPage() {
                 )
               ) : (
                 <>
-                  <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
-                    {sortedFeed.map((r) => (
+                  <ReviewMasonry
+                    items={sortedFeed}
+                    keyOf={(r) => r.id}
+                    resetKey={`feed|${sort}`}
+                    renderItem={(r) => (
                       <ReviewCard
-                        key={r.id}
                         row={r}
                         courseLabel={feedLabelOf(r)}
                         onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
                         onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
                       />
-                    ))}
-                  </div>
+                    )}
+                  />
                   {feed.rows.length === 0 && (
                     <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-24 text-center text-gray-300 text-sm">
                       广场还空着 —— 从左侧挑一位老师抢首评
@@ -792,10 +795,12 @@ export function RatingsPage() {
                 )
               ) : (
                 <>
-                  <div className="columns-1 xl:columns-2 gap-4 [&>*]:break-inside-avoid [&>*]:mb-4">
-                    {sortedRows.map((r) => (
+                  <ReviewMasonry
+                    items={sortedRows}
+                    keyOf={(r) => r.id}
+                    resetKey={`${view}|${selectedId}|${sort}`}
+                    renderItem={(r) => (
                       <ReviewCard
-                        key={r.id}
                         row={r}
                         hot={r.id === hotId}
                         courseLabel={
@@ -806,8 +811,8 @@ export function RatingsPage() {
                         onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
                         onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
                       />
-                    ))}
-                  </div>
+                    )}
+                  />
                   {rows.length === 0 && (
                     <div className="rounded-2xl bg-white ring-1 ring-gray-100 py-14 text-center text-gray-300 text-sm">
                       还没有评价，点「写评价」抢首评
