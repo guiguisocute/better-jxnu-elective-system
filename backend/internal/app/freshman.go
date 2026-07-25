@@ -247,7 +247,7 @@ func (f *FreshmanService) scanRoster(ctx context.Context, grade string, full boo
 	prefix := gradePrefix(grade)
 	var rosters []FreshmanRoster
 	var highlights []string
-	scanned, found, failures := 0, 0, 0
+	scanned, found, failures, classesFound := 0, 0, 0, 0
 
 	// 每一次网络往返各自抢一次锁，而不是整趟扫描占着不放：全量扫一遍要好几分钟，
 	// 期间学号查询若被堵死，前台只会等到 Pages Function 超时然后回落到旧快照。
@@ -284,17 +284,23 @@ func (f *FreshmanService) scanRoster(ctx context.Context, grade string, full boo
 				}
 				continue
 			}
+			// 匹配的班级全部统计，但快速检查只**查**第一个。两者必须分开记：
+			// 班级数是学校的事实（列表就在同一份响应里，白拿），抽查数是我们的
+			// 采样口径。早先把「查了几个」当成「建了几个」写进面板，于是 23 个
+			// 26 级班的人工智能学院被显示成「已建 1 个班」。
 			matched := make([]FreshmanClass, 0, len(classes))
 			for _, class := range classes {
 				if strings.HasPrefix(class.ClassName, prefix) {
 					matched = append(matched, class)
-					if !full {
-						break
-					}
 				}
 			}
+			classesFound += len(matched)
+			probeList := matched
+			if !full && len(probeList) > 1 {
+				probeList = probeList[:1]
+			}
 			collegeFound := 0
-			for _, class := range matched {
+			for _, class := range probeList {
 				var ids []string
 				err := f.live.WithClient(ctx, func(client *JWCClient) (err error) {
 					ids, err = client.RosterOf(ctx, classPage, class)
@@ -323,12 +329,17 @@ func (f *FreshmanService) scanRoster(ctx context.Context, grade string, full boo
 				case <-time.After(freshmanSniffDelay):
 				}
 			}
-			if len(matched) == 0 {
+			sampled := ""
+			if len(probeList) < len(matched) {
+				sampled = fmt.Sprintf("（抽查 %d 个）", len(probeList))
+			}
+			switch {
+			case len(matched) == 0:
 				highlights = append(highlights, college.Label+"：没有 "+prefix+" 班级")
-			} else if collegeFound > 0 {
-				highlights = append(highlights, fmt.Sprintf("%s：%d 个班 %d 人", college.Label, len(matched), collegeFound))
-			} else {
-				highlights = append(highlights, college.Label+"：已建 "+plural(len(matched), " 个班")+"，暂无名单")
+			case collegeFound > 0:
+				highlights = append(highlights, fmt.Sprintf("%s：%s%s %d 人", college.Label, plural(len(matched), " 个班"), sampled, collegeFound))
+			default:
+				highlights = append(highlights, fmt.Sprintf("%s：已建 %s%s，暂无名单", college.Label, plural(len(matched), " 个班"), sampled))
 			}
 		}
 	}
@@ -341,12 +352,15 @@ func (f *FreshmanService) scanRoster(ctx context.Context, grade string, full boo
 		}
 	}
 	sort.Strings(highlights)
-	state, message := "waiting", fmt.Sprintf("扫了 %d 个班，%s 还没有名单", scanned, prefix)
+	// 「建了多少班」和「查了多少班」是两个数，面板上必须都给出来，否则抽查
+	// 口径会被误读成学校的事实。
+	scope := fmt.Sprintf("全校已建 %s %s，本次查了 %d 个", prefix, plural(classesFound, " 个班"), scanned)
+	state, message := "waiting", scope+"，都还没有名单"
 	if found > 0 {
 		state = "found"
-		message = fmt.Sprintf("扫了 %d 个班，抓到 %s 学号 %d 个", scanned, prefix, found)
+		message = fmt.Sprintf("%s，抓到学号 %d 个", scope, found)
 		if !full {
-			message += "（快速检查每个学院只看一个班，全量抓取会更多）"
+			message += "（快速检查每个学院只抽查一个班，全量抓取会更多）"
 		}
 	}
 	f.mu.Lock()
