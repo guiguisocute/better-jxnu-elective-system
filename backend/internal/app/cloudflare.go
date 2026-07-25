@@ -10,10 +10,28 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
 const cloudflareAPIBase = "https://api.cloudflare.com/client/v4"
+
+// D1 timing constants. The jxnu-ratings database is ~380 MB (student_records
+// dominates), and a D1 instance that has gone idle needs 20–25 s to page itself
+// back in before it answers the first statement; warm statements answer in
+// ~0.2 s. The old 30 s request budget sat right on top of that cold-start window,
+// which is what produced "context deadline exceeded" in the panel. Budget well
+// past the cold start, and keep the database warm (see d1warm.go) so the cold
+// path is almost never taken.
+const (
+	// D1RequestTimeout bounds one D1 statement, cold start included.
+	D1RequestTimeout = 75 * time.Second
+	// cloudflareHTTPTimeout must exceed D1RequestTimeout so the context deadline
+	// is what fires, giving callers the more specific error.
+	cloudflareHTTPTimeout = 90 * time.Second
+	// d1MaxConcurrency caps the fan-out of D1Many.
+	d1MaxConcurrency = 8
+)
 
 // CloudflareEnvVar mirrors a Pages environment variable. Secret values are
 // never rendered by the admin panel and are only sent when the operator enters
@@ -71,8 +89,18 @@ func NewCloudflarePagesClient(env Environment) *CloudflarePagesClient {
 		project:      strings.TrimSpace(env.CFPagesProject),
 		d1DatabaseID: strings.TrimSpace(env.CFD1DatabaseID),
 		baseURL:      cloudflareAPIBase,
-		http:         &http.Client{Timeout: 60 * time.Second},
+		http:         &http.Client{Timeout: cloudflareHTTPTimeout, Transport: cloudflareTransport()},
 	}
+}
+
+// cloudflareTransport widens the idle-connection pool. http.DefaultTransport
+// keeps only 2 idle connections per host, so the concurrent fan-out in D1Many
+// would otherwise renegotiate TLS on most statements.
+func cloudflareTransport() http.RoundTripper {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = d1MaxConcurrency * 2
+	transport.MaxConnsPerHost = d1MaxConcurrency * 2
+	return transport
 }
 
 func (c *CloudflarePagesClient) Ready() bool {
@@ -156,6 +184,80 @@ func (c *CloudflarePagesClient) D1Query(ctx context.Context, sql string, params 
 		}
 	}
 	return result[0].Results, result[0].Meta.Changes, nil
+}
+
+// D1Statement is one parameterized statement handed to D1Many.
+type D1Statement struct {
+	SQL    string
+	Params []any
+}
+
+// D1Result carries one statement's outcome. Err is per-statement: a failure in
+// one entry never hides the results of the others.
+type D1Result struct {
+	Rows    []map[string]any
+	Changes int
+	Err     error
+}
+
+// Rows returns the requested statement's rows, or nil when the index is out of
+// range or that statement failed. Lets render code stay linear.
+func d1Rows(results []D1Result, index int) []map[string]any {
+	if index < 0 || index >= len(results) || results[index].Err != nil {
+		return nil
+	}
+	return results[index].Rows
+}
+
+// D1Many runs independent statements concurrently and returns their results
+// positionally.
+//
+// Cloudflare's /query endpoint does accept several `;`-separated statements, but
+// only without bound parameters ("params with multiple statements is not
+// supported"), and this codebase never string-concatenates SQL. So the way to
+// stop per-statement round trips from stacking up is concurrency, not batching:
+// a page that issued seven sequential statements paid seven round trips.
+//
+// Statements must not depend on one another's effects — ordering is undefined.
+// Use D1Query in sequence for read-then-write flows.
+func (c *CloudflarePagesClient) D1Many(ctx context.Context, statements []D1Statement) []D1Result {
+	results := make([]D1Result, len(statements))
+	if len(statements) == 0 {
+		return results
+	}
+	gate := make(chan struct{}, d1MaxConcurrency)
+	var wg sync.WaitGroup
+	for i, statement := range statements {
+		wg.Add(1)
+		go func(i int, statement D1Statement) {
+			defer wg.Done()
+			gate <- struct{}{}
+			defer func() { <-gate }()
+			rows, changes, err := c.D1Query(ctx, statement.SQL, statement.Params)
+			results[i] = D1Result{Rows: rows, Changes: changes, Err: err}
+		}(i, statement)
+	}
+	wg.Wait()
+	return results
+}
+
+// firstD1Error returns the first per-statement error, so callers that need
+// all-or-nothing semantics can bail with one check.
+func firstD1Error(results []D1Result) error {
+	for _, result := range results {
+		if result.Err != nil {
+			return result.Err
+		}
+	}
+	return nil
+}
+
+// D1Exec runs parameter-free statements in a single request. Only for SQL that
+// is a compile-time constant in this repository (schema DDL) — anything carrying
+// user input must go through D1Query/D1Many so it stays parameterized.
+func (c *CloudflarePagesClient) D1Exec(ctx context.Context, sql string) error {
+	_, _, err := c.D1Query(ctx, sql, nil)
+	return err
 }
 
 func (c *CloudflarePagesClient) do(ctx context.Context, method, path string, payload any, out any) error {

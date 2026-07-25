@@ -41,7 +41,9 @@ export function useLiveEnrollments(
   const prevCounts = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    if (!enabled) {
+    // 没配 VITE_KKAP_API_URL（fork 未填后端地址）时不轮询：源码里不再有兜底地址，
+    // 空串会打成同源相对请求，白白每 30s 拿一个 404。
+    if (!enabled || !LIVE_ENROLLMENT_API) {
       setRefreshing(false);
       setStale(false);
       return;

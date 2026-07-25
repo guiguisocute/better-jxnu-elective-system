@@ -1,8 +1,12 @@
 import type { FormalSection } from "../types";
 
-export const LIVE_ENROLLMENT_API = (
-  import.meta.env.VITE_KKAP_API_URL || "https://getxk.jxnu-publish.asia/api/enrollments"
-).replace(/\/$/, "");
+/**
+ * VPS Go 后端的实时人数接口。**不设兜底地址**：以前这里硬编码着本仓库作者的 VPS，
+ * fork 出去的站点会在无人察觉的情况下一直请求上游后端。地址只在仓库根目录 `.env`
+ * 里出现一次（Cloudflare Pages 控制台的同名变量优先级更高）。
+ * 未配置时为空串，`useLiveEnrollments` 会跳过轮询——实时人数关闭，其余功能不受影响。
+ */
+export const LIVE_ENROLLMENT_API = (import.meta.env.VITE_KKAP_API_URL || "").replace(/\/$/, "");
 
 /**
  * VPS Go 后端公开的无敏感运行配置。默认由实时人数 URL 同源推导；如部署路径特殊，

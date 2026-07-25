@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -178,11 +177,11 @@ func (a *AdminServer) saveCloudflareConnection(w http.ResponseWriter, r *http.Re
 	accountID := strings.TrimSpace(r.Form.Get("cfAccountID"))
 	project := strings.TrimSpace(r.Form.Get("cfPagesProject"))
 	token := strings.TrimSpace(r.Form.Get("cfAPIToken"))
-	if !regexp.MustCompile(`^[0-9a-fA-F]{32}$`).MatchString(accountID) {
+	if !hexPattern32.MatchString(accountID) {
 		a.result(w, "连接失败", "Cloudflare Account ID 应为 32 位十六进制字符串", false, &session)
 		return
 	}
-	if !regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$`).MatchString(project) {
+	if !pagesProjectPattern.MatchString(project) {
 		a.result(w, "连接失败", "Pages 项目名格式不合法", false, &session)
 		return
 	}

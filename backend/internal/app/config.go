@@ -52,7 +52,17 @@ func ResolveAcquisitionTarget(semester string) (AcquisitionTarget, bool) {
 // RuntimeConfig contains the ordinary operational choices that should take
 // effect immediately. Secrets stay in the systemd EnvironmentFile.
 type RuntimeConfig struct {
-	Version                        int      `json:"version"`
+	Version int `json:"version"`
+	// SiteOrigin / BackendPublicURL are this deployment's identity: where the
+	// frontend is served from, and where this backend is reachable from the
+	// public internet. They used to exist only as the original author's domains
+	// baked into source defaults, which made a fork silently talk to (and load)
+	// the upstream deployment. Both are set in 部署配置 and drive the CORS
+	// allowlist plus the copy-paste frontend wiring the panel prints.
+	// Empty is allowed — the backend still serves; only the derived hints and
+	// the auto-CORS entry are skipped.
+	SiteOrigin                     string   `json:"siteOrigin"`
+	BackendPublicURL               string   `json:"backendPublicUrl"`
 	DefaultDataSource              string   `json:"defaultDataSource"`
 	PreselectSemester              string   `json:"preselectSemester"`
 	SelectionSemester              string   `json:"selectionSemester"`
@@ -78,7 +88,7 @@ type RuntimeConfig struct {
 
 func DefaultRuntimeConfig() RuntimeConfig {
 	return RuntimeConfig{
-		Version:                        5,
+		Version:                        6,
 		DefaultDataSource:              "formal",
 		PreselectSemester:              "2026-09",
 		SelectionSemester:              "2026-09",
@@ -99,9 +109,11 @@ func DefaultRuntimeConfig() RuntimeConfig {
 		CourseDetailsRefreshHours:      168,
 		CourseDetailsMaxPerRun:         30,
 		CourseDetailsDelayMilliseconds: 300,
+		// Only local development origins ship as defaults. A deployment's real
+		// origin comes from SiteOrigin (部署配置) — hardcoding the upstream
+		// author's domains here meant every fork started with a CORS allowlist
+		// for somebody else's site.
 		AllowedOrigins: []string{
-			"https://xk.jxnu-publish.asia",
-			"https://test.better-jxnu-elective-system.pages.dev",
 			"http://localhost:5173",
 			"http://127.0.0.1:5173",
 		},
@@ -158,8 +170,16 @@ func (c RuntimeConfig) LiveEnrollmentTarget() string {
 }
 
 func (c RuntimeConfig) Validate() error {
-	if c.Version != 5 {
+	if c.Version != 6 {
 		return fmt.Errorf("不支持的配置版本 %d", c.Version)
+	}
+	for label, value := range map[string]string{"站点地址": c.SiteOrigin, "后端对外地址": c.BackendPublicURL} {
+		if value == "" {
+			continue
+		}
+		if err := validateDeploymentOrigin(value); err != nil {
+			return fmt.Errorf("%s%s", label, err)
+		}
 	}
 	if c.DefaultDataSource != "pre" && c.DefaultDataSource != "formal" {
 		return errors.New("默认选课阶段必须是 pre 或 formal")
@@ -213,6 +233,36 @@ func (c RuntimeConfig) Validate() error {
 	return nil
 }
 
+// validateDeploymentOrigin accepts a scheme+host root URL ("https://x.example"),
+// which is what both a browser Origin header and a fetch base need. Paths,
+// queries and credentials are rejected so the derived CORS entry can be compared
+// byte-for-byte against the Origin header.
+func validateDeploymentOrigin(value string) error {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return errors.New("必须是形如 https://example.edu 的完整地址，且不带账号、query 或 fragment")
+	}
+	host := strings.ToLower(parsed.Hostname())
+	localHTTP := parsed.Scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "::1")
+	if parsed.Scheme != "https" && !localHTTP {
+		return errors.New("必须使用 https（仅 localhost 可用 http）")
+	}
+	if strings.Trim(parsed.Path, "/") != "" {
+		return errors.New("只填到域名即可，不要带路径")
+	}
+	return nil
+}
+
+// NormalizeDeploymentOrigin strips a trailing slash so the stored value matches
+// the browser's Origin header exactly.
+func NormalizeDeploymentOrigin(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return strings.TrimRight(value, "/")
+}
+
 func validateCapacityURL(value string) error {
 	if !strings.Contains(value, "{courseId}") {
 		return errors.New("容量嗅探 URL 必须包含 {courseId} 占位符")
@@ -247,21 +297,26 @@ type Environment struct {
 func LoadEnvironment() Environment {
 	home, _ := os.UserHomeDir()
 	return Environment{
-		ConfigPath:       envOr("BACKEND_CONFIG", filepath.Join(home, "apps", "jxnu-backend", "config.json")),
-		EnvFilePath:      envOr("BACKEND_ENV_FILE", filepath.Join(home, "apps", "jxnu-backend", "backend.env")),
-		RepoDir:          envOr("REPO_DIR", filepath.Join(home, "better-jxnu-elective-system")),
-		SyncLockPath:     envOr("SYNC_LOCK", filepath.Join(home, "apps", "jxnu-backend", "sync.lock")),
-		PublicAddr:       envOr("PUBLIC_ADDR", DefaultPublicAddr),
-		LiveAddr:         envOr("LIVE_ADDR", DefaultLiveAddr),
-		AdminAddr:        envOr("ADMIN_ADDR", DefaultAdminAddr),
-		AdminPassword:    os.Getenv("ADMIN_PASSWORD"),
-		LiveSecret:       os.Getenv("LIVE_SECRET"),
-		XKUsername:       os.Getenv("XK_USERNAME"),
-		XKPassword:       os.Getenv("XK_PASSWORD"),
-		CFAccountID:      os.Getenv("CF_ACCOUNT_ID"),
-		CFAPIToken:       os.Getenv("CF_API_TOKEN"),
-		CFPagesProject:   envOr("CF_PAGES_PROJECT", "jxnu-elective-plus"),
-		CFD1DatabaseID:   envOr("CF_D1_DATABASE_ID", "fa430b25-33a9-46d5-bd0c-52442971bac7"),
+		ConfigPath:    envOr("BACKEND_CONFIG", filepath.Join(home, "apps", "jxnu-backend", "config.json")),
+		EnvFilePath:   envOr("BACKEND_ENV_FILE", filepath.Join(home, "apps", "jxnu-backend", "backend.env")),
+		RepoDir:       envOr("REPO_DIR", filepath.Join(home, "better-jxnu-elective-system")),
+		SyncLockPath:  envOr("SYNC_LOCK", filepath.Join(home, "apps", "jxnu-backend", "sync.lock")),
+		PublicAddr:    envOr("PUBLIC_ADDR", DefaultPublicAddr),
+		LiveAddr:      envOr("LIVE_ADDR", DefaultLiveAddr),
+		AdminAddr:     envOr("ADMIN_ADDR", DefaultAdminAddr),
+		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
+		LiveSecret:    os.Getenv("LIVE_SECRET"),
+		XKUsername:    os.Getenv("XK_USERNAME"),
+		XKPassword:    os.Getenv("XK_PASSWORD"),
+		CFAccountID:   os.Getenv("CF_ACCOUNT_ID"),
+		CFAPIToken:    os.Getenv("CF_API_TOKEN"),
+		// No defaults: these identify one specific Cloudflare account's project
+		// and database. Baking the upstream author's values in meant a fork
+		// pointed at resources it has no access to, and the failure surfaced as
+		// a confusing auth error instead of "you haven't configured this yet".
+		// Both are set in 部署配置 / 评价管理, which writes them to backend.env.
+		CFPagesProject:   os.Getenv("CF_PAGES_PROJECT"),
+		CFD1DatabaseID:   os.Getenv("CF_D1_DATABASE_ID"),
 		GitSSHCommand:    os.Getenv("GIT_SSH_COMMAND"),
 		PythonExecutable: envOr("PYTHON", "python3"),
 	}
@@ -344,11 +399,19 @@ type legacyRuntimeConfig struct {
 }
 
 func migrateRuntimeConfig(cfg *RuntimeConfig, legacy legacyRuntimeConfig) (bool, error) {
-	if cfg.Version == 5 {
+	if cfg.Version == 6 {
 		return false, nil
 	}
-	if cfg.Version < 1 || cfg.Version > 4 {
+	if cfg.Version < 1 || cfg.Version > 5 {
 		return false, fmt.Errorf("不支持的配置版本 %d", cfg.Version)
+	}
+	// v6 adds the deployment identity (siteOrigin / backendPublicUrl). An
+	// existing install already encodes its site origin in the CORS allowlist, so
+	// adopt the first non-local entry rather than making the operator retype it.
+	if cfg.Version == 5 {
+		cfg.SiteOrigin = firstPublicOrigin(cfg.AllowedOrigins)
+		cfg.Version = 6
+		return true, nil
 	}
 	// v4 removed the course-number whitelist entirely. Unknown legacy JSON
 	// fields are ignored on read and disappear when this migrated config is
@@ -380,8 +443,26 @@ func migrateRuntimeConfig(cfg *RuntimeConfig, legacy legacyRuntimeConfig) (bool,
 	if regexp.MustCompile(`^Step[1-9]$`).MatchString(legacy.CapacityStep) {
 		cfg.SelectionCapacityURL = strings.Replace(DefaultCapacityURL, "Step3", legacy.CapacityStep, 1)
 	}
-	cfg.Version = 5
+	cfg.SiteOrigin = firstPublicOrigin(cfg.AllowedOrigins)
+	cfg.Version = 6
 	return true, nil
+}
+
+// firstPublicOrigin picks the first non-loopback entry of an existing CORS
+// allowlist, which for any already-running install is its real site origin.
+func firstPublicOrigin(origins []string) string {
+	for _, origin := range origins {
+		parsed, err := url.Parse(strings.TrimSpace(origin))
+		if err != nil || parsed.Host == "" {
+			continue
+		}
+		host := strings.ToLower(parsed.Hostname())
+		if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+			continue
+		}
+		return NormalizeDeploymentOrigin(origin)
+	}
+	return ""
 }
 
 func (s *ConfigStore) Save(cfg RuntimeConfig) error {

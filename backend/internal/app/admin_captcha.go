@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 const (
@@ -65,20 +64,35 @@ func normalizeHTTPSURL(raw string, optional bool) (string, error) {
 	return strings.TrimRight(parsed.String(), "/"), nil
 }
 
-func (a *AdminServer) loadCaptchaSettings(ctx context.Context) (captchaAdminSettings, error) {
-	cloudflare := a.cloudflareClient()
-	rows, _, err := cloudflare.D1Query(ctx,
-		`SELECT key, value FROM app_settings WHERE key IN (?,?,?,?,?,?,?,?,?,?)`,
-		[]any{
+// captchaSettingsStatement is the single read behind the captcha card. Exposed
+// as a statement so pages that need several unrelated reads can fire them
+// together through D1Many instead of paying another sequential round trip.
+func captchaSettingsStatement() D1Statement {
+	return D1Statement{
+		SQL: `SELECT key, value FROM app_settings WHERE key IN (?,?,?,?,?,?,?,?,?,?)`,
+		Params: []any{
 			captchaProviderRow, captchaReviewsEnabledRow, captchaReportsEnabledRow, captchaStudentEnabledRow,
 			turnstileSiteKeyRow, turnstileSecretRow,
 			capAPIEndpointRow, capSiteKeyRow, capSecretRow, capWasmURLRow,
-		})
-	if err != nil {
-		return captchaAdminSettings{}, err
+		},
+	}
+}
+
+func (a *AdminServer) loadCaptchaSettings(ctx context.Context) (captchaAdminSettings, error) {
+	statement := captchaSettingsStatement()
+	rows, changes, err := a.cloudflareClient().D1Query(ctx, statement.SQL, statement.Params)
+	return captchaSettingsFrom(D1Result{Rows: rows, Changes: changes, Err: err})
+}
+
+// captchaSettingsFrom turns one app_settings read into the panel's view of the
+// captcha configuration, applying the legacy fallbacks for installations that
+// predate the explicit provider/scope rows.
+func captchaSettingsFrom(result D1Result) (captchaAdminSettings, error) {
+	if result.Err != nil {
+		return captchaAdminSettings{}, result.Err
 	}
 	values := map[string]string{}
-	for _, row := range rows {
+	for _, row := range result.Rows {
 		values[reviewText(row, "key")] = strings.TrimSpace(reviewText(row, "value"))
 	}
 
@@ -264,7 +278,9 @@ func (a *AdminServer) saveCaptcha(w http.ResponseWriter, r *http.Request, sessio
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	// D1RequestTimeout（75s）而不是原先的 30s：这个库冷启动要 20–25s，30s 的预算
+	// 正好卡在冷启动窗口上，于是「关闭人机验证」经常直接报 context deadline exceeded。
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 	current, loadErr := a.loadCaptchaSettings(ctx)
 	if loadErr != nil {
@@ -302,9 +318,15 @@ func (a *AdminServer) saveCaptcha(w http.ResponseWriter, r *http.Request, sessio
 	if capSecret != "" {
 		updates = append(updates, [2]string{capSecretRow, capSecret})
 	}
+	// 每个 key 一条 upsert、彼此独立，并发发出去：原先 8 次串行往返在跨洋链路上
+	// 就是好几秒，还容易顶到超时。
+	statements := make([]D1Statement, 0, len(updates))
 	for _, item := range updates {
-		if _, _, err := cloudflare.D1Query(ctx, upsert, []any{item[0], item[1]}); err != nil {
-			a.result(w, "保存失败", "写入 "+item[0]+" 失败："+err.Error(), false, &session)
+		statements = append(statements, D1Statement{SQL: upsert, Params: []any{item[0], item[1]}})
+	}
+	for i, result := range cloudflare.D1Many(ctx, statements) {
+		if result.Err != nil {
+			a.result(w, "保存失败", "写入 "+updates[i][0]+" 失败："+result.Err.Error(), false, &session)
 			return
 		}
 	}
@@ -325,7 +347,30 @@ func (a *AdminServer) saveCaptcha(w http.ResponseWriter, r *http.Request, sessio
 	} else {
 		detail += "；未勾选保护场景"
 	}
+	// 只记结论，不记任何密钥值。
+	a.audit(ctx, r, auditEntry{
+		Action: auditCaptcha,
+		Target: "save-captcha",
+		Detail: detail,
+		Before: captchaAudit(current),
+		After: map[string]any{
+			"provider": provider, "reviews": reviewsEnabled, "reports": reportsEnabled, "student": studentEnabled,
+			"turnstileSiteKeySet": turnstileSiteKey != "", "turnstileSecretUpdated": turnstileSecret != "",
+			"capEndpointSet": capEndpoint != "", "capSiteKeySet": capSiteKey != "", "capSecretUpdated": capSecret != "",
+		},
+	})
 	a.result(w, "人机验证配置已保存", detail+"。前端最多 1 分钟内跟上，无需重新部署。", true, &session)
+}
+
+// captchaAudit reduces the stored settings to a secret-free shape for the audit
+// log: which provider, which scopes, and whether each credential is present.
+func captchaAudit(settings captchaAdminSettings) map[string]any {
+	return map[string]any{
+		"provider": settings.Provider,
+		"reviews":  settings.ReviewsEnabled, "reports": settings.ReportsEnabled, "student": settings.StudentEnabled,
+		"turnstileSiteKeySet": settings.TurnstileSiteKey != "", "turnstileSecretSet": settings.TurnstileSecretSet,
+		"capEndpointSet": settings.CapAPIEndpoint != "", "capSiteKeySet": settings.CapSiteKey != "", "capSecretSet": settings.CapSecretSet,
+	}
 }
 
 func (a *AdminServer) disableCaptcha(w http.ResponseWriter, r *http.Request, session adminSession) {
@@ -337,14 +382,23 @@ func (a *AdminServer) disableCaptcha(w http.ResponseWriter, r *http.Request, ses
 		a.result(w, "操作失败", "Cloudflare D1 凭据未配置", false, &session)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 	const upsert = `INSERT INTO app_settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`
-	for _, item := range [][2]string{{captchaProviderRow, "off"}, {captchaReviewsEnabledRow, "off"}, {captchaReportsEnabledRow, "off"}, {captchaStudentEnabledRow, "off"}} {
-		if _, _, err := cloudflare.D1Query(ctx, upsert, []any{item[0], item[1]}); err != nil {
-			a.result(w, "操作失败", err.Error(), false, &session)
-			return
-		}
+	offRows := [][2]string{{captchaProviderRow, "off"}, {captchaReviewsEnabledRow, "off"}, {captchaReportsEnabledRow, "off"}, {captchaStudentEnabledRow, "off"}}
+	statements := make([]D1Statement, 0, len(offRows))
+	for _, item := range offRows {
+		statements = append(statements, D1Statement{SQL: upsert, Params: []any{item[0], item[1]}})
 	}
+	if err := firstD1Error(cloudflare.D1Many(ctx, statements)); err != nil {
+		a.result(w, "操作失败", err.Error(), false, &session)
+		return
+	}
+	a.audit(ctx, r, auditEntry{
+		Action: auditCaptcha,
+		Target: "captcha-off",
+		Detail: "一键关闭所有人机验证（保留 Turnstile / Cap 凭据）。",
+		After:  map[string]any{"provider": "off", "reviews": false, "reports": false, "student": false},
+	})
 	a.result(w, "人机验证已关闭", "Turnstile 与 Cap 凭据均已保留；评价提交、举报提交和学号查询恢复免验证。", true, &session)
 }

@@ -31,6 +31,11 @@ func (s *Servers) Run(ctx context.Context) error {
 	public := configuredHTTPServer(s.env.PublicAddr, s.publicHandler())
 	live := configuredHTTPServer(s.env.LiveAddr, s.liveHandler())
 	admin := configuredHTTPServer(s.env.AdminAddr, s.admin.Handler())
+	// 面板的 D1 请求预算是 75s（见 D1RequestTimeout），写超时必须留在它之后，
+	// 否则连接会先被服务端掐断，操作者只看到空白页而不是真正的错误。
+	admin.WriteTimeout = D1RequestTimeout + 45*time.Second
+	// 让 D1 保持热态：这个库有 380MB，闲置后首个查询要 20–25s。
+	go s.admin.RunD1Warmer(ctx)
 	type result struct {
 		name string
 		err  error

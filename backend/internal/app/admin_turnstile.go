@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // Turnstile 是「写评价」提交的人机验证开关。密钥存 D1 app_settings（turnstile_site_key 明文 +
@@ -104,7 +103,7 @@ func (a *AdminServer) saveTurnstile(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 
 	// secret 留空：仅当 D1 已存在非空 secret 才允许保留；否则首次启用必须两个都给（防半配 403）。
@@ -153,7 +152,7 @@ func (a *AdminServer) disableTurnstile(w http.ResponseWriter, r *http.Request, s
 		a.result(w, "操作失败", "Cloudflare D1 凭据未配置", false, &session)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 	if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM app_settings WHERE key IN (?,?)`, []any{turnstileSiteKeyRow, turnstileSecretRow}); err != nil {
 		a.result(w, "操作失败", err.Error(), false, &session)

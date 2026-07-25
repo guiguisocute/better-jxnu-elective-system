@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"math"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +26,44 @@ var reviewDimensions = []struct {
 }
 
 const reviewPageSize = 20
+
+// reviewModerationRow is the app_settings key holding the moderation switch.
+const reviewModerationRow = "review_moderation"
+
+// reviewListStatement builds the review-list query. It is a function rather than
+// inline SQL because the D1 warmer runs the *same* statement to keep this page's
+// pages resident, and warming a query that differs even in its column list does
+// not work: D1 fetches pages from remote storage on demand, and the long comment
+// columns live in overflow pages that only `r.*` touches. Sharing one builder is
+// what keeps "what we warm" equal to "what we read".
+//
+// field/status are whitelisted by the caller; q is always bound as a parameter.
+func reviewListStatement(q, field, status string, offset int) D1Statement {
+	fieldColumn := map[string]string{"course": "r.course_id", "teacher": "r.teacher_id", "voter": "r.voter_id"}[field]
+	if fieldColumn == "" {
+		fieldColumn = "r.course_id"
+	}
+	sql := `SELECT r.*, (SELECT COUNT(*) FROM review_votes v WHERE v.review_id=r.id) AS helpful FROM reviews r`
+	var params []any
+	var where []string
+	if q != "" {
+		where = append(where, fieldColumn+" LIKE ?")
+		params = append(params, "%"+q+"%")
+	}
+	if status != "all" && status != "" {
+		where = append(where, "r.status = ?")
+		params = append(params, status)
+	}
+	if len(where) > 0 {
+		sql += " WHERE " + strings.Join(where, " AND ")
+	}
+	// ORDER BY updated_at is served by idx_reviews_updated; without it SQLite
+	// scans every row, which on this database means fetching a lot of scattered
+	// remote pages (26 s wall time for 0.8 ms of actual SQL).
+	sql += " ORDER BY r.updated_at DESC LIMIT ? OFFSET ?"
+	params = append(params, reviewPageSize, offset)
+	return D1Statement{SQL: sql, Params: params}
+}
 
 // parseReviewScore validates one dimension score coming from the form. Empty is
 // allowed (returns nil so the SQL param becomes NULL); otherwise the value must
@@ -187,67 +224,66 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 	}
 	offset := (page - 1) * reviewPageSize
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 
-	fieldColumn := map[string]string{"course": "r.course_id", "teacher": "r.teacher_id", "voter": "r.voter_id"}[field]
-	sql := `SELECT r.*, (SELECT COUNT(*) FROM review_votes v WHERE v.review_id=r.id) AS helpful FROM reviews r`
-	var params []any
-	var where []string
-	if q != "" {
-		where = append(where, fieldColumn+" LIKE ?")
-		params = append(params, "%"+q+"%")
-	}
-	if status != "all" {
-		// status is whitelisted above; still bind as a parameter.
-		where = append(where, "r.status = ?")
-		params = append(params, status)
-	}
-	if len(where) > 0 {
-		sql += " WHERE " + strings.Join(where, " AND ")
-	}
-	sql += " ORDER BY r.updated_at DESC LIMIT ? OFFSET ?"
-	params = append(params, reviewPageSize, offset)
+	listStatement := reviewListStatement(q, field, status, offset)
 
-	rows, _, err := cloudflare.D1Query(ctx, sql, params)
-	if err != nil {
+	// 这一页要问 D1 六件互不相干的事。以前是六次串行往返，每次都要一个跨洋 RTT，
+	// 于是页面比其它路由明显慢；D1 的 /query 不允许「多语句 + 绑定参数」同时用，
+	// 所以合并不了，只能并发发出去（见 D1Many）。现在整页 ≈ 一次往返。
+	const (
+		qList = iota
+		qStats
+		qModeration
+		qOpenReports
+		qReportList
+		qCaptcha
+	)
+	results := cloudflare.D1Many(ctx, []D1Statement{
+		qList:        listStatement,
+		qStats:       {SQL: `SELECT (SELECT COUNT(*) FROM reviews) AS reviews, (SELECT COUNT(*) FROM review_votes) AS votes, (SELECT COUNT(*) FROM reviews WHERE status='pending') AS pending`},
+		qModeration:  {SQL: `SELECT value FROM app_settings WHERE key=?`, Params: []any{reviewModerationRow}},
+		qOpenReports: {SQL: `SELECT COUNT(*) AS n FROM review_reports WHERE status='open'`},
+		qReportList:  {SQL: `SELECT rp.id AS report_id, rp.reason AS report_reason, rp.created_at AS reported_at, rp.voter_id AS reporter, r.* FROM review_reports rp LEFT JOIN reviews r ON r.id = rp.review_id WHERE rp.status='open' ORDER BY rp.created_at DESC LIMIT 20`},
+		qCaptcha:     captchaSettingsStatement(),
+	})
+
+	if err := results[qList].Err; err != nil {
 		// 查询失败（token 失效 / 缺 D1 权限 / 库 ID 错）→ 与未配置同款自助表单，现场修
 		a.render(w, "评价管理",
 			`<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1></div></section>`+
 				a.reviewD1SetupForm(session, err.Error()), &session)
 		return
 	}
+	rows := results[qList].Rows
 
 	totalReviews, totalVotes, pendingCount := 0, 0, 0
-	if stat, _, err := cloudflare.D1Query(ctx, `SELECT (SELECT COUNT(*) FROM reviews) AS reviews, (SELECT COUNT(*) FROM review_votes) AS votes, (SELECT COUNT(*) FROM reviews WHERE status='pending') AS pending`, nil); err == nil && len(stat) > 0 {
+	if stat := d1Rows(results, qStats); len(stat) > 0 {
 		totalReviews = reviewInt(stat[0], "reviews")
 		totalVotes = reviewInt(stat[0], "votes")
 		pendingCount = reviewInt(stat[0], "pending")
 	}
 
 	moderationOn := false
-	if m, _, err := cloudflare.D1Query(ctx, `SELECT value FROM app_settings WHERE key='review_moderation'`, nil); err == nil && len(m) > 0 {
+	if m := d1Rows(results, qModeration); len(m) > 0 {
 		moderationOn = reviewText(m[0], "value") == "on"
 	}
 
 	// 未处理举报数（通知感）
 	openReports := 0
-	if rc, _, err := cloudflare.D1Query(ctx, `SELECT COUNT(*) AS n FROM review_reports WHERE status='open'`, nil); err == nil && len(rc) > 0 {
+	if rc := d1Rows(results, qOpenReports); len(rc) > 0 {
 		openReports = reviewInt(rc[0], "n")
 	}
+	reportRows := d1Rows(results, qReportList)
 
-	// 未处理举报列表（仅在有 open 举报时查询）
-	var reportRows []map[string]any
-	if openReports > 0 {
-		if rr, _, err := cloudflare.D1Query(ctx, `SELECT rp.id AS report_id, rp.reason AS report_reason, rp.created_at AS reported_at, rp.voter_id AS reporter, r.* FROM review_reports rp LEFT JOIN reviews r ON r.id = rp.review_id WHERE rp.status='open' ORDER BY rp.created_at DESC LIMIT 20`, nil); err == nil {
-			reportRows = rr
-		}
-	}
+	captchaSettings, captchaErr := captchaSettingsFrom(results[qCaptcha])
 
 	courseName, teacherName := a.reviewNames()
 
 	var b strings.Builder
-	b.WriteString(`<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1><p>直连 Cloudflare D1 库 jxnu-ratings，可查看、编辑、删除、审核与批量清理评价。</p></div><a class="button primary" href="/reviews/edit">手工补录评价</a></section>`)
+	b.WriteString(`<section class="hero"><div><p class="eyebrow">评价管理</p><h1>学生课程评价监管</h1><p>直连 Cloudflare D1 库 jxnu-ratings，可查看、编辑、删除、审核与批量清理评价。删除是可撤销的——先进回收站，每一步都写进操作日志。</p></div><a class="button primary" href="/reviews/edit">手工补录评价</a></section>`)
+	b.WriteString(reviewsSubnav("list"))
 
 	// stats: 5 cards（第 5 张「未处理举报」有通知感）
 	reportCard := fmt.Sprintf(`<section class="card"><h2>未处理举报</h2><p class="big">%d</p></section>`, openReports)
@@ -268,7 +304,6 @@ func (a *AdminServer) reviewsPage(w http.ResponseWriter, r *http.Request, sessio
 	b.WriteString(`<section class="card"><h2>审核模式</h2><p>` + moderationBadge + `</p><p class="hint">开启后，新提交的评价默认进入待审核，需在此页面手动通过后才对外可见。</p><form method="post" action="/action/review-moderation">` + csrf(session) + `<input type="hidden" name="enable" value="` + nextEnable + `"><button class="button" type="submit">` + buttonLabel + `</button></form></section>`)
 
 	// 人机验证：Turnstile 与 Cap 互斥；评价和学号查询分别开关。
-	captchaSettings, captchaErr := a.loadCaptchaSettings(ctx)
 	b.WriteString(a.captchaCard(session, captchaSettings, captchaErr))
 
 	// 举报处理 card
@@ -461,12 +496,18 @@ func (a *AdminServer) toggleReviewModeration(w http.ResponseWriter, r *http.Requ
 		a.result(w, "操作失败", "开关值不合法", false, &session)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 	if _, _, err := cloudflare.D1Query(ctx, `INSERT INTO app_settings (key,value) VALUES ('review_moderation',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, []any{enable}); err != nil {
 		a.result(w, "操作失败", err.Error(), false, &session)
 		return
 	}
+	a.audit(ctx, r, auditEntry{
+		Action: auditModeration,
+		Target: reviewModerationRow,
+		Detail: map[string]string{"on": "开启审核模式：新评价需人工通过后才公开。", "off": "关闭审核模式：评价即发即显。"}[enable],
+		After:  map[string]any{reviewModerationRow: enable},
+	})
 	if enable == "on" {
 		a.result(w, "审核模式已开启", "新提交的评价将进入待审核，需人工通过后才对外可见。", true, &session)
 		return
@@ -494,13 +535,24 @@ func (a *AdminServer) moderateReview(w http.ResponseWriter, r *http.Request, ses
 		a.result(w, "操作失败", err.Error(), false, &session)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
+	before := ""
+	if rows, _, err := cloudflare.D1Query(ctx, `SELECT status FROM reviews WHERE id=?`, []any{id}); err == nil && len(rows) > 0 {
+		before = reviewText(rows[0], "status")
+	}
 	if _, _, err := cloudflare.D1Query(ctx, `UPDATE reviews SET status=?, updated_at=datetime('now') WHERE id=?`, []any{decision, id}); err != nil {
 		a.result(w, "操作失败", err.Error(), false, &session)
 		return
 	}
 	verb := map[string]string{"approved": "已通过", "rejected": "已拒绝"}[decision]
+	a.audit(ctx, r, auditEntry{
+		Action: auditModerate,
+		Target: fmt.Sprintf("review #%d", id),
+		Detail: fmt.Sprintf("%s评价 #%d（%s → %s）。", verb, id, emptyDash(before), decision),
+		Before: map[string]any{"status": before},
+		After:  map[string]any{"status": decision},
+	})
 	a.result(w, "审核完成", fmt.Sprintf("%s评价 #%d。", verb, id), true, &session)
 }
 
@@ -676,7 +728,7 @@ func (a *AdminServer) saveReview(w http.ResponseWriter, r *http.Request, session
 		return comments[key]
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 
 	idStr := strings.TrimSpace(r.Form.Get("id"))
@@ -685,6 +737,11 @@ func (a *AdminServer) saveReview(w http.ResponseWriter, r *http.Request, session
 		if err != nil {
 			a.result(w, "保存失败", "评价 id 不合法", false, &session)
 			return
+		}
+		// 编辑是原地覆盖、没有回收站可退，所以先留一份变更前快照到操作日志。
+		var before map[string]any
+		if rows, _, err := cloudflare.D1Query(ctx, `SELECT * FROM reviews WHERE id=?`, []any{id}); err == nil && len(rows) > 0 {
+			before = rows[0]
 		}
 		sql := `UPDATE reviews SET nickname=?, avatar=?, overall=?, assess=?, attendance=?, difficulty=?, teaching=?, overall_c=?, assess_c=?, attendance_c=?, difficulty_c=?, teaching_c=?, updated_at=datetime('now') WHERE id=?`
 		params := []any{nickname, avatar,
@@ -695,7 +752,18 @@ func (a *AdminServer) saveReview(w http.ResponseWriter, r *http.Request, session
 			a.result(w, "保存失败", err.Error(), false, &session)
 			return
 		}
-		a.result(w, "评价已更新", fmt.Sprintf("已更新评价 #%d。", id), true, &session)
+		var after map[string]any
+		if rows, _, err := cloudflare.D1Query(ctx, `SELECT * FROM reviews WHERE id=?`, []any{id}); err == nil && len(rows) > 0 {
+			after = rows[0]
+		}
+		a.audit(ctx, r, auditEntry{
+			Action: auditEditReview,
+			Target: fmt.Sprintf("review #%d", id),
+			Detail: fmt.Sprintf("在面板编辑了评价 #%d 的评分与评语。", id),
+			Before: before,
+			After:  after,
+		})
+		a.result(w, "评价已更新", fmt.Sprintf("已更新评价 #%d。变更前后的内容已记入操作日志。", id), true, &session)
 		return
 	}
 
@@ -709,6 +777,12 @@ ON CONFLICT(course_id,teacher_id,voter_id) DO UPDATE SET nickname=excluded.nickn
 		a.result(w, "保存失败", err.Error(), false, &session)
 		return
 	}
+	a.audit(ctx, r, auditEntry{
+		Action: auditCreateReview,
+		Target: courseID + "/" + teacherID,
+		Detail: fmt.Sprintf("手工补录评价（课程 %s / 教师 %s / voter %s）。", courseID, teacherID, voterID),
+		After:  map[string]any{"course_id": courseID, "teacher_id": teacherID, "voter_id": voterID, "scores": scores, "comments": comments},
+	})
 	a.result(w, "评价已保存", "新评价已写入（同课程/教师/voter 已存在时按 upsert 覆盖）。", true, &session)
 }
 
@@ -726,17 +800,26 @@ func (a *AdminServer) deleteReview(w http.ResponseWriter, r *http.Request, sessi
 		a.result(w, "删除失败", "评价 id 不合法", false, &session)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
-	if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM review_votes WHERE review_id=?`, []any{id}); err != nil {
+	// 删除 = 移入回收站。前台读的是 reviews，所以对访客而言与硬删无异；
+	// 但误删可以在 /reviews/trash 原样还原。
+	snapshot, err := a.trashReview(ctx, actorOf(r), id, "manual")
+	if err != nil {
 		a.result(w, "删除失败", err.Error(), false, &session)
 		return
 	}
-	if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM reviews WHERE id=?`, []any{id}); err != nil {
-		a.result(w, "删除失败", err.Error(), false, &session)
+	if snapshot == nil {
+		a.result(w, "删除失败", fmt.Sprintf("评价 #%d 不存在或已被删除。", id), false, &session)
 		return
 	}
-	a.result(w, "评价已删除", fmt.Sprintf("已删除评价 #%d 及其投票记录。", id), true, &session)
+	a.audit(ctx, r, auditEntry{
+		Action: auditDeleteReview,
+		Target: fmt.Sprintf("review #%d", id),
+		Detail: fmt.Sprintf("删除评价 #%d（课程 %s / 教师 %s），已移入回收站。", id, reviewText(snapshot, "course_id"), reviewText(snapshot, "teacher_id")),
+		Before: snapshot,
+	})
+	a.result(w, "评价已删除", fmt.Sprintf("已删除评价 #%d 及其投票记录。原始内容已存入回收站，可在「评价管理 → 回收站」还原。", id), true, &session)
 }
 
 // saveD1Connection validates operator-supplied D1 credentials with a real
@@ -750,11 +833,11 @@ func (a *AdminServer) saveD1Connection(w http.ResponseWriter, r *http.Request, s
 	accountID := strings.TrimSpace(r.Form.Get("cfAccountID"))
 	token := strings.TrimSpace(r.Form.Get("cfAPIToken"))
 	dbID := strings.TrimSpace(r.Form.Get("cfD1DatabaseID"))
-	if !regexp.MustCompile(`^[0-9a-fA-F]{32}$`).MatchString(accountID) {
+	if !hexPattern32.MatchString(accountID) {
 		a.result(w, "连接失败", "Cloudflare Account ID 应为 32 位十六进制字符串", false, &session)
 		return
 	}
-	if !regexp.MustCompile(`^[0-9a-fA-F-]{8,64}$`).MatchString(dbID) {
+	if !d1IDPattern.MatchString(dbID) {
 		a.result(w, "连接失败", "D1 数据库 ID 格式不合法（应为 Dashboard 里的 UUID）", false, &session)
 		return
 	}
@@ -776,7 +859,7 @@ func (a *AdminServer) saveD1Connection(w http.ResponseWriter, r *http.Request, s
 	}
 	client := NewCloudflarePagesClient(nextEnv)
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 	if _, _, err := client.D1Query(ctx, "SELECT 1 AS ok", nil); err != nil {
 		a.result(w, "连接失败", "D1 未通过验证："+err.Error()+"。请确认 Token 具有 Account / D1 / Edit 权限，且 Account ID / 库 ID 正确。", false, &session)
@@ -801,6 +884,13 @@ func (a *AdminServer) saveD1Connection(w http.ResponseWriter, r *http.Request, s
 		return
 	}
 	a.setCloudflareClient(client)
+	// 换库/换 Token 会改变面板背后的整份数据，必须留痕（只记 id，不记 Token）。
+	a.audit(ctx, r, auditEntry{
+		Action: auditD1Connection,
+		Target: dbID,
+		Detail: "更新了 Cloudflare D1 连接凭据（account " + accountID + "，库 " + dbID + "）。",
+		After:  map[string]any{"accountId": accountID, "databaseId": dbID, "tokenUpdated": strings.TrimSpace(r.Form.Get("cfAPIToken")) != ""},
+	})
 	a.result(w, "D1 已连接", "凭据已安全保存并立即生效。返回评价管理页即可查看与管理评价数据。", true, &session)
 }
 
@@ -831,12 +921,11 @@ func (a *AdminServer) resolveReport(w http.ResponseWriter, r *http.Request, sess
 		a.result(w, "操作失败", err.Error(), false, &session)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 
 	// 从 review_reports 查出关联 review_id（不信任表单）
 	reviewID := 0
-	reviewExists := false
 	if rows, _, err := cloudflare.D1Query(ctx, `SELECT review_id FROM review_reports WHERE id=?`, []any{reportID}); err != nil {
 		a.result(w, "操作失败", err.Error(), false, &session)
 		return
@@ -847,21 +936,16 @@ func (a *AdminServer) resolveReport(w http.ResponseWriter, r *http.Request, sess
 		reviewID = reviewInt(rows[0], "review_id")
 	}
 
-	deletedReview := false
+	var snapshot map[string]any
 	if deleteReview && reviewID > 0 {
-		if rows, _, err := cloudflare.D1Query(ctx, `SELECT id FROM reviews WHERE id=?`, []any{reviewID}); err == nil && len(rows) > 0 {
-			reviewExists = true
+		var err error
+		// 与手动删除同一条路径：先进回收站，误判举报也能还原。
+		snapshot, err = a.trashReview(ctx, actorOf(r), reviewID, "report")
+		if err != nil {
+			a.result(w, "操作失败", err.Error(), false, &session)
+			return
 		}
-		if reviewExists {
-			if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM review_votes WHERE review_id=?`, []any{reviewID}); err != nil {
-				a.result(w, "操作失败", err.Error(), false, &session)
-				return
-			}
-			if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM reviews WHERE id=?`, []any{reviewID}); err != nil {
-				a.result(w, "操作失败", err.Error(), false, &session)
-				return
-			}
-			deletedReview = true
+		if snapshot != nil {
 			// 该评价的其他 open 举报一并处理
 			if _, _, err := cloudflare.D1Query(ctx, `UPDATE review_reports SET status='resolved' WHERE review_id=?`, []any{reviewID}); err != nil {
 				a.result(w, "操作失败", err.Error(), false, &session)
@@ -875,10 +959,22 @@ func (a *AdminServer) resolveReport(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 
-	if deletedReview {
-		a.result(w, "举报已处理", fmt.Sprintf("已删除评价 #%d 及其投票，并标记相关举报为已处理。", reviewID), true, &session)
+	if snapshot != nil {
+		detail := fmt.Sprintf("处理举报 #%d：删除评价 #%d 及其投票（已移入回收站），并标记相关举报为已处理。", reportID, reviewID)
+		a.audit(ctx, r, auditEntry{
+			Action: auditResolveReport,
+			Target: fmt.Sprintf("report #%d / review #%d", reportID, reviewID),
+			Detail: detail,
+			Before: snapshot,
+		})
+		a.result(w, "举报已处理", detail+"可在回收站还原。", true, &session)
 		return
 	}
+	a.audit(ctx, r, auditEntry{
+		Action: auditResolveReport,
+		Target: fmt.Sprintf("report #%d", reportID),
+		Detail: fmt.Sprintf("将举报 #%d 标记为已处理，保留原评价。", reportID),
+	})
 	a.result(w, "举报已处理", fmt.Sprintf("已将举报 #%d 标记为已处理。", reportID), true, &session)
 }
 
@@ -902,21 +998,51 @@ func (a *AdminServer) purgeReviews(w http.ResponseWriter, r *http.Request, sessi
 		a.result(w, "清理失败", "不支持的删除维度", false, &session)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), D1RequestTimeout)
 	defer cancel()
 
-	count := 0
-	if rows, _, err := cloudflare.D1Query(ctx, `SELECT COUNT(*) AS n FROM reviews WHERE `+column+`=?`, []any{value}); err == nil && len(rows) > 0 {
-		count = reviewInt(rows[0], "n")
-	}
-	if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM reviews WHERE `+column+`=?`, []any{value}); err != nil {
+	// 批量清理同样走回收站——它是最容易误操作的入口（一个填错的教师号会一次删掉
+	// 几十条评价），恰恰最需要能退回来。逐条快照，条数天然很小。
+	rows, _, err := cloudflare.D1Query(ctx, `SELECT id FROM reviews WHERE `+column+`=?`, []any{value})
+	if err != nil {
 		a.result(w, "清理失败", err.Error(), false, &session)
 		return
 	}
-	if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM review_votes WHERE review_id NOT IN (SELECT id FROM reviews)`, nil); err != nil {
-		a.result(w, "清理失败", "评价已删除，但清理孤立投票失败："+err.Error(), false, &session)
+	if len(rows) == 0 {
+		a.result(w, "没有匹配的评价", fmt.Sprintf("没有找到 %s = %s 的评价，未做任何改动。", column, value), false, &session)
 		return
 	}
+	actor := actorOf(r)
+	deleted, failed := 0, 0
+	trashedIDs := make([]int, 0, len(rows))
+	for _, row := range rows {
+		id := reviewInt(row, "id")
+		snapshot, err := a.trashReview(ctx, actor, id, "purge")
+		if err != nil {
+			a.logger.Warn("批量清理时移入回收站失败", "reviewId", id, "error", err)
+			failed++
+			continue
+		}
+		if snapshot == nil {
+			continue
+		}
+		deleted++
+		trashedIDs = append(trashedIDs, id)
+	}
+	if _, _, err := cloudflare.D1Query(ctx, `DELETE FROM review_votes WHERE review_id NOT IN (SELECT id FROM reviews)`, nil); err != nil {
+		a.logger.Warn("清理孤立投票失败", "error", err)
+	}
+
 	label := map[string]string{"voter": "voter", "teacher": "教师号"}[field]
-	a.result(w, "批量清理完成", fmt.Sprintf("已删除 %s = %s 的 %d 条评价，并清理了对应的孤立投票。", label, value, count), true, &session)
+	detail := fmt.Sprintf("批量删除 %s = %s 的 %d 条评价，全部已移入回收站。", label, value, deleted)
+	if failed > 0 {
+		detail += fmt.Sprintf("另有 %d 条删除失败，仍保留在评价列表中。", failed)
+	}
+	a.audit(ctx, r, auditEntry{
+		Action: auditPurgeReviews,
+		Target: column + "=" + value,
+		Detail: detail,
+		Before: map[string]any{"review_ids": trashedIDs},
+	})
+	a.result(w, "批量清理完成", detail+"可在「评价管理 → 回收站」逐条还原。", failed == 0, &session)
 }

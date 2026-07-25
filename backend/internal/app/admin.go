@@ -25,25 +25,31 @@ type adminSession struct {
 	CSRF    string
 }
 type AdminServer struct {
-	env           Environment
-	config        *ConfigStore
-	enrollment    *EnrollmentService
-	live          *LiveStudentService
-	syncRunner    *SyncRunner
-	cloudflare    *CloudflarePagesClient
-	cloudflareMu  sync.RWMutex
-	logger        *slog.Logger
-	mu            sync.Mutex
+	env          Environment
+	config       *ConfigStore
+	enrollment   *EnrollmentService
+	live         *LiveStudentService
+	syncRunner   *SyncRunner
+	cloudflare   *CloudflarePagesClient
+	cloudflareMu sync.RWMutex
+	logger       *slog.Logger
+	mu           sync.Mutex
+	// adminPassword is the live panel password. It starts from the environment
+	// but 部署配置 can change it without a restart, so login() must read this
+	// rather than a.env.AdminPassword.
+	adminPassword string
 	sessions      map[string]adminSession
 	loginFailures int
 
 	namesMu   sync.Mutex
 	nameCache *reviewNameCache
 	namesAt   time.Time
+
+	schema d1SchemaState
 }
 
 func NewAdminServer(env Environment, config *ConfigStore, enrollment *EnrollmentService, live *LiveStudentService, syncRunner *SyncRunner, logger *slog.Logger) *AdminServer {
-	return &AdminServer{env: env, config: config, enrollment: enrollment, live: live, syncRunner: syncRunner, cloudflare: NewCloudflarePagesClient(env), logger: logger, sessions: map[string]adminSession{}}
+	return &AdminServer{env: env, config: config, enrollment: enrollment, live: live, syncRunner: syncRunner, cloudflare: NewCloudflarePagesClient(env), logger: logger, adminPassword: env.AdminPassword, sessions: map[string]adminSession{}}
 }
 func (a *AdminServer) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -57,7 +63,15 @@ func (a *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("/ai", a.auth(a.aiSettings))
 	mux.HandleFunc("/reviews", a.auth(a.reviewsPage))
 	mux.HandleFunc("/reviews/edit", a.auth(a.reviewEditPage))
+	mux.HandleFunc("/reviews/trash", a.auth(a.trashPage))
+	mux.HandleFunc("/reviews/audit", a.auth(a.auditPage))
 	mux.HandleFunc("/advanced", a.auth(a.advanced))
+	mux.HandleFunc("/deployment", a.auth(a.deployment))
+	mux.HandleFunc("/action/save-site", a.auth(a.saveSiteIdentity))
+	mux.HandleFunc("/action/save-cloudflare-all", a.auth(a.saveCloudflareAll))
+	mux.HandleFunc("/action/save-credentials", a.auth(a.saveCredentials))
+	mux.HandleFunc("/action/save-admin-password", a.auth(a.saveAdminPassword))
+	mux.HandleFunc("/action/restart-backend", a.auth(a.restartBackend))
 	mux.HandleFunc("/action/save-daily", a.auth(a.saveDaily))
 	mux.HandleFunc("/action/save-advanced", a.auth(a.saveAdvanced))
 	mux.HandleFunc("/action/sync", a.auth(a.startSync))
@@ -76,6 +90,8 @@ func (a *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("/action/save-captcha", a.auth(a.saveCaptcha))
 	mux.HandleFunc("/action/captcha-off", a.auth(a.disableCaptcha))
 	mux.HandleFunc("/action/moderate-review", a.auth(a.moderateReview))
+	mux.HandleFunc("/action/restore-review", a.auth(a.restoreReview))
+	mux.HandleFunc("/action/purge-trash", a.auth(a.purgeTrash))
 	mux.HandleFunc("/action/resolve-report", a.auth(a.resolveReport))
 	mux.HandleFunc("/action/save-d1", a.auth(a.saveD1Connection))
 	return recoverMiddleware(a.logger, mux)
@@ -129,11 +145,13 @@ func (a *AdminServer) login(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password")
 	a.mu.Lock()
 	fails := a.loginFailures
+	stored := a.adminPassword
 	a.mu.Unlock()
 	if fails >= 5 {
 		time.Sleep(3 * time.Second)
 	}
-	ok := a.env.AdminPassword != "" && len(password) == len(a.env.AdminPassword) && subtle.ConstantTimeCompare([]byte(password), []byte(a.env.AdminPassword)) == 1
+	// stored (not a.env.AdminPassword) — 部署配置 can rotate it without a restart.
+	ok := stored != "" && len(password) == len(stored) && subtle.ConstantTimeCompare([]byte(password), []byte(stored)) == 1
 	if !ok {
 		a.mu.Lock()
 		a.loginFailures++
@@ -400,7 +418,7 @@ func (a *AdminServer) renderStatus(w http.ResponseWriter, title, body string, st
 func layoutHTML(title, body string, session *adminSession) string {
 	nav := ""
 	if session != nil {
-		nav = `<nav><a href="/">总览</a><a href="/settings">日常设置</a><a href="/operations">自动构建</a><a href="/logs">日志</a><a href="/reviews">评价管理</a><a href="/ai">AI 配置</a><a href="/advanced">高级</a><form method="post" action="/logout"><input type="hidden" name="csrf" value="` + session.CSRF + `"><button class="link">退出</button></form></nav>`
+		nav = `<nav><a href="/">总览</a><a href="/settings">日常设置</a><a href="/operations">自动构建</a><a href="/logs">日志</a><a href="/reviews">评价管理</a><a href="/ai">AI 配置</a><a href="/deployment">部署</a><a href="/advanced">高级</a><form method="post" action="/logout"><input type="hidden" name="csrf" value="` + session.CSRF + `"><button class="link">退出</button></form></nav>`
 	}
 	return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>` + template.HTMLEscapeString(title) + ` · JXNU 后端</title><style>` + adminCSS + adminCSSFixes + `</style></head><body><header><strong>JXNU 后端</strong>` + nav + `</header><main>` + body + `</main><footer>Go ` + runtime.Version() + ` · 面板仅监听 VPS 回环地址</footer></body></html>`
 }

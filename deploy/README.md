@@ -10,9 +10,36 @@ VPS 后端已经收敛为一个 Go 二进制 `jxnu-backend`。它同时负责：
 
 常驻层不再运行 `kkap_service.py`、`live_service.py` 或 `admin_service.py`。Python 只保留为构建期数据流水线；`build_data.py` 的字段优先级和幂等规则不在这次迁移中改变。
 
+## Fork 自部署清单
+
+这套系统由三块拼成：Cloudflare Pages（前端 + Functions）、Cloudflare D1（评价/举报/开关）、
+一台 VPS（Go 后端 + 反向代理）。**源码里不再有任何指向上游作者域名或 Cloudflare 资源的默认值**，
+所以 fork 之后必须把下面这几处填成你自己的，否则对应功能直接不可用（而不是悄悄用了别人的）。
+
+先部署 VPS 后端（见下一节），登录面板 → **「部署配置」页**，那一页顶部有一张检查清单，
+逐项填完即可；下面这张表是它的文字版：
+
+| 在哪里改 | 改什么 | 不改的后果 |
+| --- | --- | --- |
+| 面板「部署配置 → 站点身份」 | 站点地址、后端对外地址 | 前端跨域被拒，实时人数与学号课表都取不到 |
+| 面板「部署配置 → Cloudflare 账号」 | Account ID / API Token / Pages 项目名 / D1 库 ID | 评价、举报、人机验证、AI 配置全部不可用 |
+| 面板「部署配置 → 教务账号与服务密钥」 | `XK_USERNAME` / `XK_PASSWORD` / `LIVE_SECRET` | 没有实时人数，学号导入拿不到实时课表 |
+| 面板「部署配置 → 面板自身」 | 管理密码 | 面板口令仍是安装时生成/继承的旧值 |
+| 仓库根目录 `.env` | `VITE_KKAP_API_URL` / `VITE_BACKEND_CONFIG_URL` | 前端不轮询实时人数（站点其余功能正常）。也可改用 Pages 控制台同名变量，优先级更高 |
+| 仓库 `wrangler.toml` | `name`（Pages 项目名）、`[[d1_databases]].database_id`（你自己的 D1 库）、`[vars] LIVE_URL` | 构建期绑定，会连到别人的库或不存在的服务 |
+| Cloudflare Pages secret | `LIVE_SECRET`（与 backend.env 里那个一致）、`AI_API_KEY` | 学号查询 403；AI 帮我选不可用 |
+| `deploy/Caddyfile.getxk` | 第一行域名换成你的后端域名 | 反向代理签不到证书 |
+
+D1 建表：把仓库根目录的 `d1_reviews_schema.sql`、`d1_schema.sql` 依次执行一遍
+（`npx wrangler d1 execute <你的库名> --remote --file=...`）。回收站与操作日志两张表
+（`d1_reviews_audit_migrate.sql`）由 Go 后端启动时自动创建，不用手动跑。
+
+面板「部署配置」页在你填完「后端对外地址」后，会直接把上表里 `.env`、`wrangler.toml`、
+Caddyfile 三段配置按你的域名生成出来，照抄即可。
+
 ## 进入管理面板
 
-在自己的电脑上运行，并保持这个终端窗口打开：
+在自己的电脑上运行，并保持这个终端窗口打开（`29HK` 换成你自己的 SSH 别名）：
 
 ```bash
 ssh -L 8790:127.0.0.1:8790 29HK

@@ -62,7 +62,9 @@ if [ ! -f "$ENV_FILE" ]; then
     printf 'REPO_DIR=%s\nBACKEND_CONFIG=%s\nSYNC_LOCK=%s\n' "$REPO_DIR" "$CONFIG_FILE" "$APP_DIR/sync.lock"
     printf 'ADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD_VALUE"
     printf 'XK_USERNAME=%s\nXK_PASSWORD=%s\nLIVE_SECRET=%s\n' "$XK_USERNAME_VALUE" "$XK_PASSWORD_VALUE" "$LIVE_SECRET_VALUE"
-    printf 'CF_ACCOUNT_ID=%s\nCF_API_TOKEN=%s\nCF_PAGES_PROJECT=jxnu-elective-plus\n' "$CF_ACCOUNT_VALUE" "$CF_TOKEN_VALUE"
+    # Pages 项目名与 D1 库 ID 不预填：它们指向某一个 Cloudflare 账号下的具体资源，
+    # 预填等于让新部署默认指向上游作者的项目。留空，进面板「部署配置」页填。
+    printf 'CF_ACCOUNT_ID=%s\nCF_API_TOKEN=%s\nCF_PAGES_PROJECT=\nCF_D1_DATABASE_ID=\n' "$CF_ACCOUNT_VALUE" "$CF_TOKEN_VALUE"
   } >"$ENV_FILE"
   chmod 600 "$ENV_FILE"
   if [ "$ADMIN_PASSWORD_GENERATED" = true ]; then

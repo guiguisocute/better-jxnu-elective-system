@@ -75,7 +75,7 @@ func TestConfigStoreMigratesLegacyAndDropsTrackedCourseFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if store.Get().Version != 5 {
+	if store.Get().Version != 6 {
 		t.Fatalf("migration result = %#v", store.Get())
 	}
 	updated, err := os.ReadFile(path)
@@ -182,7 +182,7 @@ func TestConfigStoreMigratesV4SharedTargetToStageTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := store.Get()
-	if cfg.Version != 5 || cfg.PreselectSemester != "2027-03" || cfg.SelectionSemester != "2027-03" || !cfg.SelectionCapacityEnabled || !strings.Contains(cfg.SelectionCapacityURL, "/Step2/") || cfg.MinSelectionSections != 4000 {
+	if cfg.Version != 6 || cfg.PreselectSemester != "2027-03" || cfg.SelectionSemester != "2027-03" || !cfg.SelectionCapacityEnabled || !strings.Contains(cfg.SelectionCapacityURL, "/Step2/") || cfg.MinSelectionSections != 4000 {
 		t.Fatalf("migration result = %#v", cfg)
 	}
 }
