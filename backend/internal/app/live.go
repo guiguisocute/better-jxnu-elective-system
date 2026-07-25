@@ -155,6 +155,37 @@ func (s *LiveStudentService) GetRecord(ctx context.Context, sid string) (map[str
 	return payload, nil
 }
 
+// RefreshRecord fetches one student straight from 教务 and rebuilds the record,
+// bypassing the short-lived whole-record cache. 固化学期 uses it: a batch that
+// served its own cached answers back to itself would persist nothing new.
+// It shares fetchMu with GetRecord, so a batch run and a user query can never
+// interleave their stateful postback sequences.
+func (s *LiveStudentService) RefreshRecord(ctx context.Context, sid string) (BuiltStudentRecord, error) {
+	if !regexp.MustCompile(`^\d{6,20}$`).MatchString(sid) {
+		return BuiltStudentRecord{}, fmt.Errorf("学号格式不正确")
+	}
+	cfg := s.config.Get()
+	s.fetchMu.Lock()
+	defer s.fetchMu.Unlock()
+	master, err := s.ensureMaster()
+	if err != nil {
+		return BuiltStudentRecord{}, err
+	}
+	aggregate, err := s.client.FetchStudent(ctx, sid, cfg.StudentScheduleTerm)
+	if err != nil {
+		s.setError(err)
+		return BuiltStudentRecord{}, err
+	}
+	built := BuildStudentRecord(sid, aggregate, master, cfg.FinalizedTerm)
+	s.mu.Lock()
+	s.lastError = ""
+	s.lastFetch = time.Now()
+	s.terms = append([]string(nil), aggregate.AvailableTerms...)
+	s.mu.Unlock()
+	s.termCache.Flush(false)
+	return built, nil
+}
+
 func (s *LiveStudentService) ensureMaster() (*MasterContext, error) {
 	path := filepath.Join(s.env.RepoDir, "data", "master", "courses.json")
 	info, err := os.Stat(path)

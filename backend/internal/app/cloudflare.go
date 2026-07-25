@@ -103,6 +103,18 @@ func cloudflareTransport() http.RoundTripper {
 	return transport
 }
 
+// ForDatabase returns a shallow copy pointed at another D1 database, reusing the
+// same credentials, HTTP client and connection pool. Needed because 学号快照 and
+// 评价数据 deliberately live in separate databases.
+func (c *CloudflarePagesClient) ForDatabase(databaseID string) *CloudflarePagesClient {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.d1DatabaseID = strings.TrimSpace(databaseID)
+	return &clone
+}
+
 func (c *CloudflarePagesClient) Ready() bool {
 	return c != nil && c.accountID != "" && c.apiToken != "" && c.project != ""
 }

@@ -284,23 +284,27 @@ func validateCapacityURL(value string) error {
 }
 
 type Environment struct {
-	ConfigPath       string
-	EnvFilePath      string
-	RepoDir          string
-	SyncLockPath     string
-	PublicAddr       string
-	LiveAddr         string
-	AdminAddr        string
-	AdminPassword    string
-	LiveSecret       string
-	XKUsername       string
-	XKPassword       string
-	CFAccountID      string
-	CFAPIToken       string
-	CFPagesProject   string
-	CFD1DatabaseID   string
-	GitSSHCommand    string
-	PythonExecutable string
+	ConfigPath     string
+	EnvFilePath    string
+	RepoDir        string
+	SyncLockPath   string
+	PublicAddr     string
+	LiveAddr       string
+	AdminAddr      string
+	AdminPassword  string
+	LiveSecret     string
+	XKUsername     string
+	XKPassword     string
+	CFAccountID    string
+	CFAPIToken     string
+	CFPagesProject string
+	CFD1DatabaseID string
+	// CFD1StudentsDatabaseID is the separate jxnu-students database (see
+	// wrangler.toml). 学号快照 lives there, not in the reviews database, so
+	// 固化学期 needs its own id to write snapshots back.
+	CFD1StudentsDatabaseID string
+	GitSSHCommand          string
+	PythonExecutable       string
 }
 
 func LoadEnvironment() Environment {
@@ -324,10 +328,11 @@ func LoadEnvironment() Environment {
 		// pointed at resources it has no access to, and the failure surfaced as
 		// a confusing auth error instead of "you haven't configured this yet".
 		// Both are set in 部署配置 / 评价管理, which writes them to backend.env.
-		CFPagesProject:   os.Getenv("CF_PAGES_PROJECT"),
-		CFD1DatabaseID:   os.Getenv("CF_D1_DATABASE_ID"),
-		GitSSHCommand:    os.Getenv("GIT_SSH_COMMAND"),
-		PythonExecutable: envOr("PYTHON", "python3"),
+		CFPagesProject:         os.Getenv("CF_PAGES_PROJECT"),
+		CFD1DatabaseID:         os.Getenv("CF_D1_DATABASE_ID"),
+		CFD1StudentsDatabaseID: os.Getenv("CF_D1_STUDENTS_DATABASE_ID"),
+		GitSSHCommand:          os.Getenv("GIT_SSH_COMMAND"),
+		PythonExecutable:       envOr("PYTHON", "python3"),
 	}
 }
 

@@ -19,11 +19,14 @@ type Servers struct {
 	sync       *SyncRunner
 	logger     *slog.Logger
 	admin      *AdminServer
+	finalize   *FinalizeService
 }
 
 func NewServers(env Environment, config *ConfigStore, enrollment *EnrollmentService, live *LiveStudentService, syncRunner *SyncRunner, logger *slog.Logger) *Servers {
 	servers := &Servers{env: env, config: config, enrollment: enrollment, live: live, sync: syncRunner, logger: logger}
 	servers.admin = NewAdminServer(env, config, enrollment, live, syncRunner, logger)
+	servers.finalize = NewFinalizeService(env, config, live, logger, servers.admin.cloudflareClient)
+	servers.admin.finalize = servers.finalize
 	return servers
 }
 

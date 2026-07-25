@@ -41,6 +41,7 @@ const (
 	auditCaptcha       = "captcha-config"
 	auditD1Connection  = "d1-connection"
 	auditDeployment    = "deployment-config"
+	auditFinalize      = "finalize-term"
 )
 
 var auditActionLabels = map[string]string{
@@ -56,6 +57,7 @@ var auditActionLabels = map[string]string{
 	auditCaptcha:       "人机验证配置",
 	auditD1Connection:  "D1 连接变更",
 	auditDeployment:    "部署配置变更",
+	auditFinalize:      "固化学期",
 }
 
 func auditActionLabel(action string) string {
@@ -211,7 +213,7 @@ func (a *AdminServer) auditPage(w http.ResponseWriter, r *http.Request, session 
 // auditActionOrder fixes the dropdown order (map iteration is random).
 var auditActionOrder = []string{
 	auditDeleteReview, auditRestoreReview, auditPurgeTrash, auditEditReview, auditCreateReview,
-	auditModerate, auditPurgeReviews, auditResolveReport, auditModeration, auditCaptcha, auditD1Connection, auditDeployment,
+	auditModerate, auditPurgeReviews, auditResolveReport, auditModeration, auditCaptcha, auditD1Connection, auditDeployment, auditFinalize,
 }
 
 func renderAuditRow(row map[string]any) string {

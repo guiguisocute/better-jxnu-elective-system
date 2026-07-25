@@ -45,7 +45,8 @@ type AdminServer struct {
 	nameCache *reviewNameCache
 	namesAt   time.Time
 
-	schema d1SchemaState
+	schema   d1SchemaState
+	finalize *FinalizeService
 }
 
 func NewAdminServer(env Environment, config *ConfigStore, enrollment *EnrollmentService, live *LiveStudentService, syncRunner *SyncRunner, logger *slog.Logger) *AdminServer {
@@ -72,6 +73,9 @@ func (a *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("/action/save-credentials", a.auth(a.saveCredentials))
 	mux.HandleFunc("/action/save-admin-password", a.auth(a.saveAdminPassword))
 	mux.HandleFunc("/action/restart-backend", a.auth(a.restartBackend))
+	mux.HandleFunc("/action/finalize-start", a.auth(a.startFinalize))
+	mux.HandleFunc("/action/finalize-pause", a.auth(a.pauseFinalize))
+	mux.HandleFunc("/action/finalize-cancel", a.auth(a.cancelFinalize))
 	mux.HandleFunc("/action/save-daily", a.auth(a.saveDaily))
 	mux.HandleFunc("/action/save-advanced", a.auth(a.saveAdvanced))
 	mux.HandleFunc("/action/sync", a.auth(a.startSync))
@@ -204,6 +208,14 @@ func (a *AdminServer) dashboard(w http.ResponseWriter, r *http.Request, session 
 	body := fmt.Sprintf(`<section class="hero"><div><p class="eyebrow">JXNU 选课 PLUS</p><h1>后端控制中心</h1><p>这里显示的是业务状态，不需要记端口、env 名或 systemd 命令。</p></div><a class="button" href="/settings">修改日常设置</a></section>
 <div class="grid three"><section class="card"><span class="status %s"></span><h2>实时人数</h2><p class="big">%s</p><p>%s · %d 个教学班</p></section><section class="card"><span class="status %s"></span><h2>学号实时课表</h2><p class="big">%s</p><p>缓存 %v 条 · %s</p></section><section class="card"><span class="status %s"></span><h2>自动同步</h2><p class="big">%s</p><p>%s</p></section></div>
 <section class="card"><h2>当前对外语义</h2><dl class="facts"><div><dt>网站默认打开</dt><dd>%s</dd></div><div><dt>实时人数</dt><dd>%s</dd></div><div><dt>生效采集管线</dt><dd>%s · %s<br><small>%s</small></dd></div><div><dt>学号课表查询</dt><dd>%s</dd></div></dl></section>`, okClass(enrollment.OK || liveTarget == ""), enrollmentState, liveTargetLabel, classCount(enrollment), okClass(boolValue(live["ok"])), map[bool]string{true: "可用", false: "未配置"}[boolValue(live["ok"])], live["cacheSize"], studentTermLabel(cfg.StudentScheduleTerm), okClass(syncStatus.State == "success" || syncStatus.State == "unchanged" || syncStatus.State == "waiting" || syncStatus.State == "never"), syncStateLabel(syncStatus.State), template.HTMLEscapeString(syncStatus.Message), dataSourceLabel(cfg.DefaultDataSource), liveTargetLabel, profile.Label, profile.Semester, academicTermLabel(profile.Semester), studentTermLabel(cfg.StudentScheduleTerm))
+	terms := AcademicTermOptions(SemesterOptions(a.env.RepoDir), cfg.FinalizedTerm, time.Now())
+	for _, term := range a.live.AvailableTerms() {
+		if !contains(terms, term) {
+			terms = append(terms, term)
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(terms)))
+	body += a.finalizeCard(session, cfg, terms)
 	a.render(w, "总览", body, &session)
 }
 func (a *AdminServer) settings(w http.ResponseWriter, r *http.Request, session adminSession) {
