@@ -515,7 +515,7 @@ export function HomePage() {
   const contentFilteredSections = useMemo(() => {
     if (!selectedSemester) return [];
     const f = filter.deferredFilters;
-    const search = f.search.toLowerCase();
+    const search = f.search.trim().toLowerCase();
     // 选中培养方案时，type/tag 过滤改用「该课在本方案下的有效 tag」，与预选口径一致。
     const tagsOf = (s: FormalSection): string[] => {
       if (!f.plan) return s.tags;

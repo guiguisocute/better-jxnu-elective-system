@@ -177,7 +177,8 @@ export function useCourseFilter(
   const filtered = useMemo(() => {
     const f = deferredFilters;
     let result = courses;
-    const search = f.search.toLowerCase();
+    // trim：复制粘贴课程号/教师名常带首尾空格，不 trim 会一个结果都搜不出来。
+    const search = f.search.trim().toLowerCase();
 
     if (search) {
       result = result.filter((c) => c._search.includes(search));
@@ -247,7 +248,7 @@ export function useCourseFilter(
   const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const hasActiveFilters =
-    filters.search !== "" ||
+    filters.search.trim() !== "" ||
     filters.credits.length > 0 ||
     filters.creditsExclude.length > 0 ||
     filters.dept.length > 0 ||
