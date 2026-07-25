@@ -63,6 +63,8 @@ func (s *Servers) Run(ctx context.Context) error {
 	for _, server := range []*http.Server{public, live, admin} {
 		_ = server.Shutdown(shutdownCtx)
 	}
+	// 同步落盘，不能交给 RunKeepAlive 的 ctx.Done 分支——那是和进程退出赛跑。
+	s.live.FlushTermCache()
 	return nil
 }
 

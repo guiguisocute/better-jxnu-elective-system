@@ -75,6 +75,9 @@ type JWCClient struct {
 	username string
 	password string
 	service  string
+	// termCache, when set, lets FetchStudent skip the ASP.NET postback for any
+	// past term it already has. Nil is valid and means "always fetch everything".
+	termCache *termCourseCache
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
@@ -138,6 +141,21 @@ func (c *JWCClient) hasCookieAt(base, name string) bool {
 		}
 	}
 	return false
+}
+
+// Ping performs one cheap authenticated GET to reset the ASP.NET session's idle
+// timer. It reports an error when the response shows the session already lapsed,
+// so the caller can log it; the next real query re-logs in either way.
+func (c *JWCClient) Ping(ctx context.Context) error {
+	_, body, err := c.do(ctx, http.MethodGet, jwcBase+"/", nil, nil)
+	if err != nil {
+		return err
+	}
+	if looksLoggedOut(body) {
+		c.resetSession()
+		return errors.New("教务会话已失效")
+	}
+	return nil
 }
 
 func (c *JWCClient) resetSession() {
@@ -385,9 +403,26 @@ func (c *JWCClient) FetchStudent(ctx context.Context, sid, targetTerm string) (S
 		}
 	}
 	pages[defaultValue] = pageData{details, table}
+
+	// 往期学期走缓存：它们的已修课程不会再变，而每翻一页都要一次有状态的 POST。
+	// planning 学期永远不查缓存（实时性就是这条链路的意义），defaultValue 那页也
+	// 已经由上面的 GET 拿到了。
+	cached := map[string][]DetailCourse{}
+	for _, sem := range included {
+		if sem.Value == planning.Value || sem.Value == defaultValue {
+			continue
+		}
+		if courses, ok := c.termCache.Get(sid, sem.Value); ok {
+			cached[sem.Value] = courses
+		}
+	}
+
 	currentHTML := html
 	for _, sem := range included {
 		if _, ok := pages[sem.Value]; ok {
+			continue
+		}
+		if _, ok := cached[sem.Value]; ok {
 			continue
 		}
 		var loaded bool
@@ -423,6 +458,10 @@ func (c *JWCClient) FetchStudent(ctx context.Context, sid, targetTerm string) (S
 			if className == "" {
 				className = pageClass
 			}
+			// 只缓存往期：planning 学期下次仍要实时拉。
+			if sem.Value != planning.Value {
+				c.termCache.Put(sid, sem.Value, pageDetails)
+			}
 			loaded = true
 		}
 		if !loaded {
@@ -438,11 +477,17 @@ func (c *JWCClient) FetchStudent(ctx context.Context, sid, targetTerm string) (S
 	var courses []DetailCourse
 	for i := len(included) - 1; i >= 0; i-- {
 		sem := included[i]
-		page, ok := pages[sem.Value]
+		// 缓存命中的往期与实时取回的页面在这里合流，顺序仍按 included 从旧到新，
+		// 所以 seenCourses 的「先出现者胜」去重语义与全量抓取时完全一致。
+		semDetails, ok := cached[sem.Value]
 		if !ok {
-			continue
+			page, hasPage := pages[sem.Value]
+			if !hasPage {
+				continue
+			}
+			semDetails = page.details
 		}
-		for _, detail := range page.details {
+		for _, detail := range semDetails {
 			if detail.CourseNo == "" || seenCourses[detail.CourseNo] {
 				continue
 			}

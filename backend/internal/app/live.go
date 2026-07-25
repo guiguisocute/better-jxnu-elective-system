@@ -27,6 +27,7 @@ type LiveStudentService struct {
 	fetchMu     sync.Mutex
 	mu          sync.RWMutex
 	cache       map[string]studentCacheEntry
+	termCache   *termCourseCache
 	master      *MasterContext
 	masterMTime time.Time
 	started     time.Time
@@ -36,7 +37,51 @@ type LiveStudentService struct {
 }
 
 func NewLiveStudentService(env Environment, config *ConfigStore, logger *slog.Logger) *LiveStudentService {
-	return &LiveStudentService{env: env, config: config, client: NewJWCClient(env.XKUsername, env.XKPassword), logger: logger, cache: map[string]studentCacheEntry{}, started: time.Now()}
+	client := NewJWCClient(env.XKUsername, env.XKPassword)
+	// 缓存文件与其它运行期状态放一起（enrollment_snapshot.json 等旁边）。
+	terms := newTermCourseCache(filepath.Join(filepath.Dir(env.ConfigPath), "student_terms.json"))
+	client.termCache = terms
+	return &LiveStudentService{env: env, config: config, client: client, logger: logger,
+		cache: map[string]studentCacheEntry{}, termCache: terms, started: time.Now()}
+}
+
+// keepAliveInterval pings the JWC while a session exists. The legacy ASP.NET app
+// expires sessions after ~20 minutes of inactivity, and re-logging in costs the
+// user a lot: a fetch that has to log in first measured 8.7s against 2.0s on a
+// live session — close enough to the Pages Function's 10s timeout that the site
+// silently falls back to the stale D1 snapshot instead of showing live data.
+const keepAliveInterval = 5 * time.Minute
+
+// RunKeepAlive holds the JWC session open and flushes the term cache. It never
+// logs in on its own: without a prior real query there is nothing to keep alive,
+// and an idle backend should not be hitting the school's login endpoint.
+func (s *LiveStudentService) RunKeepAlive(ctx context.Context) {
+	ticker := time.NewTicker(keepAliveInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			s.termCache.Flush(true)
+			return
+		case <-ticker.C:
+		}
+		s.termCache.Flush(true)
+		if !s.client.IsAuthed() {
+			continue
+		}
+		// fetchMu keeps the ping from interleaving with a real query's stateful
+		// postback sequence.
+		if !s.fetchMu.TryLock() {
+			continue
+		}
+		pingCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		err := s.client.Ping(pingCtx)
+		cancel()
+		s.fetchMu.Unlock()
+		if err != nil {
+			s.logger.Warn("教务会话保活失败，下次查询会重新登录", "error", err)
+		}
+	}
 }
 
 func (s *LiveStudentService) CheckSecret(value string) bool {
@@ -105,6 +150,8 @@ func (s *LiveStudentService) GetRecord(ctx context.Context, sid string) (map[str
 	s.lastFetch = time.Now()
 	s.terms = append([]string(nil), aggregate.AvailableTerms...)
 	s.mu.Unlock()
+	// 落盘有 30s 去抖，连续查询只写一次。
+	s.termCache.Flush(false)
 	return payload, nil
 }
 
@@ -141,9 +188,11 @@ func (s *LiveStudentService) setError(err error) {
 
 func (s *LiveStudentService) Health() map[string]any {
 	cfg := s.config.Get()
+	termStudents, termEntries, termHits, termMisses := s.termCache.Stats()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return map[string]any{"ok": s.env.XKUsername != "" && s.env.XKPassword != "", "authed": s.client.IsAuthed(), "cacheSize": len(s.cache), "ctxLoaded": s.master != nil,
+		"termCacheStudents": termStudents, "termCacheEntries": termEntries, "termCacheHits": termHits, "termCacheMisses": termMisses,
 		"uptimeSec": mathRound(time.Since(s.started).Seconds(), 1), "studentScheduleTerm": nullableString(cfg.StudentScheduleTerm), "termMode": map[bool]string{true: "auto", false: "fixed"}[cfg.StudentScheduleTerm == ""],
 		"availableTerms": s.terms, "lastError": nullableString(s.lastError), "lastFetchAt": nullableTime(s.lastFetch)}
 }
@@ -162,10 +211,20 @@ func nullableTime(value time.Time) any {
 	return value.UTC().Format(time.RFC3339)
 }
 
+// FlushTermCache writes the per-term cache to disk unconditionally. Called on
+// shutdown: the 30 s write debounce means a restart would otherwise drop every
+// term learned since the last write, and those are exactly the students who
+// would then pay full price on the next lookup.
+func (s *LiveStudentService) FlushTermCache() { s.termCache.Flush(true) }
+
+// ClearCache drops both the short-lived whole-record cache and the persistent
+// per-term one. The panel calls this after 日常设置 changes, which is also the
+// escape hatch if the registrar retroactively edits a past term's grades.
 func (s *LiveStudentService) ClearCache() {
 	s.mu.Lock()
 	s.cache = map[string]studentCacheEntry{}
 	s.mu.Unlock()
+	s.termCache.Clear()
 }
 func (s *LiveStudentService) AvailableTerms() []string {
 	s.mu.RLock()

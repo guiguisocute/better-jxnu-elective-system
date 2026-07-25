@@ -98,6 +98,8 @@ func main() {
 	enrollment := app.NewEnrollmentService(store, logger)
 	live := app.NewLiveStudentService(env, store, logger)
 	go enrollment.Run(ctx)
+	// 保住教务会话（省掉每次查询前的重新登录）并定期落盘按学期缓存。
+	go live.RunKeepAlive(ctx)
 	servers := app.NewServers(env, store, enrollment, live, syncRunner, logger)
 	if err := servers.Run(ctx); err != nil {
 		logger.Error("服务退出", "error", err)
