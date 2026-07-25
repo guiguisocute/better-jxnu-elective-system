@@ -330,6 +330,9 @@ export function RatingsPage() {
     next.set("view", v);
     setParams(next, { replace: false });
     setListDept("");
+    // 移动端上「广场 / 按课程 / 按老师」是三个互斥状态。不清掉 mobileFeed 的话，
+    // 在广场里点按课程/按老师只会换掉底下列表的视图，屏幕上仍停在广场，看起来像没反应。
+    setMobileFeed(false);
   };
 
   // ---- 右侧详情数据 ----

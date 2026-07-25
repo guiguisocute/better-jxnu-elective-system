@@ -11,6 +11,8 @@ const SLOT_LABEL: Record<string, string> = {
 interface Props {
   filter: ScheduleFilterMap;
   cycleCell: (day: number, slot: string) => void;
+  /** 整行/整列一次性切换（点表头用）。 */
+  cycleCells: (keys: string[]) => void;
   removeCell: (day: number, slot: string) => void;
   clear: () => void;
   active: boolean;
@@ -36,7 +38,7 @@ function cellCls(state: CellAppearance): string {
 }
 
 export function ScheduleFilter({
-  filter, cycleCell, removeCell, clear, active, cellCounts = {},
+  filter, cycleCell, cycleCells, removeCell, clear, active, cellCounts = {},
   selectedCells = [], showExcludeSelected = false, selectedExcluded = false, onToggleExcludeSelected,
 }: Props) {
   // 行序：1-2 / 3 / 4 / 5 /（中午分隔）/ 6-7 / 8-9 / 晚上
@@ -45,6 +47,22 @@ export function ScheduleFilter({
     if (s === "6-7") rows.push({ kind: "lunch" });
     rows.push({ kind: "slot", slot: s });
   }
+
+  const columnKeys = (day: number) => SLOT_KEYS.map((s) => `${day},${s}`);
+  const rowKeys = (slot: string) => Array.from({ length: DAYS }, (_, d) => `${d},${slot}`);
+
+  /** 一组格子整体处于什么状态（用于表头高亮）；未统一时算 "none"。 */
+  const groupState = (keys: string[]): CellAppearance => {
+    if (keys.every((k) => filter[k] === "include")) return "include";
+    if (keys.every((k) => filter[k] === "exclude")) return "exclude";
+    return "none";
+  };
+
+  const headerCls = (state: CellAppearance): string => {
+    if (state === "include") return "bg-red-500 text-white fltgrid-occ";
+    if (state === "exclude") return "bg-gray-200/80 text-gray-400 line-through decoration-gray-400 fltgrid-cell-ex";
+    return "text-gray-600 fltgrid-day hover:bg-red-100/60";
+  };
 
   return (
     <div>
@@ -97,7 +115,14 @@ export function ScheduleFilter({
           <div className="shrink-0 w-7" />
           <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)`, gap: 2, padding: 2 }}>
             {DAY_LABELS.slice(0, DAYS).map((d, i) => (
-              <div key={i} className="flex items-center justify-center text-[10px] text-gray-600 fltgrid-day font-medium py-0.5">周{d}</div>
+              <button
+                key={i}
+                onClick={() => cycleCells(columnKeys(i))}
+                title={`整列切换：周${d}全天`}
+                className={`flex items-center justify-center text-[10px] font-medium py-0.5 rounded cursor-pointer transition-colors ${headerCls(groupState(columnKeys(i)))}`}
+              >
+                周{d}
+              </button>
             ))}
           </div>
         </div>
@@ -115,9 +140,17 @@ export function ScheduleFilter({
               </div>
             ) : (
               <div key={row.slot} className="flex" style={{ gap: 2 }}>
-                <div className="shrink-0 w-7 flex items-center justify-center text-[9px] font-mono text-gray-400 bg-gray-50/70 rounded fltgrid-slot">
+                <button
+                  onClick={() => cycleCells(rowKeys(row.slot))}
+                  title={`整行切换：全周 ${SLOT_LABEL[row.slot]}`}
+                  className={`shrink-0 w-7 flex items-center justify-center text-[9px] font-mono rounded cursor-pointer transition-colors ${
+                    groupState(rowKeys(row.slot)) === "none"
+                      ? "text-gray-400 bg-gray-50/70 hover:bg-red-100/60 fltgrid-slot"
+                      : headerCls(groupState(rowKeys(row.slot)))
+                  }`}
+                >
                   {SLOT_LABEL[row.slot]}
-                </div>
+                </button>
                 <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)`, gap: 2 }}>
                   {Array.from({ length: DAYS }).map((_, d) => {
                     const key = `${d},${row.slot}`;
@@ -172,7 +205,7 @@ export function ScheduleFilter({
             <span className="line-through decoration-gray-400">排除该时间段</span>
           </span>
         </div>
-        <p className="text-gray-400">点击课表循环切换</p>
+        <p className="text-gray-400">点击格子循环切换 · 点「周X」切整列、点左侧节次切整行</p>
       </div>
 
       {/* 活动格子 chip */}

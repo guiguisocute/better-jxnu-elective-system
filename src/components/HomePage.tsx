@@ -1010,6 +1010,7 @@ export function HomePage() {
                 <ScheduleFilter
                   filter={schedule.filter}
                   cycleCell={schedule.cycleCell}
+                  cycleCells={schedule.cycleCells}
                   removeCell={schedule.removeCell}
                   clear={schedule.clear}
                   active={schedule.active}
@@ -1075,6 +1076,7 @@ export function HomePage() {
                 <ScheduleFilter
                   filter={schedule.filter}
                   cycleCell={schedule.cycleCell}
+                  cycleCells={schedule.cycleCells}
                   removeCell={schedule.removeCell}
                   clear={schedule.clear}
                   active={schedule.active}
@@ -1191,6 +1193,7 @@ export function HomePage() {
                   <ScheduleFilter
                     filter={schedule.filter}
                     cycleCell={schedule.cycleCell}
+                    cycleCells={schedule.cycleCells}
                     removeCell={schedule.removeCell}
                     clear={schedule.clear}
                     active={schedule.active}
