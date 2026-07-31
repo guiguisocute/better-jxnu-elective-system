@@ -722,7 +722,7 @@ export function RatingsPage() {
                       <ReviewCard
                         row={r}
                         courseLabel={feedLabelOf(r)}
-                        onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
+                        onToggleHelpful={(id) => void toggleHelpful(id)}
                         onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
                       />
                     )}
@@ -808,7 +808,7 @@ export function RatingsPage() {
                             ? courseLinkOf(r.courseId)
                             : <>{teacherLinkOf(r.teacherId)} 老师</>
                         }
-                        onToggleHelpful={(id) => void toggleHelpful(id, getVoterId())}
+                        onToggleHelpful={(id) => void toggleHelpful(id)}
                         onEditMine={r.mine ? () => openSheetForTeacher(r.teacherId, r.courseId) : undefined}
                       />
                     )}

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -118,7 +119,7 @@ func (s *LiveStudentService) GetRecord(ctx context.Context, sid string) (map[str
 	}
 	aggregate, err := s.client.FetchStudent(ctx, sid, cfg.StudentScheduleTerm)
 	if err != nil {
-		s.setError(err)
+		s.setError(err, sid)
 		return nil, err
 	}
 	built := BuildStudentRecord(sid, aggregate, master, cfg.FinalizedTerm)
@@ -173,7 +174,7 @@ func (s *LiveStudentService) RefreshRecord(ctx context.Context, sid string) (Bui
 	}
 	aggregate, err := s.client.FetchStudent(ctx, sid, cfg.StudentScheduleTerm)
 	if err != nil {
-		s.setError(err)
+		s.setError(err, sid)
 		return BuiltStudentRecord{}, err
 	}
 	built := BuildStudentRecord(sid, aggregate, master, cfg.FinalizedTerm)
@@ -230,12 +231,37 @@ func (s *LiveStudentService) ensureMaster() (*MasterContext, error) {
 	return loaded, nil
 }
 
-func (s *LiveStudentService) setError(err error) {
+func (s *LiveStudentService) setError(err error, sid string) {
+	message := redactStudentID(err.Error(), sid)
 	s.mu.Lock()
-	s.lastError = err.Error()
+	s.lastError = message
 	s.lastFetch = time.Now()
 	s.mu.Unlock()
-	s.logger.Error("学号实时课表查询失败", "error", err)
+	s.logger.Error("学号实时课表查询失败", "student", maskedStudentID(sid), "error", message)
+}
+
+func maskedStudentID(sid string) string {
+	if len(sid) <= 4 {
+		return "****"
+	}
+	return sid[:4] + "****"
+}
+
+func redactStudentID(message, sid string) string {
+	if sid == "" {
+		return message
+	}
+	variants := []string{
+		sid,
+		base64.StdEncoding.EncodeToString([]byte(sid)),
+		base64.RawStdEncoding.EncodeToString([]byte(sid)),
+		base64.URLEncoding.EncodeToString([]byte(sid)),
+		base64.RawURLEncoding.EncodeToString([]byte(sid)),
+	}
+	for _, variant := range variants {
+		message = strings.ReplaceAll(message, variant, "[student-id]")
+	}
+	return message
 }
 
 func (s *LiveStudentService) Health() map[string]any {

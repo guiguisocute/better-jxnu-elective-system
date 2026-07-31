@@ -8,7 +8,7 @@
 数据源默认读本地 studentjson/out/*.sql（与 D1 同构）。
 
 用法:
-  python tools/gen_credit_audit.py 999999999999            # 打印到 stdout
+  python tools/gen_credit_audit.py 999999999999            # 打印到 stdout（虚构示例）
   python tools/gen_credit_audit.py 999999999999 -o out.md  # 同时落档
 """
 import argparse

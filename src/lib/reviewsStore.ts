@@ -222,7 +222,7 @@ function patchReviewRow(reviewId: number, patch: (r: ReviewRow) => ReviewRow) {
   notify();
 }
 
-export async function toggleHelpful(reviewId: number, voterId: string) {
+export async function toggleHelpful(reviewId: number) {
   if (helpfulInFlight.has(reviewId)) return;
   helpfulInFlight.add(reviewId);
   const flip = (r: ReviewRow): ReviewRow => ({
@@ -235,7 +235,7 @@ export async function toggleHelpful(reviewId: number, voterId: string) {
     const res = await fetch("/api/reviews/helpful", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reviewId, voterId }),
+      body: JSON.stringify({ reviewId }),
     });
     const data = await readJson<{ ok?: boolean; helpful?: number; voted?: boolean }>(res, {});
     if (data.ok && typeof data.helpful === "number") {
@@ -255,7 +255,6 @@ export type ReportReviewResult = "ok" | "verification" | "error";
 /** 举报一条评价（一人一条一次，重复幂等）。先完成人机验证，再发 POST。 */
 export async function reportReview(
   reviewId: number,
-  voterId: string,
   reason: string,
   captchaToken = "",
 ): Promise<ReportReviewResult> {
@@ -265,7 +264,6 @@ export async function reportReview(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         reviewId,
-        voterId,
         reason: reason.trim().slice(0, 200) || undefined,
         captchaToken: captchaToken || null,
       }),

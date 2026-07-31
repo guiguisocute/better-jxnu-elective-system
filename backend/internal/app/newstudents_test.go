@@ -12,9 +12,9 @@ func TestGradePrefix(t *testing.T) {
 
 func TestIsStudentID(t *testing.T) {
 	for input, want := range map[string]bool{
-		"202226701001": true,
+		"999999999999": true,  // 明显虚构的有效格式
 		"12345":        false, // 太短
-		"2022267O1001": false, // 字母 O 冒充 0
+		"999999O99999": false, // 字母 O 冒充 0
 		"":             false,
 		"合计":           false,
 	} {
@@ -47,8 +47,8 @@ func TestEvenSampleSpreadsAcrossList(t *testing.T) {
 func TestRosterColumnLookupByHeader(t *testing.T) {
 	page := `<html><body><table id="_ctl1_dgContent">
 	<tr><td>所在单位</td><td>班级名称</td><td>姓名</td><td>学号</td><td>性别</td><td>操作</td></tr>
-	<tr><td>人工智能学院</td><td>22级软件工程班</td><td>张三</td><td>202226701001</td><td>男</td><td>课表</td></tr>
-	<tr><td>人工智能学院</td><td>22级软件工程班</td><td>李四</td><td>202226701002</td><td>女</td><td>课表</td></tr>
+	<tr><td>人工智能学院</td><td>22级软件工程班</td><td>张三</td><td>999999999998</td><td>男</td><td>课表</td></tr>
+	<tr><td>人工智能学院</td><td>22级软件工程班</td><td>李四</td><td>999999999999</td><td>女</td><td>课表</td></tr>
 	</table></body></html>`
 	doc, err := parseHTML(page)
 	if err != nil {

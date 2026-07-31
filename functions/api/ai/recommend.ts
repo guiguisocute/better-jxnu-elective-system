@@ -10,6 +10,8 @@
 //   4. 上游一次 + 坏 JSON 重试一次 → 502 upstream（不透传上游原文全文，截 200 字防 key 相关信息泄漏）
 //   5. 服务端复核：pick.cid 必须出现在某候选行行首，否则丢弃该 pick
 
+import { abuseActor } from "../../lib/abuseIdentity";
+
 interface Env {
   DB: D1Database;
   AI_BASE_URL?: string;
@@ -22,6 +24,7 @@ interface Env {
   AI_VOTER_DAILY?: string;       // 每 voter 每日次数上限（默认 10）
   AI_SITE_DAILY_CALLS?: string;  // 全站每日次数上限（默认 300）
   AI_SITE_DAILY_TOKENS?: string; // 全站每日 token 熔断（默认 2,000,000）
+  ABUSE_ID_SECRET?: string;      // 服务端匿名配额作用域 HMAC 密钥
 }
 
 // ---------- 与 src/lib/ai/types.ts 同步维护 ----------
@@ -35,7 +38,6 @@ const PREFERENCE_MAX_CHARS = 500;
 const CONTEXT_MAX_CHARS = 4000;
 
 interface AiRecommendRequest {
-  voterId: string;
   plan: string;
   context: string;
   candidates: string;
@@ -54,7 +56,8 @@ type AiErrorCode =
   | "quota_site"
   | "budget"
   | "upstream"
-  | "disabled";
+  | "disabled"
+  | "configuration";
 
 // ---------- 服务端本地常量 ----------
 
@@ -74,7 +77,6 @@ const DEFAULT_MAX_OUTPUT_TOKENS = 1500;
 const DEFAULT_UPSTREAM_TIMEOUT_SECONDS = 60;
 const SYSTEM_PROMPT_MAX_CHARS = 12_000;
 
-const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const CID_RE = /^[0-9A-Za-z]{4,12}$/;
 
 // ---------- 小工具 ----------
@@ -338,9 +340,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   } catch {
     return errResponse(400, "bad_request", "JSON 解析失败");
   }
-  const { voterId, plan, context: ctx, candidates, preference } = body;
+  const { plan, context: ctx, candidates, preference } = body;
   if (
-    typeof voterId !== "string" || !UUID_RE.test(voterId) ||
     typeof plan !== "string" || plan.length === 0 || plan.length > PLAN_MAX_CHARS ||
     typeof ctx !== "string" || ctx.length > CONTEXT_MAX_CHARS ||
     typeof preference !== "string" || preference.length > PREFERENCE_MAX_CHARS ||
@@ -355,8 +356,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   // 3) 配额原子预扣（UTC 日期；先 +1 再判，防并发绕过）
+  const actor = await abuseActor(request, env, "ai");
+  if (!actor) {
+    return errResponse(503, "configuration", "匿名配额服务未配置");
+  }
   const day = new Date().toISOString().slice(0, 10);
-  const voterScope = `voter:${voterId.toLowerCase()}`;
+  const voterScope = `actor:${actor}`;
   const upsertSql =
     "INSERT INTO ai_usage (day, scope, calls, tokens) VALUES (?, ?, 1, 0) " +
     "ON CONFLICT(day, scope) DO UPDATE SET calls = calls + 1 RETURNING calls, tokens";
@@ -387,7 +392,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   // 4) + 5) 调上游（坏 JSON 追加提示重试一次）
-  const req: AiRecommendRequest = { voterId, plan, context: ctx, candidates, preference };
+  const req: AiRecommendRequest = { plan, context: ctx, candidates, preference };
   const baseMessages: ChatMessage[] = [
     { role: "system", content: systemPrompt(env) },
     { role: "user", content: buildUserMessage(req) },

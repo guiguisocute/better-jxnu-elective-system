@@ -1,7 +1,21 @@
 getxk.jxnu-publish.asia {
 	encode zstd gzip
-	handle_path /cap/* {
+	# Only Cap's browser asset and per-site verification API are public.
+	# The root/admin UI remains reachable exclusively through an SSH tunnel.
+	handle /cap/assets/cap_wasm_bg.wasm {
+		uri strip_prefix /cap
 		reverse_proxy 127.0.0.1:3000
+	}
+	@cap_site_api path_regexp cap_site_api ^/cap/[^/]+/(challenge|redeem|siteverify)/?$
+	handle @cap_site_api {
+		uri strip_prefix /cap
+		reverse_proxy 127.0.0.1:3000
+	}
+	handle /cap {
+		respond "not found" 404
+	}
+	handle /cap/* {
+		respond "not found" 404
 	}
 	handle_path /live/* {
 		reverse_proxy 127.0.0.1:8788

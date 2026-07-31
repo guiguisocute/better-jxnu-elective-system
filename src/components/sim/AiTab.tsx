@@ -8,7 +8,6 @@ import type { Course, FormalSection, PlanCourse } from "../../types";
 import type { CreditPlanView } from "../../lib/creditPlan";
 import { enrollYear, isTestSemester, termToCalLabel } from "../../lib/term";
 import type { PlanBundle } from "../../lib/planShare";
-import { getVoterId } from "../../lib/voter";
 import { buildAiCandidateBundle, candidateSectionsOf, formatSlots, resolveCandidateSemester } from "../../lib/ai/candidates";
 import { validateAiPicks, projectSelection, buildBundlePatch, type AiValidateContext } from "../../lib/ai/validate";
 import { requestAiRecommend } from "../../lib/ai/client";
@@ -218,7 +217,6 @@ export function AiTab({
     abortRef.current = controller;
     const res = await requestAiRecommend(
       {
-        voterId: getVoterId(),
         plan: selectedPlan,
         context: bundle.context,
         candidates: bundle.candidates,

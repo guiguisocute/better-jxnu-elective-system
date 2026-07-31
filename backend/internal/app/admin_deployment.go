@@ -129,7 +129,11 @@ func frontendWiringCard(cfg RuntimeConfig) string {
 		"LIVE_URL = \"" + backend + "/live/student-record\"\n"
 	caddyBlock := host + " {\n" +
 		"\tencode zstd gzip\n" +
-		"\thandle_path /cap/* {\n\t\treverse_proxy 127.0.0.1:3000\n\t}\n" +
+		"\thandle /cap/assets/cap_wasm_bg.wasm {\n\t\turi strip_prefix /cap\n\t\treverse_proxy 127.0.0.1:3000\n\t}\n" +
+		"\t@cap_site_api path_regexp cap_site_api ^/cap/[^/]+/(challenge|redeem|siteverify)/?$\n" +
+		"\thandle @cap_site_api {\n\t\turi strip_prefix /cap\n\t\treverse_proxy 127.0.0.1:3000\n\t}\n" +
+		"\thandle /cap {\n\t\trespond \"not found\" 404\n\t}\n" +
+		"\thandle /cap/* {\n\t\trespond \"not found\" 404\n\t}\n" +
 		"\thandle_path /live/* {\n\t\treverse_proxy " + DefaultLiveAddr + "\n\t}\n" +
 		"\thandle {\n\t\treverse_proxy " + DefaultPublicAddr + "\n\t}\n" +
 		"\theader {\n\t\tX-Frame-Options DENY\n\t\tReferrer-Policy no-referrer\n\t}\n}\n"

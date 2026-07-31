@@ -20,6 +20,7 @@ master 数据读仓库 ~/better-jxnu-elective-system/data/master（kkap-schedule
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
 import os
 import signal
@@ -27,7 +28,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 import requests
 
@@ -37,6 +38,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(REPO, "tools"))
 import jwc_schedule as J  # noqa: E402
 import student_record_lib as L  # noqa: E402
+
+
+def masked_student_id(sid: str) -> str:
+    return f"{sid[:4]}****" if len(sid) > 4 else "****"
+
+
+def redact_student_id(message: str, sid: str) -> str:
+    raw = sid.encode()
+    variants = {
+        sid,
+        base64.b64encode(raw).decode(),
+        base64.b64encode(raw).decode().rstrip("="),
+        base64.urlsafe_b64encode(raw).decode(),
+        base64.urlsafe_b64encode(raw).decode().rstrip("="),
+    }
+    for value in variants:
+        message = message.replace(value, "[student-id]")
+    return message
 
 MASTER_DIR = os.path.join(REPO, "data", "master")
 requests.packages.urllib3.disable_warnings()  # type: ignore[attr-defined]
@@ -119,15 +138,22 @@ def make_handler(service: Service, secret: str):
         server_version = "JXNU-Live/1.0"
 
         def log_message(self, fmt: str, *args: object) -> None:
-            print(f"[{self.log_date_time_string()}] {self.address_string()} {fmt % args}")
+            # BaseHTTPRequestHandler's default message includes the raw request
+            # target. Log only the path so query values can never leak here.
+            status = args[1] if len(args) > 1 else "-"
+            size = args[2] if len(args) > 2 else "-"
+            path = urlparse(self.path).path
+            print(f"[{self.log_date_time_string()}] {self.address_string()} {self.command} {path} {status} {size}")
 
-        def _send(self, payload: dict, status: int = 200) -> None:
+        def _send(self, payload: dict, status: int = 200, headers: dict[str, str] | None = None) -> None:
             raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(raw)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
+            for name, value in (headers or {}).items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(raw)
 
@@ -140,22 +166,45 @@ def make_handler(service: Service, secret: str):
                 return
 
             if path == "/student-record":
-                # secret 门禁：公网直连挡掉。
-                if secret and self.headers.get("X-Live-Secret") != secret:
-                    self._send({"error": "forbidden"}, 403)
-                    return
-                sid = (parse_qs(parsed.query).get("sid", [""])[0] or "").strip()
-                if not sid or not sid.isdigit():
-                    self._send({"error": "sid required"}, 400)
-                    return
-                try:
-                    self._send(service.get_record(sid))
-                except Exception as exc:  # 抓取/登录失败 → 502，让 CF 回落 D1。
-                    print(f"[error] sid={sid}: {type(exc).__name__}: {exc}")
-                    self._send({"error": f"{type(exc).__name__}: {exc}"}, 502)
+                self._send({"error": "method not allowed"}, 405, {"Allow": "POST"})
                 return
 
-            self._send({"service": "jxnu-live", "endpoints": ["/healthz", "/student-record?sid="]}, 404)
+            self._send({"service": "jxnu-live", "endpoints": ["/healthz", "POST /student-record"]}, 404)
+
+        def do_POST(self) -> None:  # noqa: N802
+            parsed = urlparse(self.path)
+            path = (parsed.path.rstrip("/") or "/")
+            if path != "/student-record":
+                self._send({"error": "not found"}, 404)
+                return
+            if parsed.query:
+                self._send({"error": "query parameters are not allowed"}, 400)
+                return
+            if secret and self.headers.get("X-Live-Secret") != secret:
+                self._send({"error": "forbidden"}, 403)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length <= 0 or length > 4096:
+                self._send({"error": "invalid request body"}, 400)
+                return
+            try:
+                body = json.loads(self.rfile.read(length))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                self._send({"error": "invalid request body"}, 400)
+                return
+            sid = body.get("sid", "").strip() if isinstance(body, dict) and set(body) == {"sid"} and isinstance(body.get("sid"), str) else ""
+            if not 6 <= len(sid) <= 20 or not sid.isascii() or not sid.isdigit():
+                self._send({"error": "invalid request body"}, 400)
+                return
+            try:
+                self._send(service.get_record(sid))
+            except Exception as exc:  # 抓取/登录失败 → 502，让 CF 回落 D1。
+                message = redact_student_id(f"{type(exc).__name__}: {exc}", sid)
+                print(f"[error] student={masked_student_id(sid)}: {message}")
+                self._send({"error": "upstream unavailable"}, 502)
 
     return Handler
 

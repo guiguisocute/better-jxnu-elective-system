@@ -1,8 +1,11 @@
+import { abuseActor } from "../../lib/abuseIdentity";
+
 interface Env {
   DB: D1Database;
+  ABUSE_ID_SECRET?: string;
 }
 
-// POST /api/reviews/helpful — 「有用」投票 toggle。body: { reviewId, voterId }
+// POST /api/reviews/helpful — 「有用」投票 toggle。body: { reviewId }
 // 已投 → 取消；未投 → 记一票。返回 { ok, helpful, voted }。
 
 async function readBody<T>(request: Request): Promise<T | null> {
@@ -14,14 +17,15 @@ async function readBody<T>(request: Request): Promise<T | null> {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const body = await readBody<{ reviewId: number; voterId: string }>(context.request);
+  const body = await readBody<{ reviewId: number }>(context.request);
   if (!body) return Response.json({ error: "invalid json" }, { status: 400 });
-  const { reviewId, voterId } = body;
+  const { reviewId } = body;
   if (!Number.isInteger(reviewId) || reviewId <= 0) {
     return Response.json({ error: "reviewId invalid" }, { status: 400 });
   }
-  if (typeof voterId !== "string" || voterId.length === 0 || voterId.length > 64) {
-    return Response.json({ error: "voterId invalid" }, { status: 400 });
+  const voterId = await abuseActor(context.request, context.env, "helpful");
+  if (!voterId) {
+    return Response.json({ error: "abuse identity unavailable" }, { status: 503 });
   }
 
   const db = context.env.DB;

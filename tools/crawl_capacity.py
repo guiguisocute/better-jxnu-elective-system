@@ -13,7 +13,7 @@ xk.jxnu.edu.cn 正选实时容量爬虫
 只读 GET，不发任何 POST 选课。
 
 用法:
-  python tools/crawl_capacity.py -u 999999999999 -p 'xxx' --sem 2026-09
+  python tools/crawl_capacity.py -u 999999999999 -p 'xxx' --sem 2026-09  # 虚构账号示例
   探针(只测登录+阶段+前N门):  ... --probe 3
   免手填账号密码(定时任务用): 设环境变量 XK_USERNAME / XK_PASSWORD 后不传 -u/-p
 """

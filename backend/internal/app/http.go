@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -86,12 +87,12 @@ func (s *Servers) publicHandler() http.Handler {
 		if !methodAllowed(w, r, http.MethodGet) {
 			return
 		}
-		_, health, ok := s.enrollment.Responses()
+		_, _, ok := s.enrollment.Responses()
 		status := http.StatusOK
 		if !ok {
 			status = http.StatusServiceUnavailable
 		}
-		s.writeEncoded(w, r, health, status, true)
+		writeJSON(w, map[string]bool{"ok": ok}, status, s.corsOrigin(r))
 	})
 	mux.HandleFunc("/api/enrollments", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -143,30 +144,65 @@ func (s *Servers) liveHandler() http.Handler {
 		if !methodAllowed(w, r, http.MethodGet) {
 			return
 		}
-		writeJSON(w, s.live.Health(), http.StatusOK, "")
+		ok := s.live.env.XKUsername != "" && s.live.env.XKPassword != ""
+		status := http.StatusOK
+		if !ok {
+			status = http.StatusServiceUnavailable
+		}
+		writeJSON(w, map[string]bool{"ok": ok}, status, "")
 	})
 	mux.HandleFunc("/student-record", func(w http.ResponseWriter, r *http.Request) {
-		if !methodAllowed(w, r, http.MethodGet) {
+		if !methodAllowed(w, r, http.MethodPost) {
+			return
+		}
+		if r.URL.RawQuery != "" {
+			writeJSON(w, map[string]any{"error": "query parameters are not allowed"}, http.StatusBadRequest, "")
 			return
 		}
 		if !s.live.CheckSecret(r.Header.Get("X-Live-Secret")) {
 			writeJSON(w, map[string]any{"error": "forbidden"}, http.StatusForbidden, "")
 			return
 		}
-		sid := strings.TrimSpace(r.URL.Query().Get("sid"))
+		sid, err := decodeStudentRecordRequest(w, r)
+		if err != nil {
+			writeJSON(w, map[string]any{"error": "invalid request body"}, http.StatusBadRequest, "")
+			return
+		}
 		requestCtx, cancel := context.WithTimeout(r.Context(), 75*time.Second)
 		defer cancel()
 		payload, err := s.live.GetRecord(requestCtx, sid)
 		if err != nil {
-			writeJSON(w, map[string]any{"error": err.Error()}, http.StatusBadGateway, "")
+			writeJSON(w, map[string]any{"error": "upstream unavailable"}, http.StatusBadGateway, "")
 			return
 		}
 		writeJSON(w, payload, http.StatusOK, "")
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, map[string]any{"service": "jxnu-live", "endpoints": []string{"/healthz", "/student-record?sid="}}, http.StatusNotFound, "")
+		writeJSON(w, map[string]any{"service": "jxnu-live", "endpoints": []string{"/healthz", "POST /student-record"}}, http.StatusNotFound, "")
 	})
 	return recoverMiddleware(s.logger, mux)
+}
+
+const maxStudentRecordRequestBytes = 4 << 10
+
+func decodeStudentRecordRequest(w http.ResponseWriter, r *http.Request) (string, error) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxStudentRecordRequestBytes)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	var body struct {
+		SID string `json:"sid"`
+	}
+	if err := decoder.Decode(&body); err != nil {
+		return "", err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return "", errors.New("request body must contain one JSON object")
+	}
+	body.SID = strings.TrimSpace(body.SID)
+	if !isStudentID(body.SID) {
+		return "", errors.New("invalid student ID")
+	}
+	return body.SID, nil
 }
 
 func (s *Servers) corsOrigin(r *http.Request) string {

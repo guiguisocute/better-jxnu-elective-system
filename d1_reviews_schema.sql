@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS review_reports (
 CREATE INDEX IF NOT EXISTS idx_review_reports_status ON review_reports(status);
 CREATE INDEX IF NOT EXISTS idx_review_reports_review ON review_reports(review_id);
 
--- 「有用」投票（评价卡右下角 👍）。一人一票，重复 POST = 取消（toggle）。
+-- 「有用」投票（评价卡右下角 👍）。voter_id 存服务端 HMAC 匿名作用域；重复 POST = 取消（toggle）。
 CREATE TABLE IF NOT EXISTS review_votes (
   review_id INTEGER NOT NULL,
   voter_id  TEXT NOT NULL,

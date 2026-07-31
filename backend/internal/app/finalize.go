@@ -15,7 +15,7 @@ import (
 // 固化学期：把全校学生的课表快照刷成「某个已结束学期为止」的最终版。
 //
 // 为什么需要它：学号查询走的是实时链路，每次都现抓现算，所以**学分数字不依赖这个
-// 任务**（999999999999 从 87 变 109 就没跑过任何批处理）。它真正保的是 D1 里的
+// 任务**（实时查询会直接重新计算）。它真正保的是 D1 里的
 // 兜底快照——教务或 VPS 不可用时前台读的就是那份——以及顺带把按学期缓存喂热。
 //
 // 为什么必须是长任务：教务课表页是有状态的 ASP.NET 表单，翻页要带上一次响应的
@@ -266,16 +266,17 @@ func (f *FinalizeService) run(ctx context.Context, targetTerm string, limit int,
 				return
 			}
 			consecutiveFailures++
+			sanitizedError := redactStudentID(err.Error(), sid)
 			f.mu.Lock()
 			f.state.Failed++
 			f.state.Processed++
 			f.state.Cursor = sid
-			f.state.LastError = err.Error()
+			f.state.LastError = sanitizedError
 			f.persistLocked()
 			f.mu.Unlock()
-			f.logger.Warn("固化单个学号失败", "sid", sid, "error", err)
+			f.logger.Warn("固化单个学号失败", "student", maskedStudentID(sid), "error", sanitizedError)
 			if consecutiveFailures >= finalizeMaxConsecutiveFailures {
-				f.finish("failed", fmt.Sprintf("连续 %d 个学号失败，已中止以免持续打扰教务；最后一条错误：%s", consecutiveFailures, err))
+				f.finish("failed", fmt.Sprintf("连续 %d 个学号失败，已中止以免持续打扰教务；最后一条错误：%s", consecutiveFailures, sanitizedError))
 				return
 			}
 		} else {
@@ -345,7 +346,7 @@ func (f *FinalizeService) refreshOne(ctx context.Context, client *CloudflarePage
 		return false, err
 	}
 	if reviewInt(built.Row, "taken_count") == 0 && previousTaken > 0 {
-		f.logger.Warn("固化跳过：教务返回空课表但已有非空快照，保留原数据", "sid", sid, "previousTaken", previousTaken)
+		f.logger.Warn("固化跳过：教务返回空课表但已有非空快照，保留原数据", "student", maskedStudentID(sid), "previousTaken", previousTaken)
 		return false, nil
 	}
 	payload, err := json.Marshal(built.Record)

@@ -9,7 +9,6 @@ import {
 } from "../../lib/reviewDimensions";
 import { FALLBACK_NICKNAME } from "../../lib/avatar";
 import { reportReview } from "../../lib/reviewsStore";
-import { getVoterId } from "../../lib/voter";
 import { AnonAvatar } from "./AnonAvatar";
 import { StarRating } from "../StarRating";
 import { HumanVerificationWidget, type HumanVerificationHandle } from "../HumanVerificationWidget";
@@ -72,7 +71,6 @@ export function ReviewCard({ row, courseLabel, hot, onToggleHelpful, onEditMine 
     setReportError("");
     const result = await reportReview(
       row.id,
-      getVoterId(),
       reportReason,
       reportCaptchaRequired ? reportCaptchaToken : "",
     );

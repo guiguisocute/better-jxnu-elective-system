@@ -27,7 +27,7 @@ VPS 后端已经收敛为一个 Go 二进制 `jxnu-backend`。它同时负责：
 | 面板「部署配置 → 面板自身」 | 管理密码 | 面板口令仍是安装时生成/继承的旧值 |
 | 仓库根目录 `.env` | `VITE_KKAP_API_URL` / `VITE_BACKEND_CONFIG_URL` | 前端不轮询实时人数（站点其余功能正常）。也可改用 Pages 控制台同名变量，优先级更高 |
 | 仓库 `wrangler.toml` | `name`（Pages 项目名）、`[[d1_databases]].database_id`（你自己的 D1 库）、`[vars] LIVE_URL` | 构建期绑定，会连到别人的库或不存在的服务 |
-| Cloudflare Pages secret | `LIVE_SECRET`（与 backend.env 里那个一致）、`AI_API_KEY` | 学号查询 403；AI 帮我选不可用 |
+| Cloudflare Pages secret | `LIVE_SECRET`（与 backend.env 里那个一致）、`AI_API_KEY`、独立随机的 `ABUSE_ID_SECRET`（至少 32 字符） | 学号查询 403；AI 帮我选不可用；有用投票、举报与 AI 匿名配额会安全拒绝请求 |
 | `deploy/Caddyfile.getxk` | 第一行域名换成你的后端域名 | 反向代理签不到证书 |
 
 D1 建表：把仓库根目录的 `d1_reviews_schema.sql`、`d1_schema.sql` 依次执行一遍
@@ -164,6 +164,7 @@ systemctl --user restart jxnu-backend.service
 ```
 
 `LIVE_SECRET` 仍须与 Cloudflare Pages 的同名 secret 一致。
+`ABUSE_ID_SECRET` 只存入 Cloudflare Pages secret，不与 `LIVE_SECRET`、验证码或 AI 密钥复用，也不写入仓库。
 
 ## 服务、日志与手动操作
 
@@ -201,18 +202,18 @@ systemctl --user start jxnu-sync.service
 
 | 路径 | 端口 | 说明 |
 | --- | --- | --- |
-| `GET /healthz` | 8787 | 实时人数状态；无首份快照时 503 |
+| `GET /healthz` | 8787 | 仅返回 `{"ok":true}`；无首份快照时 503，不公开采集详情 |
 | `GET /api/enrollments` | 8787 | 与旧前端兼容的紧凑人数数组，支持 ETag/gzip/CORS |
 | `GET /api/config` | 8787 | 无敏感运行配置；包含采集目标的仓库学期及映射后的教务学期；前端读取失败时回落静态 `app_config.json` |
-| `GET /healthz` | 8788 | 学号服务、登录、缓存、学期状态 |
-| `GET /student-record?sid=` | 8788 | 需 `X-Live-Secret`；响应形状与旧服务/D1 完全兼容 |
+| `GET /healthz` | 8788 | 仅返回 `{"ok":true}`；凭据未配置时 503，不公开登录、缓存或错误详情 |
+| `POST /student-record` | 8788 | JSON body `{ "sid": "..." }`，需 `X-Live-Secret`；响应形状与 D1 完全兼容，禁止把学号放入 URL |
 | 管理面板 | 8790 | 登录、CSRF、8 小时内存会话，仅回环 |
 
 ## Caddy
 
 现有 [`Caddyfile.getxk`](Caddyfile.getxk) 不需要改路径：
 
-- `/cap/*` 去掉 `/cap` 前缀后反代到自托管 Cap `127.0.0.1:3000`；
+- `/cap/assets/cap_wasm_bg.wasm` 与 `/cap/<site-key>/{challenge,redeem,siteverify}` 反代到自托管 Cap；其他 `/cap/*`（包括管理面）返回 404；
 - `/live/*` 反代到 `127.0.0.1:8788`；
 - 其他公开请求反代到 `127.0.0.1:8787`。
 

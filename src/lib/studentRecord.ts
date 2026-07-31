@@ -330,11 +330,14 @@ export async function importStudentRecord(studentId: string, captchaToken = ""):
     return rec;
   }
 
-  const url = `/api/student-record?sid=${encodeURIComponent(sid)}`;
   let res: Response;
   try {
-    res = await fetch(url, {
-      headers: captchaToken ? { "X-Human-Verification-Token": captchaToken } : undefined,
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (captchaToken) headers["X-Human-Verification-Token"] = captchaToken;
+    res = await fetch("/api/student-record", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ sid }),
     });
   } catch {
     throw new Error("网络异常，稍后再试。");

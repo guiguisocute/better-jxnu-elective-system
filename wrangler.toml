@@ -34,3 +34,4 @@ LIVE_URL = "https://getxk.jxnu-publish.asia/live/student-record"
 # AI帮我选（functions/api/ai/recommend.ts）的 AI_BASE_URL / AI_MODEL 不写这里 ——
 # CF Pages git 构建时 toml [vars] 会覆盖 dashboard 同名变量，改由 CF dashboard（或管理面板）管理。
 # 本地开发放 .dev.vars（已 gitignore）。AI_API_KEY 同理：生产 `npx wrangler pages secret put AI_API_KEY`。
+# ABUSE_ID_SECRET 同样必须作为 Pages secret 注入（至少 32 个随机字符），不得写入本文件或仓库。

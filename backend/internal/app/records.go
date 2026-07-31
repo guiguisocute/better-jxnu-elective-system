@@ -107,7 +107,7 @@ type BuiltStudentRecord struct {
 // which semester is still in progress, and 教务 cannot tell us: it switches its
 // selected term to the *next* one as soon as 选课 opens, so between semesters the
 // model would treat an already-finished term as "在读" and withhold its credits.
-// For 999999999999 in July 2026 that hid 22 earned credits (87 instead of 109).
+// In one regression case this hid an entire finished semester's 22 credits.
 //
 // The operator sets it in 日常设置, and 固化学期 sets it automatically — declaring
 // a semester finalized is exactly the same act as freezing its timetable.

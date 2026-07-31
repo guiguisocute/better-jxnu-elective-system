@@ -22,13 +22,15 @@ interface Env {
   CAP_WASM_URL?: string;
 }
 
-// GET /api/student-record?sid=xxx
+// POST /api/student-record { "sid": "xxx" }
 //   - 优先实时：带 secret 打 VPS（LIVE_URL），成功则返回 source:"live" 并后台回写 D1 保鲜。
 //   - 回落：VPS 超时/报错/未配置 → 查 D1 快照，返回 source:"snapshot"。
 //   - 脱敏：全程不涉及姓名（VPS 侧已剥，库里也不存）。
+//   - 学号只放请求体，不进入浏览器历史、Referer 或代理默认 access log。
 //   - 防遍历交给 Cloudflare WAF 限流（控制台规则），代码侧不实现。
 
 const LIVE_TIMEOUT_MS = 10_000;
+const MAX_REQUEST_CHARS = 4_096;
 
 interface Row {
   student_id: string;
@@ -101,9 +103,13 @@ async function upsertD1(env: Env, sid: string, payload: LivePayload): Promise<vo
 async function fetchLive(env: Env, sid: string): Promise<LivePayload | null> {
   if (!env.LIVE_URL || !env.LIVE_SECRET) return null;
   try {
-    const url = `${env.LIVE_URL}?sid=${encodeURIComponent(sid)}`;
-    const res = await fetch(url, {
-      headers: { "X-Live-Secret": env.LIVE_SECRET },
+    const res = await fetch(env.LIVE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Live-Secret": env.LIVE_SECRET,
+      },
+      body: JSON.stringify({ sid }),
       signal: AbortSignal.timeout(LIVE_TIMEOUT_MS),
     });
     if (!res.ok) return null;
@@ -116,21 +122,39 @@ async function fetchLive(env: Env, sid: string): Promise<LivePayload | null> {
   }
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const url = new URL(context.request.url);
-  const sid = (url.searchParams.get("sid") || "").trim();
-
-  if (!sid) {
-    return Response.json({ error: "sid required" }, { status: 400 });
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  if (new URL(context.request.url).search) {
+    return Response.json({ error: "query parameters are not allowed" }, { status: 400 });
+  }
+  const rawBody = await context.request.text();
+  if (rawBody.length > MAX_REQUEST_CHARS) {
+    return Response.json({ error: "request too large" }, { status: 413 });
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return Response.json({ error: "invalid JSON" }, { status: 400 });
+  }
+  const bodyIsValid =
+    typeof body === "object" &&
+    body !== null &&
+    !Array.isArray(body) &&
+    Object.keys(body).length === 1 &&
+    Object.hasOwn(body, "sid");
+  const sid = (
+    bodyIsValid && typeof (body as { sid?: unknown }).sid === "string"
+      ? (body as { sid: string }).sid
+      : ""
+  ).trim();
+  if (!/^\d{6,20}$/.test(sid)) {
+    return Response.json({ error: "invalid sid" }, { status: 400 });
   }
 
-  // The token is sent in a header so it never appears in browser history,
-  // proxy access logs, or a Referer URL. Keep the query parameter as a small
-  // compatibility fallback for older clients.
+  // Verification tokens stay in a header for the same reason as the SID body.
   const captchaToken =
     context.request.headers.get("X-Human-Verification-Token") ??
-    context.request.headers.get("X-Captcha-Token") ??
-    url.searchParams.get("captchaToken");
+    context.request.headers.get("X-Captcha-Token");
   if (!(await verifyCaptcha(context.env, "student-record", captchaToken, context.request.headers.get("CF-Connecting-IP")))) {
     return Response.json({ error: "human verification failed" }, { status: 403 });
   }
@@ -171,3 +195,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     { headers: { "Cache-Control": "no-store" } },
   );
 };
+
+export const onRequestGet: PagesFunction<Env> = async () => Response.json(
+  { error: "method not allowed" },
+  { status: 405, headers: { Allow: "POST" } },
+);

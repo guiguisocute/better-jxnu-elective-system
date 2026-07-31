@@ -1,6 +1,6 @@
 services:
   cap:
-    image: tiago2/cap:3.1.8
+    image: tiago2/cap:3.1.8@sha256:56d402dc15e536b4c20e341a81bb9e78a0082b833e4337b9b05b242d96e0ffe5
     container_name: jxnu-cap
     ports:
       - "127.0.0.1:3000:3000"
@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   valkey:
-    image: valkey/valkey:9-alpine
+    image: valkey/valkey:9-alpine@sha256:ee91f7a174ac4d6a6b0685b3a60e321f0a9dbbb691f9b0e285be2ba1d1be8328
     container_name: jxnu-cap-valkey
     volumes:
       - cap-valkey-data:/data

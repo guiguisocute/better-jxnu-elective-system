@@ -118,6 +118,9 @@ func TestFrontendWiringCardUsesConfiguredBackend(t *testing.T) {
 		"VITE_BACKEND_CONFIG_URL=https://getxk.example.edu/api/config",
 		"LIVE_URL = &#34;https://getxk.example.edu/live/student-record&#34;",
 		"getxk.example.edu {",
+		"/cap/assets/cap_wasm_bg.wasm",
+		"(challenge|redeem|siteverify)",
+		"respond &#34;not found&#34; 404",
 	} {
 		if !strings.Contains(card, want) {
 			t.Errorf("wiring card missing %q", want)

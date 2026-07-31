@@ -24,8 +24,6 @@ export const CONTEXT_MAX_CHARS = 4000;
 // ---------- POST /api/ai/recommend 契约 ----------
 
 export interface AiRecommendRequest {
-  /** localStorage 的 voter UUID（src/lib/voter.ts），仅作配额 scope，不是身份。 */
-  voterId: string;
   /** planKey，如 "2024级-计算机科学与技术（师范）"。 */
   plan: string;
   /** 学生上下文摘要：纯文本多行，只含缺口数字/已占时段/约束，不含学号、姓名、成绩明细。 */
@@ -61,7 +59,8 @@ export type AiErrorCode =
   | "quota_site"    // 全站今日次数用完
   | "budget"        // 全站 token 熔断
   | "upstream"      // LLM 侧失败（含重试后仍坏 JSON）
-  | "disabled";     // AI_API_KEY 未配置
+  | "disabled"      // AI_API_KEY 未配置
+  | "configuration"; // 服务端匿名配额密钥未配置
 
 export interface AiErrorResponse {
   error: string;

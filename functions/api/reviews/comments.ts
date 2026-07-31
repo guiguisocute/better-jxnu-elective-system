@@ -1,9 +1,12 @@
+import { abuseActor } from "../../lib/abuseIdentity";
+
 interface Env {
   DB: D1Database;
+  ABUSE_ID_SECRET?: string;
 }
 
 // GET /api/reviews/comments?[courseId=xxx][&teacherId=xxx][&voterId=xxx][&limit=20][&offset=0]
-// 评语流（评价卡列表）。voterId 可选：传了会标记 mine / myVote（是否投过「有用」）。
+// 评语流（评价卡列表）。voterId 可选：仅用于标记 mine；myVote 使用服务端滥用身份。
 // courseId / teacherId 都不传 = 广场模式：全站按时间倒序（分页拉取）。
 // 只返回审核通过的行。排序固定 updated_at DESC，
 // 「最有帮助 / 好评优先」由前端在已拉数据集上重排。
@@ -37,11 +40,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const courseId = url.searchParams.get("courseId");
   const teacherId = url.searchParams.get("teacherId");
   const voterId = url.searchParams.get("voterId") ?? "";
+  const helpfulActor = await abuseActor(context.request, context.env, "helpful") ?? "";
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 50) || 50));
   const offset = Math.max(0, Number(url.searchParams.get("offset") ?? 0) || 0);
 
   const where: string[] = ["r.status = 'approved'"];
-  const binds: (string | number)[] = [voterId];
+  const binds: (string | number)[] = [helpfulActor];
   if (courseId) {
     where.push("r.course_id = ?");
     binds.push(courseId);

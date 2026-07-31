@@ -17,10 +17,13 @@ const ERROR_TEXT: Record<AiErrorCode | "network", string> = {
   budget: "本站 AI 预算已触发熔断，请过几天再试",
   upstream: "AI 服务暂时不可用，请稍后重试",
   disabled: "AI 功能暂未开放（服务端未配置密钥）",
+  configuration: "AI 安全配置尚未完成，请联系管理员",
   network: "网络异常或本地开发环境无后端，请检查后重试",
 };
 
-const ERROR_CODES = new Set<string>(["bad_request", "quota_voter", "quota_site", "budget", "upstream", "disabled"]);
+const ERROR_CODES = new Set<string>([
+  "bad_request", "quota_voter", "quota_site", "budget", "upstream", "disabled", "configuration",
+]);
 
 function isAiErrorCode(v: unknown): v is AiErrorCode {
   return typeof v === "string" && ERROR_CODES.has(v);

@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 -- AI帮我选 用量记账（functions/api/ai/recommend.ts）。
 -- 配额原子预扣：INSERT .. ON CONFLICT DO UPDATE SET calls=calls+1 RETURNING calls，先扣再判防并发绕过。
--- scope = 'voter:<uuid>'（per 用户日配额）| 'site'（全站日 calls 上限 + token 熔断）。
--- 不含任何可与 student_records 关联的字段（无学号、无 IP）。
+-- scope = 'actor:a1:<hmac>'（服务端按来源生成的匿名日配额）| 'site'（全站日 calls 上限 + token 熔断）。
+-- HMAC 密钥来自 Pages secret ABUSE_ID_SECRET；不存原始 IP，亦不含任何学号字段。
 CREATE TABLE IF NOT EXISTS ai_usage (
   day    TEXT NOT NULL,
   scope  TEXT NOT NULL,

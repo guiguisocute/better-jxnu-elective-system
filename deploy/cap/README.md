@@ -1,6 +1,6 @@
 # Cap 自托管人机验证
 
-Cap Standalone 与 Valkey 通过 Docker Compose 运行，只把 `127.0.0.1:3000` 暴露给宿主机。公网由 Caddy 的 `/cap/*` 反向代理进入，Cap 控制台本身建议通过 SSH 隧道访问：
+Cap Standalone 与 Valkey 通过 Docker Compose 运行，只把 `127.0.0.1:3000` 暴露给宿主机。Caddy 仅公开 WASM 文件及 `challenge`、`redeem`、`siteverify` 三个按站点划分的 API；其他 `/cap/*` 一律返回 404。Cap 控制台只能通过 SSH 隧道访问：
 
 ```bash
 ssh -L 3000:127.0.0.1:3000 29HK
@@ -19,7 +19,7 @@ docker-compose pull
 docker-compose up -d
 ```
 
-镜像与浏览器组件版本已固定：
+容器镜像同时固定版本标签和多架构清单 digest，升级时应先用 `docker buildx imagetools inspect <image:tag>` 核对新 digest，再修改 Compose：
 
 - Cap Standalone `3.1.8`
 - `@cap.js/widget` `0.1.56`（前端打包）
