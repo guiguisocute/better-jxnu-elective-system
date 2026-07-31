@@ -29,7 +29,10 @@ interface Env {
 //   - 学号只放请求体，不进入浏览器历史、Referer 或代理默认 access log。
 //   - 防遍历交给 Cloudflare WAF 限流（控制台规则），代码侧不实现。
 
-const LIVE_TIMEOUT_MS = 10_000;
+// 一次真实教务查询通常需要 10~15 秒（登录、ASP.NET 表单和课表抓取）。
+// 10 秒会在后端即将成功时提前中止，导致所有请求看起来都像 D1 离线回落。
+// VPS 端自身还有 75 秒硬上限；这里给 30 秒，在实时可用性和故障回退之间取中间值。
+const LIVE_TIMEOUT_MS = 30_000;
 const MAX_REQUEST_CHARS = 4_096;
 
 interface Row {
