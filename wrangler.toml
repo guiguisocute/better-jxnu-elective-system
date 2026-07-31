@@ -1,5 +1,5 @@
 # fork 必改：name 换成你自己的 Pages 项目名。
-name = "jxnu-elective-plus"
+name = "better-jxnu-elective-system"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
