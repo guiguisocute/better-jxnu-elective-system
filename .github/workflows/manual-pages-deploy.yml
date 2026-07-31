@@ -1,0 +1,29 @@
+name: Temporary Pages deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Deploy production Pages build
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_PAGES_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
+        run: >-
+          npx --yes wrangler@4.117.0 pages deploy dist
+          --project-name better-jxnu-elective-system
+          --branch main
+          --commit-hash "$GITHUB_SHA"
