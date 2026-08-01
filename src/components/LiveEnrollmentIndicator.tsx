@@ -1,6 +1,11 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
 import type { LiveEnrollmentStatus } from "../lib/liveEnrollments";
 
+function refreshIntervalLabel(intervalMs: number) {
+  const seconds = Math.max(1, Math.round(intervalMs / 1000));
+  return seconds % 60 === 0 ? `${seconds / 60} 分钟` : `${seconds} 秒`;
+}
+
 export function LiveEnrollmentIndicator({ status, compact = false }: { status: LiveEnrollmentStatus; compact?: boolean }) {
   const [now, setNow] = useState(Date.now());
 
@@ -47,7 +52,7 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
     <div
       className={`${compact ? "w-[128px]" : "w-[138px]"} shrink-0`}
       role="status"
-      title={status.error ? `实时人数服务：${status.error}` : "实时人数与后端刷新节奏同步（约每 30 秒）"}
+      title={status.error ? `实时人数服务：${status.error}` : `实时人数与后端刷新节奏同步（约每 ${refreshIntervalLabel(status.refreshIntervalMs)}）`}
     >
       <div className={`mb-1 flex items-center justify-between text-[10px] font-medium ${alert ? "text-amber-600" : "text-gray-500"}`}>
         <span className="inline-flex items-center gap-1">

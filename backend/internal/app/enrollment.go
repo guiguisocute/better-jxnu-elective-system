@@ -29,7 +29,8 @@ const (
 	maxJSONBytes = 32 << 20
 	// Public_Kkap occasionally takes longer than the configured interval. Never
 	// hammer it in a zero-delay loop when that happens.
-	minimumRefreshPause = 5 * time.Second
+	minimumRefreshPause   = 5 * time.Second
+	publicScheduleTimeout = 300 * time.Second
 )
 
 type ScheduleRow struct {
@@ -136,7 +137,7 @@ func NewEnrollmentService(config *ConfigStore, logger *slog.Logger) *EnrollmentS
 	service := &EnrollmentService{
 		config:       config,
 		logger:       logger,
-		client:       &http.Client{Transport: transport, Jar: jar, Timeout: 70 * time.Second},
+		client:       &http.Client{Transport: transport, Jar: jar, Timeout: publicScheduleTimeout},
 		wake:         make(chan struct{}, 1),
 		snapshotPath: filepath.Join(filepath.Dir(config.Path()), "enrollment_snapshot.json"),
 	}
