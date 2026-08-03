@@ -1,4 +1,4 @@
-getxk.jxnu-publish.asia {
+getxk.betterjxnu.cn {
 	encode zstd gzip
 	# Only Cap's browser asset and per-site verification API are public.
 	# The root/admin UI remains reachable exclusively through an SSH tunnel.

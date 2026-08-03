@@ -29,7 +29,7 @@ database_id = "c99cb583-53b7-45c3-80e7-81fe5fbd6b57"
 # fork 必改：换成你自己 VPS 的域名（管理面板「部署配置」页会按你填的地址生成这一行）。
 # 教务实时课表服务（VPS，见 tools/live_service.py）。学号导入先打这里，失败回落 D1。
 # LIVE_SECRET 不写这里 —— 用 `npx wrangler pages secret put LIVE_SECRET` 存到 CF dashboard。
-LIVE_URL = "https://getxk.jxnu-publish.asia/live/student-record"
+LIVE_URL = "https://getxk.betterjxnu.cn/live/student-record"
 
 # AI帮我选（functions/api/ai/recommend.ts）的 AI_BASE_URL / AI_MODEL 不写这里 ——
 # CF Pages git 构建时 toml [vars] 会覆盖 dashboard 同名变量，改由 CF dashboard（或管理面板）管理。

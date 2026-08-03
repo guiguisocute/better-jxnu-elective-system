@@ -2,7 +2,7 @@
 // 评价系统 V2 API 验证程序。
 // 用法：node tools/verify_reviews_api.mjs [baseURL]
 //   本地：npx wrangler pages dev 起服务后  node tools/verify_reviews_api.mjs http://127.0.0.1:8788
-//   线上：node tools/verify_reviews_api.mjs https://xk.jxnu-publish.asia  （只跑只读用例 + 独立测试 voter 的写删）
+//   线上：node tools/verify_reviews_api.mjs https://xk.betterjxnu.cn  （只跑只读用例 + 独立测试 voter 的写删）
 // 断言失败即非零退出。写入用例全部使用 verify- 前缀的测试 voter/course，可在后台面板清理。
 
 const base = process.argv[2] ?? "http://127.0.0.1:8788";

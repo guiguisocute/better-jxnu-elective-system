@@ -20,7 +20,10 @@
   "courseDetailsRefreshHours": 168,
   "courseDetailsMaxPerRun": 30,
   "courseDetailsDelayMilliseconds": 300,
+  "siteOrigin": "https://xk.betterjxnu.cn",
+  "backendPublicUrl": "https://getxk.betterjxnu.cn",
   "allowedOrigins": [
+    "https://xk.betterjxnu.cn",
     "https://xk.jxnu-publish.asia",
     "https://test.better-jxnu-elective-system.pages.dev",
     "http://localhost:5173",
