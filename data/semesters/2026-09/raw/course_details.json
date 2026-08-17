@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-08-14T16:49:51Z",
+ "fetchedAt": "2026-08-17T11:11:55Z",
  "courses": [
   {
    "courseId": "002166",
@@ -26,6 +26,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194588",
    "fetchedAt": "2026-07-23T07:46:07Z"
+  },
+  {
+   "courseId": "028043",
+   "courseName": "思政课（必修）一",
+   "courseNameIdentity": "思政课（必修）一",
+   "credits": 3,
+   "classId": "20260074",
+   "courseSiteId": "195673",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195673",
+   "fetchedAt": "2026-08-17T11:11:55Z"
   },
   {
    "courseId": "052036",
