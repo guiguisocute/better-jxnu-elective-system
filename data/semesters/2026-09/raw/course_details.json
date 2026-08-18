@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-08-17T11:11:55Z",
+ "fetchedAt": "2026-08-18T10:15:49Z",
  "courses": [
   {
    "courseId": "002166",
@@ -72,6 +72,28 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=191811",
    "fetchedAt": "2026-07-23T07:46:12Z"
+  },
+  {
+   "courseId": "246021",
+   "courseName": "中国共产党历史（2分）",
+   "courseNameIdentity": "中国共产党历史（2分）",
+   "credits": 2,
+   "classId": "20260098",
+   "courseSiteId": "195676",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195676",
+   "fetchedAt": "2026-08-18T10:15:46Z"
+  },
+  {
+   "courseId": "246106",
+   "courseName": "中国共产党历史",
+   "courseNameIdentity": "中国共产党历史（3分）",
+   "credits": 3,
+   "classId": "20260096",
+   "courseSiteId": "195677",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195677",
+   "fetchedAt": "2026-08-18T10:15:49Z"
   },
   {
    "courseId": "248276",
