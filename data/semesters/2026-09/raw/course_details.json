@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-08-25T10:30:51Z",
+ "fetchedAt": "2026-08-26T12:32:56Z",
  "courses": [
   {
    "courseId": "002166",
@@ -526,6 +526,64 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194163",
    "fetchedAt": "2026-07-23T08:45:53Z"
+  },
+  {
+   "courseId": "257025",
+   "courseName": "师德养成综合实践",
+   "courseNameIdentity": "师德养成综合实践（师德访谈,寻访最美教师）",
+   "credits": 2,
+   "classId": "003797$1",
+   "courseSiteId": "195691",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195691",
+   "fetchedAt": "2026-08-26T12:32:50Z"
+  },
+  {
+   "courseId": "257030",
+   "courseName": "师德养成综合实践",
+   "courseNameIdentity": "师德养成综合实践（走进书院,传承中华师道）",
+   "credits": 2,
+   "description": "以培养“四有”好教师为目标，突出师德核心素养，坚持“立德树人”“师德引领”的教师教育特色，以实践育人为课程建设理念，遵循师德形成的基本规律，基于项目驱动、服务-学习、情景-体验学习、反思生成、涵濡浸渍的教学观，以活动为载体，着力培育教师职业道德和职业情感，养成教师专业气质、形成教师职业人格，引领师范生专业素质全面发展。",
+   "classId": "005721$1",
+   "courseSiteId": "195692",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195692",
+   "fetchedAt": "2026-08-26T12:32:51Z"
+  },
+  {
+   "courseId": "257038",
+   "courseName": "师德养成综合实践",
+   "courseNameIdentity": "师德养成综合实践（服务双减 体悟教育本质）",
+   "englishName": "develop comprehensive practice of teachers' morality",
+   "credits": 2,
+   "description": "为围绕培养有理想信念、有道德情操、有扎实学识、有仁爱之心的“四有”好老师，公费师范生院根据基础教育发展和课程改革的要求，加强公费师范生师德教育，引导公费师范生树立先进的教育理念，热爱教育事业，坚定长期从教的职业理想，为将来成为优秀教师和教育专家打下牢固根基。“双减”政策是2021年教育改革的大动作，师范生们服务双减，体悟教育本质十分必要。",
+   "classId": "005455$1",
+   "courseSiteId": "195693",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195693",
+   "fetchedAt": "2026-08-26T12:32:52Z"
+  },
+  {
+   "courseId": "257043",
+   "courseName": "教育名著导读（公院）",
+   "courseNameIdentity": "教育名著导读（公院）",
+   "credits": 2,
+   "classId": "090226$1",
+   "courseSiteId": "195694",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195694",
+   "fetchedAt": "2026-08-26T12:32:54Z"
+  },
+  {
+   "courseId": "257053",
+   "courseName": "班主任工作管理（公院）",
+   "courseNameIdentity": "班主任工作管理（公院）",
+   "credits": 2,
+   "classId": "005836$1",
+   "courseSiteId": "195695",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195695",
+   "fetchedAt": "2026-08-26T12:32:56Z"
   },
   {
    "courseId": "258534",
