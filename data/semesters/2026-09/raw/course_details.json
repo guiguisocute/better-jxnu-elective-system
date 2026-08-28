@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-08-26T12:32:56Z",
+ "fetchedAt": "2026-08-28T06:08:12Z",
  "courses": [
   {
    "courseId": "002166",
@@ -347,6 +347,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195647",
    "fetchedAt": "2026-08-21T13:51:04Z"
+  },
+  {
+   "courseId": "252473",
+   "courseName": "英语演讲与辩论I",
+   "courseNameIdentity": "英语演讲与辩论I",
+   "credits": 2,
+   "classId": "20250194",
+   "courseSiteId": "194921",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194921",
+   "fetchedAt": "2026-08-28T06:08:10Z"
   },
   {
    "courseId": "252528",
@@ -838,6 +849,19 @@
    "fetchedAt": "2026-07-23T09:50:13Z"
   },
   {
+   "courseId": "262362",
+   "courseName": "数据科学导论（理论）",
+   "courseNameIdentity": "数据科学导论（理论）",
+   "englishName": "Introduction to Data Science（Theory Course）",
+   "credits": 4,
+   "description": "数据科学是基于计算机科学(数据库、数据挖掘、机器学习等)、统计学、数学等学科的一门新兴的交叉学科。它研究数据的各种类型、状态、属性及其变化规律，它研究如何对数据进行分析，从而揭示自然界和人类行为等现象背后的规律。本课程顺应大数据时代到来、以及数据科学兴起的潮流，主要为来自数据科学与大数据技术、计算机科学与技术、统计学、经济学、金融学等专业的学生，提供一个入门和导论性质的课程，并为学生学习后续课程的学习，打下坚实的基础，有利于培养新一代数据科学家，为各行各业的数据处理，提供急需的人才。",
+   "classId": "20250058",
+   "courseSiteId": "194035",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194035",
+   "fetchedAt": "2026-08-28T06:08:11Z"
+  },
+  {
    "courseId": "262379",
    "courseName": "ICPC程序设计竞赛进阶",
    "courseNameIdentity": "ICPC程序设计竞赛进阶",
@@ -849,6 +873,19 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195544",
    "fetchedAt": "2026-08-21T15:38:21Z"
+  },
+  {
+   "courseId": "262519",
+   "courseName": "数据科学导论（实验）",
+   "courseNameIdentity": "数据科学导论（实验）",
+   "englishName": "Introduction to Data Science (Experimental)",
+   "credits": 1,
+   "description": "让学生通过实验课程，让学生了解数据预处理、Hadoop、spark、storm、数据存储及数据分析技术，为后续课程做铺垫。同时提升学生的实践能力和创新能力。（1）实践能力，通过本课程的学习，培养数据收集、加工处理和分析的能力；通过合作学习培养沟通交往、团队协作等能力。（2）创作能力，通过学习大数据产生促进新应用、新技术、新工具的产生，培养学生的创新精神，促进学生将大数据与生活结合起来，培养使用大数据技术解决问题的思维。",
+   "classId": "20250058",
+   "courseSiteId": "194036",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194036",
+   "fetchedAt": "2026-08-28T06:08:12Z"
   },
   {
    "courseId": "262572",
