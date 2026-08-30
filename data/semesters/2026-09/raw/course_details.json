@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-08-29T05:03:21Z",
+ "fetchedAt": "2026-08-30T04:12:09Z",
  "courses": [
   {
    "courseId": "002166",
@@ -1303,6 +1303,19 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195571",
    "fetchedAt": "2026-08-29T05:03:19Z"
+  },
+  {
+   "courseId": "269628",
+   "courseName": "韩国语新闻选读",
+   "courseNameIdentity": "韩国语新闻选读",
+   "englishName": "Selected readings in Korean Newspaper",
+   "credits": 2,
+   "description": "韩国新闻选读课是一门韩语本科专业高年级阶段的必修课，该课程旨在培养学生阅读和理解韩国新闻的技能，教学内容选材广泛。如，韩国主要报刊或新闻中的时事评论、社论、政论、专题报道等方面的文章，题材涉并社会、政治、经济、战争、环保、人口、中韩关系、科学技术等方面。",
+   "classId": "005672$1",
+   "courseSiteId": "192756",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192756",
+   "fetchedAt": "2026-08-30T04:12:09Z"
   },
   {
    "courseId": "269729",
