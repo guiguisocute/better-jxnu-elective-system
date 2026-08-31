@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { subscribeSectionCollapse, getSectionExpanded, setSectionExpanded } from "../lib/sectionCollapse";
 import type { DataSource, Filters } from "../types";
 import { PlanSelector } from "./PlanSelector";
 import { AREA_GROUPS } from "../lib/classroomArea";
@@ -288,7 +289,15 @@ function FilterSection({
   /** 该分组的"清空"回调；activeCount > 0 时在标题右侧出现小按钮。 */
   onClear?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(!(collapsible && defaultCollapsed));
+  // 展开态存模块级 store（见 sectionCollapse.ts）：左栏有三份 FilterBar 实例，
+  // 布局在内联/抽屉间切换会把其中一份整体卸载重挂，局部 state 会连带全丢。
+  const stored = useSyncExternalStore(
+    subscribeSectionCollapse,
+    () => getSectionExpanded(label),
+    () => undefined,
+  );
+  const expanded = stored ?? !(collapsible && defaultCollapsed);
+  const setExpanded = (next: boolean) => setSectionExpanded(label, next);
 
   const header = (
     <div className="flex items-center justify-between mb-2.5">
@@ -336,7 +345,7 @@ function FilterSection({
       </div>
       <button
         type="button"
-        onClick={() => setExpanded((e) => !e)}
+        onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
         className="mt-1 w-full inline-flex items-center justify-center gap-1 py-1 text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
       >

@@ -23,9 +23,13 @@ export function PinAlertToggle({ count, alert, onUpdate, onClear }: Props) {
   if (count === 0) return null;
 
   const enable = async () => {
+    // 顺序很重要：先解锁音频、先把开关置上，再去要通知权限。
+    // 反过来写的话，用户忽略或关掉权限弹窗时那个 Promise 不会 resolve，
+    // onUpdate 永远执行不到，开关看起来"点了没反应"，连提示音都用不上。
+    // 通知只是锦上添花，不该卡住主流程。
     primeAlertSound();
-    if (alert.notify) setPermission(await requestNotifyPermission());
     onUpdate({ enabled: true });
+    if (alert.notify) setPermission(await requestNotifyPermission());
   };
 
   return (

@@ -708,8 +708,6 @@ export function CourseTable({
     }),
     [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection, isPinned, onTogglePin],
   );
-  // formal 列表里所有班级（扁平），供空态判断（替代旧 formalSections）。
-  const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);
   const handleSort = () => {
     setEnrollmentSortAsc(null);
     setSortAsc(!sortAsc);
@@ -734,6 +732,22 @@ export function CourseTable({
     return pinnedKeys.map((k) => byKey.get(k)).filter((s): s is FormalSection => !!s);
   }, [pinnedKeys, formalGroups]);
 
+  // 置顶行是「移上去」而不是「复制一份」：原位置必须摘掉，否则同一个教学班
+  // 在表里出现两次（置顶区一次、原分组里再一次），实测确认过。
+  const groupsWithoutPinned = useMemo(() => {
+    if (!pinnedKeys?.length) return formalGroups;
+    const pinned = new Set(pinnedKeys);
+    return formalGroups
+      .map((g) => ({ ...g, sections: g.sections.filter((s) => !pinned.has(s.id + "|" + s.className + "|" + s.teacherId)) }))
+      .filter((g) => g.sections.length > 0);
+  }, [formalGroups, pinnedKeys]);
+
+  // formal 列表里所有班级（扁平），供空态判断。
+  // 置顶行也要算进去：全部置顶时 groupsWithoutPinned 为空，但表里其实有内容，
+  // 不加就会误报「未找到匹配课程」。
+  const formalSectionCount =
+    groupsWithoutPinned.reduce((n, g) => n + g.sections.length, 0) + pinnedSections.length;
+
   // 吸顶偏移要实测：表头高度随字号/缩放变，行高随标签列内容变（align-top，可能两行）。
   // 写死常量在这两种情况下都会错位。
   const theadRef = useRef<HTMLTableSectionElement>(null);
@@ -749,7 +763,9 @@ export function CourseTable({
     const base = tableHeaderTop + thead.offsetHeight;
     const tops: number[] = [];
     let acc = 0;
-    for (const row of Array.from(body.rows)) {
+    // 置顶行现在和普通行同处一个 tbody，且渲染在最前面，
+    // 所以只量前 pinnedSections.length 行。
+    for (const row of Array.from(body.rows).slice(0, pinnedSections.length)) {
       tops.push(base + acc);
       acc += row.offsetHeight;
     }
@@ -757,7 +773,12 @@ export function CourseTable({
     setPinTops((prev) =>
       prev.length === tops.length && prev.every((v, i) => v === tops[i]) ? prev : tops,
     );
-  }, [pinnedSections, tableHeaderTop]);
+    // 依赖里必须带上"表格是否已挂载/内容是否变了"这几项。
+    // 表格是点「浏览全部」离开引导页之后才渲染的：只依赖 pinnedSections 的话，
+    // effect 会在 ref 还是 null 时跑一次拿到空数组，表格挂载后再也不重跑，
+    // 于是吸顶永远不生效（实测踩过）。formalGroups 变化也要重量——
+    // 换学期/改筛选后行高和行数都会变。
+  }, [pinnedSections, tableHeaderTop, isFormal, showHints, formalLoading, formalAvailable, formalGroups]);
 
   return (
     <div>
@@ -882,22 +903,20 @@ export function CourseTable({
                   })}
                 </tr>
               </thead>
-              {/* 置顶行单独一个 tbody，排在主体之前：吸顶层叠顺序才和视觉顺序一致。
+              {/* 置顶行必须和其余行在**同一个 tbody** 里。
+                  sticky 的 td 以所在 tbody 为包含块：单独开一个只有几行高的 tbody，
+                  粘附范围就只有那几十像素，滚过去立刻失效（实测踩过）。
                   只让前 MAX_STICKY_PINS 行真正吸顶，再多会把表格视口吃光；
-                  超出的仍然排在最前面，只是跟着滚动。 */}
-              {pinnedSections.length > 0 && (
-                <tbody ref={pinnedBodyRef}>
-                  {pinnedSections.map((s, i) => (
-                    <FormalSectionRow
-                      key={"pin-" + s.id + "|" + s.className + "|" + s.teacherId}
-                      s={s}
-                      stickyTop={i < MAX_STICKY_PINS ? pinTops[i] : undefined}
-                      {...rowProps}
-                    />
-                  ))}
-                </tbody>
-              )}
-              <tbody>
+                  超出的仍排在最前面，只是跟着滚动。 */}
+              <tbody ref={pinnedBodyRef}>
+                {pinnedSections.map((s, i) => (
+                  <FormalSectionRow
+                    key={"pin-" + s.id + "|" + s.className + "|" + s.teacherId}
+                    s={s}
+                    stickyTop={i < MAX_STICKY_PINS ? pinTops[i] : undefined}
+                    {...rowProps}
+                  />
+                ))}
                 {formalLoading ? (
                   <tr>
                     <td colSpan={FORMAL_HEADERS.length} className="py-24">
@@ -931,7 +950,7 @@ export function CourseTable({
                     </td>
                   </tr>
                 ) : (
-                  formalGroups.map((g) => {
+                  groupsWithoutPinned.map((g) => {
                     // 单班级：直接平铺一行；多班级：组头 + （展开时）各班级。
                     if (g.sections.length === 1) {
                       return <FormalSectionRow key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
