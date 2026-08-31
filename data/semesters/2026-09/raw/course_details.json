@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-08-30T04:12:09Z",
+ "fetchedAt": "2026-08-31T06:36:36Z",
  "courses": [
   {
    "courseId": "002166",
@@ -173,6 +173,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193248",
    "fetchedAt": "2026-07-23T07:46:21Z"
+  },
+  {
+   "courseId": "250651",
+   "courseName": "学前教育研究方法",
+   "courseNameIdentity": "学前教育研究方法",
+   "credits": 3,
+   "classId": "20230070",
+   "courseSiteId": "194743",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194743",
+   "fetchedAt": "2026-08-31T06:36:36Z"
   },
   {
    "courseId": "251018",
