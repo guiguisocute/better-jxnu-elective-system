@@ -3,7 +3,11 @@ services:
     image: tiago2/cap:3.1.8@sha256:56d402dc15e536b4c20e341a81bb9e78a0082b833e4337b9b05b242d96e0ffe5
     container_name: jxnu-cap
     ports:
-      - "127.0.0.1:3000:3000"
+      # 默认只绑回环：Cap 的控制台就在根路径上，绝不能直接暴露到公网。
+      # 反代与 Cap 不同机时（例如后端搬进校园网、nginx 留在公网边缘），
+      # 在 .env 里把 CAP_BIND_ADDR 设成那台机器的内网/覆盖网地址，
+      # 让反代够得着，同时仍然不监听公网网卡。
+      - "${CAP_BIND_ADDR:-127.0.0.1}:3000:3000"
     environment:
       ADMIN_KEY: ${CAP_ADMIN_KEY:?CAP_ADMIN_KEY must be set in .env}
       REDIS_URL: redis://valkey:6379
