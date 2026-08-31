@@ -1,0 +1,10 @@
+[Unit]
+Description=JXNU 采集机本地备份（仓库镜像 + 运行期状态快照）
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/better-jxnu-elective-system/deploy/backup-local.sh
+# 备份不该和同步抢仓库：同步任务会 checkout/restore 工作区，
+# 镜像抓取撞上那一刻可能读到半个状态。让它自己重试一次即可。
+Restart=no

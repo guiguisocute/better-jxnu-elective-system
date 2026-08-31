@@ -1,0 +1,14 @@
+[Unit]
+Description=定期做本地备份
+
+[Timer]
+# 同步任务默认一小时一轮，备份跟着走同一个量级即可。
+OnBootSec=10min
+OnUnitActiveSec=1h
+# 关机/断电错过的那次，开机后补跑一次。
+Persistent=true
+# 和整点错开，避开同步任务正在写仓库的时刻。
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
