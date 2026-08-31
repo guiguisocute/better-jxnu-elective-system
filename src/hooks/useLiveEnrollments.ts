@@ -19,6 +19,14 @@ const CLIENT_POLL_INTERVAL_MS = 30_000;
 // 原 30 秒后端节奏下的延迟阈值为 90 秒，即允许连续三轮没有新快照。
 // 继续沿用这个比例，避免后端按较长间隔抓取时被前端过早误报为延迟。
 const STALE_INTERVALS = 3;
+
+// 延迟阈值必须同时兜住客户端自己的轮询周期：手里的快照再新也不可能新过
+// 上一次轮询。后端搬进校园网后一轮只要 3 秒，补退选期间会把间隔调到 5 秒，
+// 若仍只按后端间隔算，阈值是 10s×3=30s，而客户端本来就 30 秒才拉一次，
+// 于是每个周期末尾都要误报一次「数据延迟」。
+function staleThresholdMs(serverIntervalMs: number) {
+  return Math.max(serverIntervalMs, CLIENT_POLL_INTERVAL_MS) * STALE_INTERVALS;
+}
 const REQUEST_TIMEOUT_MS = 12_000;
 // 切回前台时：离上次真正发起请求太近就不重复拉，只需恢复固定节奏的下一次调度，
 // 避免反复切换标签页时把请求越攒越密。
@@ -116,7 +124,7 @@ export function useLiveEnrollments(
             lastFetchedAt.current = parsed.fetchedAt;
           }
           setError(null);
-          setStale(Date.now() - Date.parse(parsed.fetchedAt) > parsed.refreshIntervalMs * STALE_INTERVALS);
+          setStale(Date.now() - Date.parse(parsed.fetchedAt) > staleThresholdMs(parsed.refreshIntervalMs));
         }
       } catch (reason) {
         if (!cancelled) {
@@ -126,7 +134,7 @@ export function useLiveEnrollments(
           setError(message);
           setStale(
             (lastFetchedAt.current ? Date.now() - Date.parse(lastFetchedAt.current) : Infinity)
-            > refreshIntervalMs.current * STALE_INTERVALS,
+            > staleThresholdMs(refreshIntervalMs.current),
           );
         }
       } finally {

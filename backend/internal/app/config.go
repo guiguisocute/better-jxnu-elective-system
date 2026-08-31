@@ -217,8 +217,11 @@ func (c RuntimeConfig) Validate() error {
 	if c.FinalizedTerm != "" && !termPattern.MatchString(c.FinalizedTerm) {
 		return errors.New("已结束学期必须类似 25-26第2学期，留空表示沿用「不含在读学期」的旧口径")
 	}
-	if c.EnrollmentRefreshSeconds < 10 || c.EnrollmentRefreshSeconds > 3600 {
-		return errors.New("实时人数刷新间隔须为 10–3600 秒")
+	// 下限从 10 放到 5：后端搬进校园网后一轮 KKAP 全量只要约 3 秒，补退选期间
+	// 席位变化以秒计，10 秒的下限已经没有意义。真实节奏仍受 minimumRefreshPause
+	// 这个固定间隔保护（见 enrollment.go），不会退化成零延迟轮询。
+	if c.EnrollmentRefreshSeconds < 5 || c.EnrollmentRefreshSeconds > 3600 {
+		return errors.New("实时人数刷新间隔须为 5–3600 秒")
 	}
 	if c.StudentCacheSeconds < 0 || c.StudentCacheSeconds > 86400 {
 		return errors.New("学号缓存须为 0–86400 秒")

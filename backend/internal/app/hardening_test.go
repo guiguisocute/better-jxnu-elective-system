@@ -132,3 +132,16 @@ func TestCrawlCapacityStopsOnCancelledContext(t *testing.T) {
 		t.Fatalf("取消后不应再发请求，实际 %d 次", attempts)
 	}
 }
+func TestEnrollmentRefreshSecondsBounds(t *testing.T) {
+	for _, tc := range []struct {
+		seconds int
+		ok      bool
+	}{{4, false}, {5, true}, {10, true}, {3600, true}, {3601, false}} {
+		cfg := DefaultRuntimeConfig()
+		cfg.EnrollmentRefreshSeconds = tc.seconds
+		err := cfg.Validate()
+		if (err == nil) != tc.ok {
+			t.Fatalf("EnrollmentRefreshSeconds=%d: err=%v, 期望通过=%v", tc.seconds, err, tc.ok)
+		}
+	}
+}
