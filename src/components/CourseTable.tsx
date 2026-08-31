@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, memo } from "react";
+import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, memo } from "react";
 import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
 import { TagBadge } from "./TagBadge";
 import { CopyIdButton } from "./CopyIdButton";
@@ -6,12 +6,16 @@ import { displayTags, isInPlan, compactTags } from "../lib/planMatch";
 import { DataSourceSwitcher } from "./DataSourceSwitcher";
 import { SemesterSelector } from "./SemesterSelector";
 import { FeatureHints } from "./FeatureHints";
+import { PinAlertToggle } from "./PinAlertToggle";
+import type { PinAlertSettings } from "../lib/pinStore";
 import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
 import { LiveEnrollmentIndicator } from "./LiveEnrollmentIndicator";
 import { isTestSemester } from "../lib/term";
 import { normalizePeriods, unselectedIncludeSlots, slotLabel } from "../lib/scheduleParse";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
 import type { LiveEnrollmentStatus } from "../lib/liveEnrollments";
+
+const MAX_STICKY_PINS = 3;
 
 interface Props {
   courses: Course[];
@@ -50,6 +54,13 @@ interface Props {
   /** 当前选中行的 key，格式：`${id}|${className}|${teacherId}`。 */
   selectedSectionKey?: string | null;
   /** 模拟选课模式：预选行尾出现加车按钮、名称旁出现「已加入」徽章。 */
+  /** 已置顶的教学班 key（有序：先置顶的排在更上面）。 */
+  pinnedKeys?: string[];
+  isPinned?: (key: string) => boolean;
+  onTogglePin?: (key: string) => void;
+  pinAlert?: PinAlertSettings;
+  onUpdatePinAlert?: (patch: Partial<PinAlertSettings>) => void;
+  onClearPins?: () => void;
   simMode?: boolean;
   cartHas?: (id: string) => boolean;
   onToggleCart?: (id: string) => void;
@@ -230,6 +241,9 @@ interface RowShared {
   /** 最近一次更新时刻；作为徽章 key 的一部分，变化时重挂触发闪烁动画。 */
   enrollmentChangedAt?: number | null;
   onSelectSection?: (s: FormalSection) => void;
+  /** 该教学班是否已置顶。 */
+  isPinned?: (key: string) => boolean;
+  onTogglePin?: (key: string) => void;
 }
 
 function useProgressiveSectionCount(expanded: boolean, total: number) {
@@ -334,8 +348,13 @@ const FormalSectionMoreCard = memo(function FormalSectionMoreCard({
   );
 });
 
-const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection; indented?: boolean }) {
+const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned, onTogglePin, stickyTop }: RowShared & { s: FormalSection; indented?: boolean; stickyTop?: number }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
+  const pinned = isPinned?.(sKey) ?? false;
+  // 吸顶：sticky 必须加在 td 上（表格布局里 tr 不是定位容器）。逐个 td 写 style 太笨重，
+  // 改成给 tr 挂一个类 + CSS 变量，由 index.css 里的 `tr.pinned-sticky > td` 统一接管。
+  // 那条规则同时给单元格补了不透明背景——sticky 的 td 脱离常规流后，tr 的背景不会跟着走。
+  const sticky = stickyTop !== undefined;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
   const sCourse = selectedPlan ? coursesById?.get(s.id) : undefined;
@@ -344,12 +363,27 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
   return (
     <tr
       onClick={() => onSelectSection?.(s)}
-      className={`group transition-colors cursor-pointer ${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : indented ? "bg-gray-50 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
+      className={`group transition-colors cursor-pointer ${sticky ? "pinned-sticky " : ""}${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : indented ? "bg-gray-50 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
+      style={sticky ? ({ "--pin-top": `${stickyTop}px` } as React.CSSProperties) : undefined}
     >
       <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected && !indented ? "border-l-2 border-l-indigo-400" : ""} ${indented ? "pl-9 shadow-[inset_24px_0_0_-22px_#d1d5db] dark:shadow-[inset_24px_0_0_-22px_#30363d]" : ""}`}>
         <span className="inline-flex items-center gap-1">
           {s.id}
           <CopyIdButton text={s.id} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+          {onTogglePin && (
+            <button
+              type="button"
+              // 行本身是点开详情的，置顶按钮必须拦住冒泡，否则一点就跳详情页。
+              onClick={(e) => { e.stopPropagation(); onTogglePin(sKey); }}
+              title={pinned ? "取消置顶" : "置顶该教学班"}
+              aria-pressed={pinned}
+              className={`shrink-0 transition-opacity ${pinned ? "text-amber-500 opacity-100" : "text-gray-300 hover:text-amber-500 opacity-0 group-hover:opacity-100"}`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z" />
+              </svg>
+            </button>
+          )}
         </span>
       </td>
       <td className={`px-3 py-3 text-[13px] font-medium border-b border-gray-50 ${isSelected ? "text-red-600" : "text-gray-800"}`}>
@@ -646,6 +680,7 @@ export function CourseTable({
   allSemesters = [], selectedSemester = "", onChangeSemester,
   onSelectSection,
   selectedSectionKey = null,
+  pinnedKeys, isPinned, onTogglePin, pinAlert, onUpdatePinAlert, onClearPins,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
   showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
 }: Props) {
@@ -669,9 +704,9 @@ export function CourseTable({
       selectedPlan, coursesById, scheduleFilter, selectedSectionKey,
       getEnrollment, enrollmentStale: liveEnrollmentStatus?.stale,
       isEnrollmentChanged, enrollmentChangedAt: liveEnrollmentStatus?.lastUpdateAt ?? null,
-      onSelectSection,
+      onSelectSection, isPinned, onTogglePin,
     }),
-    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection],
+    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection, isPinned, onTogglePin],
   );
   // formal 列表里所有班级（扁平），供空态判断（替代旧 formalSections）。
   const formalSectionCount = formalGroups.reduce((n, g) => n + g.sections.length, 0);
@@ -687,6 +722,42 @@ export function CourseTable({
 
   const isFormal = dataSource === "formal";
   const tableHeaderTop = stickyTop + DESKTOP_TOOLBAR_HEIGHT;
+
+  // 置顶的教学班提到表格最前面并吸顶。顺序按用户置顶的先后（pinnedKeys 是有序数组）。
+  const pinnedSections = useMemo(() => {
+    if (!pinnedKeys?.length) return [];
+    const byKey = new Map<string, FormalSection>();
+    for (const g of formalGroups) {
+      for (const s of g.sections) byKey.set(`${s.id}|${s.className}|${s.teacherId}`, s);
+    }
+    // 置顶了但被当前筛选/学期排除掉的班级不显示——否则用户会以为筛选没生效。
+    return pinnedKeys.map((k) => byKey.get(k)).filter((s): s is FormalSection => !!s);
+  }, [pinnedKeys, formalGroups]);
+
+  // 吸顶偏移要实测：表头高度随字号/缩放变，行高随标签列内容变（align-top，可能两行）。
+  // 写死常量在这两种情况下都会错位。
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const pinnedBodyRef = useRef<HTMLTableSectionElement>(null);
+  const [pinTops, setPinTops] = useState<number[]>([]);
+  useLayoutEffect(() => {
+    const thead = theadRef.current;
+    const body = pinnedBodyRef.current;
+    if (!thead || !body || pinnedSections.length === 0) {
+      setPinTops((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+    const base = tableHeaderTop + thead.offsetHeight;
+    const tops: number[] = [];
+    let acc = 0;
+    for (const row of Array.from(body.rows)) {
+      tops.push(base + acc);
+      acc += row.offsetHeight;
+    }
+    // 只在真的变了才 setState —— 这是 useLayoutEffect 里改状态，不设防会自激循环。
+    setPinTops((prev) =>
+      prev.length === tops.length && prev.every((v, i) => v === tops[i]) ? prev : tops,
+    );
+  }, [pinnedSections, tableHeaderTop]);
 
   return (
     <div>
@@ -717,6 +788,14 @@ export function CourseTable({
             </div>
           )}
           <div className="flex items-center gap-3">
+            {isFormal && pinAlert && (
+              <PinAlertToggle
+                count={pinnedSections.length}
+                alert={pinAlert}
+                onUpdate={onUpdatePinAlert ?? (() => {})}
+                onClear={onClearPins ?? (() => {})}
+              />
+            )}
             {isFormal && liveEnrollmentStatus && <LiveEnrollmentIndicator status={liveEnrollmentStatus} />}
             {onChangeSemester && (
               <SemesterSelector
@@ -753,7 +832,7 @@ export function CourseTable({
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "9%" }} />
               </colgroup>
-              <thead className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
+              <thead ref={theadRef} className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
                 <tr>
                   {FORMAL_HEADERS.map((h) => {
                     // 学分列与预选共用排序状态，点击切升降序
@@ -803,6 +882,21 @@ export function CourseTable({
                   })}
                 </tr>
               </thead>
+              {/* 置顶行单独一个 tbody，排在主体之前：吸顶层叠顺序才和视觉顺序一致。
+                  只让前 MAX_STICKY_PINS 行真正吸顶，再多会把表格视口吃光；
+                  超出的仍然排在最前面，只是跟着滚动。 */}
+              {pinnedSections.length > 0 && (
+                <tbody ref={pinnedBodyRef}>
+                  {pinnedSections.map((s, i) => (
+                    <FormalSectionRow
+                      key={"pin-" + s.id + "|" + s.className + "|" + s.teacherId}
+                      s={s}
+                      stickyTop={i < MAX_STICKY_PINS ? pinTops[i] : undefined}
+                      {...rowProps}
+                    />
+                  ))}
+                </tbody>
+              )}
               <tbody>
                 {formalLoading ? (
                   <tr>

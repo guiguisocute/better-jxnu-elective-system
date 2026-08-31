@@ -19,6 +19,7 @@ import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
 import { useAppConfig } from "../lib/appConfig";
 import { acquireScrollLock } from "../lib/scrollLock";
+import { usePinnedCourses, usePinAvailabilityAlert } from "../hooks/usePinnedCourses";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { ScheduleFilter } from "./ScheduleFilter";
@@ -498,6 +499,9 @@ export function HomePage() {
     selectedSemester,
     isFormalMode && selectedSemester === appConfig.liveEnrollmentSemester,
   );
+  // 置顶教学班 + 「出现余量」提醒。盯的是当前可见的班级：置顶了但被筛选/学期排除掉的
+  // 不参与判定，否则用户以为筛掉了却还在收提醒。
+  const pins = usePinnedCourses();
   // AI帮我选（SimPanel AiTab）：余量 = 容量 − 实时已选；无实时快照（非直播学期）返回 null，
   // 候选行该段写 "-"。getEnrollment 已按 section.semester 自校验，跨学期查询天然得 null。
   const getLiveEnrollment = liveEnrollment.getEnrollment;
@@ -668,6 +672,16 @@ export function HomePage() {
     // 理由同上（避免每次轮询都重新分组+排序全量班级）。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleFormalSections, filter.sortAsc, filter.enrollmentSortAsc, filter.enrollmentSortAsc !== null ? liveEnrollment.getEnrollment : null, coursesById, foldGroups]);
+
+  usePinAvailabilityAlert(
+    visibleFormalSections,
+    liveEnrollment.getEnrollment,
+    pins.keys,
+    pins.alert.enabled && isFormalMode,
+    pins.alert.sound,
+    pins.alert.notify,
+  );
+
 
   // 正选/补退选共用入口单独分页，单位为「课程（组）」—— 一门课的所有班级不会被切到两页。
   // 每页 50 组；切换 dataSource / 学期 / 筛选时回到首页。
@@ -1248,6 +1262,12 @@ export function HomePage() {
             getEnrollment={liveEnrollment.getEnrollment}
             isEnrollmentChanged={liveEnrollment.isEnrollmentChanged}
             liveEnrollmentStatus={liveEnrollment.status}
+            pinnedKeys={pins.keys}
+            isPinned={pins.has}
+            onTogglePin={pins.toggle}
+            pinAlert={pins.alert}
+            onUpdatePinAlert={pins.updateAlert}
+            onClearPins={pins.clear}
             selectedPlan={filter.filters.plan}
             dataSource={dataSource}
             onChangeDataSource={changeDataSource}
