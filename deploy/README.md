@@ -37,12 +37,57 @@ D1 建表：把仓库根目录的 `d1_reviews_schema.sql`、`d1_schema.sql` 依�
 面板「部署配置」页在你填完「后端对外地址」后，会直接把上表里 `.env`、`wrangler.toml`、
 Caddyfile 三段配置按你的域名生成出来，照抄即可。
 
-## 进入管理面板
+## 部署拓扑：采集机在校园网内，TLS 边缘在公网
 
-在自己的电脑上运行，并保持这个终端窗口打开（`29HK` 换成你自己的 SSH 别名）：
+后端跑在**校园网内的机器**上，公网只留一台机器做 TLS 反向代理，两者之间用
+EasyTier 覆盖网打通。这不是为了省钱，是因为采集速度差了两个数量级：
+
+| 位置 | 拉取 KKAP 全量开课安排（9.07MB / 8497 行） | 学号课表冷启动（含 CAS 登录） |
+| --- | --- | --- |
+| 校园网内 | **约 2–3 秒** | **约 2 秒** |
+| 海外 VPS（Azure 首尔） | 15–90 秒，偶发传输中断 | 8–35 秒，常撞穿 CF Function 的 10s 超时 |
+
+```text
+用户 ──HTTPS──> 边缘 VPS (nginx, 证书, 公网 A 记录)
+                    │  EasyTier 覆盖网 10.144.0.0/24
+                    └──────> 校园机 (jxnu-backend) ──内网──> 教务
+```
+
+要点：
+
+- **后端监听覆盖网地址**，不是回环：`PUBLIC_ADDR=10.144.0.1:8787`、
+  `LIVE_ADDR=10.144.0.1:8788`。照抄旧的 `127.0.0.1` 会让边缘 nginx 直接 502。
+- **`ADMIN_ADDR` 必须留在 `127.0.0.1:8790`**。面板不走覆盖网，只能 SSH 隧道进。
+- 边缘 nginx 把 `location /live/` 指向 `10.144.0.1:8788`、`location /` 指向
+  `10.144.0.1:8787`，并加 `proxy_connect_timeout 10s`（覆盖网 RTT 约 135ms，
+  比回环慢，默认超时下偶发抖动会变成 502）。
+  **改完的备份文件不要留在 `sites-enabled/` 里**——那个目录是 glob 包含的，
+  备份会被当成第二个同名 server 块加载。
+- 回滚 = 把 nginx 两个 `proxy_pass` 改回 `127.0.0.1`，再
+  `systemctl --user enable --now jxnu-backend.service jxnu-sync.timer`。
+  边缘机上的旧二进制与 unit 文件请保留不删。
+
+### 校园网内必做：让教务域名绕开 docker0
+
+校园 DNS 把 `jwc/xk.jxnu.edu.cn` 解析到 `172.17.5.116`、`uis` 到 `172.17.5.50`，
+而 Docker 默认网桥占用整个 `172.17.0.0/16`。装了 Docker 的校园机上，
+后端按域名**根本连不上教务**（curl 直接 `code=000`）。加一条明细路由压过它：
 
 ```bash
-ssh -L 8790:127.0.0.1:8790 29HK
+sudo ip route replace 172.17.5.0/24 via <校园网关> dev <网卡>
+```
+
+配一个 oneshot systemd 单元让它重启后自动恢复（仓库外维护，见
+`jxnu-campus-route.service`）。比改 `daemon.json` 的 `default-address-pools`
+温和：后者要重启 docker，会连带弹掉机器上其它生产容器。
+
+## 进入管理面板
+
+在自己的电脑上运行，并保持这个终端窗口打开（占位符换成你自己的 SSH 别名）：
+
+```bash
+# 校园机在 NAT 后面，经覆盖网里的公网节点跳一层
+ssh -J <边缘VPS别名> -L 8790:127.0.0.1:8790 <校园机用户>@10.144.0.1
 ```
 
 浏览器打开：
@@ -101,16 +146,17 @@ KKAP 不再使用页面默认学期。每次先读取 `ddlSterm`，按仓库目�
 
 ## 本地构建与首次部署
 
-VPS 不需要安装 Go。在开发机仓库根目录交叉编译：
+采集机不需要安装 Go。在开发机仓库根目录交叉编译（校园机在 NAT 后面，
+`-J` 经覆盖网里的公网节点跳一层）：
 
 ```bash
 mkdir -p dist
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
   go build -C backend -trimpath -ldflags="-s -w" -o ../dist/jxnu-backend ./cmd/jxnu-backend
-scp dist/jxnu-backend 29HK:/tmp/jxnu-backend
+scp -J <边缘VPS别名> dist/jxnu-backend <校园机用户>@10.144.0.1:/tmp/jxnu-backend
 ```
 
-然后登录 VPS：
+然后登录采集机：
 
 ```bash
 cd ~/better-jxnu-elective-system
@@ -135,9 +181,13 @@ git pull --ff-only
 ```bash
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
   go build -C backend -trimpath -ldflags="-s -w" -o ../dist/jxnu-backend ./cmd/jxnu-backend
-scp dist/jxnu-backend 29HK:/tmp/jxnu-backend
-ssh 29HK 'cd ~/better-jxnu-elective-system && git pull --ff-only && ./deploy/install-backend.sh /tmp/jxnu-backend'
+scp -J <边缘VPS别名> dist/jxnu-backend <校园机用户>@10.144.0.1:/tmp/jxnu-backend
+ssh -J <边缘VPS别名> <校园机用户>@10.144.0.1 \
+  'cd ~/better-jxnu-elective-system && git pull --ff-only && ./deploy/install-backend.sh /tmp/jxnu-backend'
 ```
+
+`install-backend.sh` 的快照预热与健康检查会照 `backend.env` 里的
+`PUBLIC_ADDR` / `LIVE_ADDR` / `ADMIN_ADDR` 实际取址，绑覆盖网地址也能正确自检。
 
 ## 配置文件
 

@@ -105,11 +105,26 @@ install -m 0644 "$SCRIPT_DIR/jxnu-backend.service" "$UNIT_DIR/jxnu-backend.servi
 install -m 0644 "$SCRIPT_DIR/jxnu-sync.service" "$UNIT_DIR/jxnu-sync.service"
 install -m 0644 "$SCRIPT_DIR/jxnu-sync.timer" "$UNIT_DIR/jxnu-sync.timer"
 
+# 健康检查与快照预热都必须照 backend.env 里的实际监听地址打，不能写死回环：
+# 采集机部署在校园网内、由公网边缘反代时，PUBLIC_ADDR/LIVE_ADDR 绑的是覆盖网
+# 地址，写死 127.0.0.1 会让每次升级都误判失败并触发回滚分支。
+PUBLIC_HEALTH="$(read_legacy_value PUBLIC_ADDR "$ENV_FILE" || echo 127.0.0.1:8787)"
+LIVE_HEALTH="$(read_legacy_value LIVE_ADDR "$ENV_FILE" || echo 127.0.0.1:8788)"
+ADMIN_HEALTH="$(read_legacy_value ADMIN_ADDR "$ENV_FILE" || echo 127.0.0.1:8790)"
+# 0.0.0.0 / 省略主机名都不是可连接的目的地址，改打回环。
+for var in PUBLIC_HEALTH LIVE_HEALTH ADMIN_HEALTH; do
+  eval "value=\$$var"
+  case "$value" in
+    0.0.0.0:*) eval "$var=127.0.0.1:\${value#0.0.0.0:}" ;;
+    :*) eval "$var=127.0.0.1\$value" ;;
+  esac
+done
+
 # 升级前保存当前可用快照，新进程可立即对外服务并在后台刷新，避免冷启动
 # 抓取数千行期间出现 503。旧 Python 与新 Go 的公开响应都兼容该结构。
 SNAPSHOT_FILE="$APP_DIR/enrollment_snapshot.json"
 SNAPSHOT_TMP="$APP_DIR/.enrollment_snapshot.install.tmp"
-if curl -fsS --max-time 10 http://127.0.0.1:8787/api/enrollments >"$SNAPSHOT_TMP" \
+if curl -fsS --max-time 10 "http://$PUBLIC_HEALTH/api/enrollments" >"$SNAPSHOT_TMP" \
   && grep -q '"items"' "$SNAPSHOT_TMP"; then
   chmod 600 "$SNAPSHOT_TMP"
   mv -f "$SNAPSHOT_TMP" "$SNAPSHOT_FILE"
@@ -132,9 +147,9 @@ healthy=false
 # 实时人数首份快照要拉取数千行，冷启动通常需要二三十秒。给足窗口，
 # 同时每两秒检查一次，避免固定长等待。
 for _ in $(seq 1 45); do
-  if curl -fsS --max-time 5 http://127.0.0.1:8787/healthz >/dev/null 2>&1 \
-    && curl -fsS --max-time 5 http://127.0.0.1:8788/healthz >/dev/null 2>&1 \
-    && curl -fsS --max-time 5 http://127.0.0.1:8790/healthz >/dev/null 2>&1; then
+  if curl -fsS --max-time 5 "http://$PUBLIC_HEALTH/healthz" >/dev/null 2>&1 \
+    && curl -fsS --max-time 5 "http://$LIVE_HEALTH/healthz" >/dev/null 2>&1 \
+    && curl -fsS --max-time 5 "http://$ADMIN_HEALTH/healthz" >/dev/null 2>&1; then
     healthy=true
     break
   fi
