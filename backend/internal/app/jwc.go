@@ -87,7 +87,12 @@ func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 func NewJWCClient(username, password string) *JWCClient {
 	jar, _ := cookiejar.New(nil)
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true} // school endpoint occasionally serves an incomplete chain
+	// 这个 client 同时承担 CAS 登录：uis 的 /jwt/publicKey 和随后的密码 POST 都走它。
+	// 一旦关掉证书校验，中间人可以换掉那把公钥，教务账号密码就等于明文交出去。
+	// 2026-08 实测 jwc / xk / uis 三个域名都是完整可验证的 *.jxnu.edu.cn 链
+	// （cnTrus OV SSL CA，verify code 0），历史上「链不全」的前提已经不成立。
+	// 学校将来再把链配坏，就该显式报错，而不是静默降级成不安全连接。
+	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	transport.MaxIdleConns = 16
 	transport.MaxIdleConnsPerHost = 8
 	transport.IdleConnTimeout = 90 * time.Second
@@ -714,8 +719,16 @@ func parseCourseChunks(cell *tableCell) []courseChunk {
 	return chunks
 }
 
+// 课表网格解析对每个学生的每个单元格都要跑一遍，正则在包级编译一次。
+var (
+	locationLinePattern     = regexp.MustCompile(`^[（(]\s*.+?\s*[)）]$`)
+	placeholderCoursePatten = regexp.MustCompile(`^(?:\d{2}级.*班|教工.*班|合班.*班)$`)
+	placeholderClassPattern = regexp.MustCompile(`#\d+班\.?$`)
+	noonDividerPattern      = regexp.MustCompile(`中\s*午`)
+)
+
 func isLocationLine(value string) bool {
-	return regexp.MustCompile(`^[（(]\s*.+?\s*[)）]$`).MatchString(cleanText(value))
+	return locationLinePattern.MatchString(cleanText(value))
 }
 func extractLocation(value string) string {
 	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(cleanText(value), "（"), "("), "）"), ")"))
@@ -726,7 +739,7 @@ func teachingClassDescriptor(value string) bool {
 }
 func isPlaceholderCourse(value string) bool {
 	value = cleanText(value)
-	return regexp.MustCompile(`^(?:\d{2}级.*班|教工.*班|合班.*班)$`).MatchString(value) || regexp.MustCompile(`#\d+班\.?$`).MatchString(value)
+	return placeholderCoursePatten.MatchString(value) || placeholderClassPattern.MatchString(value)
 }
 func splitTeachingClassAndNext(value string) (string, string, bool) {
 	parts := strings.SplitN(cleanText(value), "、", 2)
@@ -802,7 +815,7 @@ func parseScheduleItems(mainTable *xhtml.Node, details []DetailCourse) []Schedul
 			}
 		}
 		joined := strings.Join(texts, " ")
-		if regexp.MustCompile(`中\s*午`).MatchString(joined) || strings.Contains(joined, "课表说明") {
+		if noonDividerPattern.MatchString(joined) || strings.Contains(joined, "课表说明") {
 			continue
 		}
 		label := ""

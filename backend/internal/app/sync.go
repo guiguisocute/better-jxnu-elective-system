@@ -8,13 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var errSyncBusy = errors.New("同步任务正在运行")
@@ -38,6 +39,9 @@ type SyncRunner struct {
 	logger     *slog.Logger
 	statusPath string
 	watchPath  string
+	// 采集与探针共用一个 KKAP client，连接和 cookie 才能跨轮复用。
+	// 同步任务本身由文件锁串行化，不需要额外加锁。
+	kkap *http.Client
 }
 
 type AcquisitionWatchState struct {
@@ -73,6 +77,7 @@ func NewSyncRunner(env Environment, config *ConfigStore, logger *slog.Logger) *S
 		env: env, config: config, logger: logger,
 		statusPath: filepath.Join(stateDir, "last_sync.json"),
 		watchPath:  filepath.Join(stateDir, "acquisition_watch.json"),
+		kkap:       NewPublicScheduleClient(),
 	}
 }
 func (s *SyncRunner) Status() SyncStatus {
@@ -85,7 +90,7 @@ func (s *SyncRunner) Status() SyncStatus {
 
 func (s *SyncRunner) ProbeKKAP(ctx context.Context, semester string) (KKAPProbeResult, error) {
 	result := KKAPProbeResult{State: "checking", Semester: semester, AcademicTerm: academicTermLabel(semester)}
-	rows, err := FetchPublicSchedule(ctx, NewEnrollmentService(s.config, s.logger).client, semester)
+	rows, err := FetchPublicSchedule(ctx, s.kkap, semester)
 	if err != nil {
 		var unavailable *TargetSemesterUnavailableError
 		if errors.As(err, &unavailable) {
@@ -185,8 +190,8 @@ func (s *SyncRunner) run(ctx context.Context, scheduled, acquire bool) error {
 		}
 		s.logger.Info("检测到允许的手工 raw，离线构建将保留并发布", "paths", manualPaths)
 	} else {
-		if _, err = s.command(ctx, 2*time.Minute, "git", "pull", "--ff-only", "origin", "main"); err != nil {
-			return fail(fmt.Errorf("git pull --ff-only: %w", err))
+		if err = s.syncWithRemote(ctx); err != nil {
+			return fail(err)
 		}
 	}
 	rawPath := filepath.Join(s.env.RepoDir, "data", "semesters", semester, "raw", profile.RawFilename)
@@ -358,7 +363,17 @@ func (s *SyncRunner) run(ctx context.Context, scheduled, acquire bool) error {
 		return fail(err)
 	}
 	if _, err = s.command(ctx, 2*time.Minute, "git", "push", "origin", "main"); err != nil {
-		return fail(err)
+		// 推送失败最常见的原因是远端在本轮构建期间前进了（另一台机器或人工提交）。
+		// 此时本地已经有一个 data commit，如果就这么退出，下一轮开头的 ff-only 拉取
+		// 会一直失败，同步就永久卡死直到有人手动 rebase——这在 2026-07 真的发生过。
+		s.logger.Warn("推送失败，尝试与远端对齐后重推", "error", err)
+		if alignErr := s.syncWithRemote(ctx); alignErr != nil {
+			return fail(fmt.Errorf("推送失败且无法自动与远端对齐（本地 commit 已保留，需人工处理）: %w", alignErr))
+		}
+		if _, err = s.command(ctx, 2*time.Minute, "git", "push", "origin", "main"); err != nil {
+			return fail(fmt.Errorf("与远端对齐后重推仍失败: %w", err))
+		}
+		s.logger.Info("与远端对齐后重推成功")
 	}
 	status.State = "success"
 	status.FinishedAt = time.Now().UTC().Format(time.RFC3339)
@@ -367,6 +382,30 @@ func (s *SyncRunner) run(ctx context.Context, scheduled, acquire bool) error {
 		status.Message += "；" + watchWaiting
 	}
 	s.setStatus(status)
+	return nil
+}
+
+// syncWithRemote 把工作区推进到 origin/main。
+//
+// 先试 --ff-only：绝大多数情况下本地没有独有提交，这是最安全的路径。
+// 只有在它失败（本地领先或已分叉）时才退到 --rebase，把本轮或上一轮滞留的
+// data commit 重放到远端之上。仍然失败就 abort，保持工作区原样并如实报错——
+// 这里绝不做 reset --hard 之类的破坏性收尾，滞留的提交要留给人看。
+func (s *SyncRunner) syncWithRemote(ctx context.Context) error {
+	if _, err := s.command(ctx, 2*time.Minute, "git", "pull", "--ff-only", "origin", "main"); err == nil {
+		return nil
+	} else {
+		s.logger.Warn("git pull --ff-only 失败，改用 rebase 对齐远端", "error", err)
+	}
+	if _, err := s.command(ctx, 3*time.Minute, "git", "pull", "--rebase", "origin", "main"); err != nil {
+		// abort 用 Background：即便本轮 ctx 已经超时，也必须把 rebase 状态收干净，
+		// 否则仓库会停在 rebase-in-progress，之后每一轮都直接失败。
+		if _, abortErr := s.command(context.Background(), time.Minute, "git", "rebase", "--abort"); abortErr != nil {
+			s.logger.Warn("git rebase --abort 失败，仓库可能停在 rebase 中间状态", "error", abortErr)
+		}
+		return fmt.Errorf("git pull --rebase: %w", err)
+	}
+	s.logger.Info("已通过 rebase 与远端对齐")
 	return nil
 }
 
@@ -385,7 +424,7 @@ func (s *SyncRunner) acquireSchedule(ctx context.Context, cfg RuntimeConfig, pro
 		return rows, true, "", nil
 	}
 
-	rows, err := FetchPublicSchedule(ctx, NewEnrollmentService(s.config, s.logger).client, semester)
+	rows, err := FetchPublicSchedule(ctx, s.kkap, semester)
 	if err != nil {
 		var unavailable *TargetSemesterUnavailableError
 		if errors.As(err, &unavailable) {
@@ -706,11 +745,18 @@ func appendUniquePaths(paths []string, more ...string) []string {
 	}
 	return paths
 }
+
+// truncate 按 rune 边界截断。这个项目的日志、面板消息和学校页面正文全是中文，
+// 直接按字节切会把一个汉字劈成半个，落到 journal 里就是一串乱码。
 func truncate(value string, max int) string {
 	if len(value) <= max {
 		return value
 	}
-	return value[:max] + "…"
+	cut := max
+	for cut > 0 && !utf8.RuneStart(value[cut]) {
+		cut--
+	}
+	return value[:cut] + "…"
 }
 func countJSONArray(path string) (int, error) {
 	file, err := os.Open(path)
@@ -779,11 +825,4 @@ func ParseSyncStatus(raw []byte) SyncStatus {
 		return SyncStatus{State: "unknown", Message: "状态文件损坏"}
 	}
 	return status
-}
-func atoiDefault(value string, fallback int) int {
-	n, err := strconv.Atoi(value)
-	if err != nil {
-		return fallback
-	}
-	return n
 }

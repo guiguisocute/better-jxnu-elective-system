@@ -128,9 +128,17 @@ func (a *AdminServer) auth(next func(http.ResponseWriter, *http.Request, adminSe
 		}
 		a.mu.Lock()
 		session, ok := a.sessions[cookie.Value]
-		if ok && time.Now().After(session.Expires) {
+		now := time.Now()
+		if ok && now.After(session.Expires) {
 			delete(a.sessions, cookie.Value)
 			ok = false
+		}
+		// 顺手清掉其它已过期的会话：只按 cookie 命中删除的话，换过浏览器或
+		// 重复登录留下的条目会一直躺在 map 里直到进程重启。
+		for token, stale := range a.sessions {
+			if now.After(stale.Expires) {
+				delete(a.sessions, token)
+			}
 		}
 		a.mu.Unlock()
 		if !ok {

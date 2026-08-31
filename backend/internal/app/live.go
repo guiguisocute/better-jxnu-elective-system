@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -93,7 +92,7 @@ func (s *LiveStudentService) CheckSecret(value string) bool {
 }
 
 func (s *LiveStudentService) GetRecord(ctx context.Context, sid string) (map[string]any, error) {
-	if !regexp.MustCompile(`^\d{6,20}$`).MatchString(sid) {
+	if !isStudentID(sid) {
 		return nil, fmt.Errorf("学号格式不正确")
 	}
 	cfg := s.config.Get()
@@ -162,7 +161,7 @@ func (s *LiveStudentService) GetRecord(ctx context.Context, sid string) (map[str
 // It shares fetchMu with GetRecord, so a batch run and a user query can never
 // interleave their stateful postback sequences.
 func (s *LiveStudentService) RefreshRecord(ctx context.Context, sid string) (BuiltStudentRecord, error) {
-	if !regexp.MustCompile(`^\d{6,20}$`).MatchString(sid) {
+	if !isStudentID(sid) {
 		return BuiltStudentRecord{}, fmt.Errorf("学号格式不正确")
 	}
 	cfg := s.config.Get()
@@ -308,10 +307,4 @@ func (s *LiveStudentService) AvailableTerms() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return append([]string(nil), s.terms...)
-}
-func cacheKeySID(key string) string {
-	if at := strings.IndexByte(key, 0); at >= 0 {
-		return key[:at]
-	}
-	return key
 }

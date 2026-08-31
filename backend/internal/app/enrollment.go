@@ -99,14 +99,21 @@ type EnrollmentSnapshot struct {
 }
 
 type enrollmentState struct {
-	OK                bool                `json:"ok"`
-	Refreshing        bool                `json:"refreshing"`
-	LastAttemptAt     *string             `json:"lastAttemptAt"`
-	NextRefreshAt     string              `json:"nextRefreshAt"`
-	RefreshIntervalMS int                 `json:"refreshIntervalMs"`
-	Error             *string             `json:"error"`
-	Snapshot          *EnrollmentSnapshot `json:"-"`
+	OK                bool    `json:"ok"`
+	Refreshing        bool    `json:"refreshing"`
+	LastAttemptAt     *string `json:"lastAttemptAt"`
+	NextRefreshAt     string  `json:"nextRefreshAt"`
+	RefreshIntervalMS int     `json:"refreshIntervalMs"`
+	Error             *string `json:"error"`
+	// PublicError 是 /api/enrollments 对外回显的那一份。
+	// Error 里是原始 Go 错误串，包含学校的 URL、IP 和内部报错文本；
+	// 那些只该进管理面板和日志，不该出现在任何人都能 curl 的接口上。
+	PublicError *string             `json:"-"`
+	Snapshot    *EnrollmentSnapshot `json:"-"`
 }
+
+// 采集失败时对外只说“暂时不可用”。具体原因看面板的同步状态或 journal。
+const publicEnrollmentErrorMessage = "实时人数暂时不可用，请稍后再试"
 
 type encodedResponse struct {
 	raw  []byte
@@ -128,16 +135,23 @@ type EnrollmentService struct {
 	lastPersist  time.Time
 }
 
-func NewEnrollmentService(config *ConfigStore, logger *slog.Logger) *EnrollmentService {
+// NewPublicScheduleClient 返回一个只用来打 KKAP 公开页面的 http.Client。
+// 采集器和探针都需要它，但它们不需要（也不应该）顺带构造一个 EnrollmentService：
+// 那会读一次磁盘快照并打出一行“已载入实时人数磁盘快照”的假日志。
+func NewPublicScheduleClient() *http.Client {
 	jar, _ := cookiejar.New(nil)
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConns = 8
 	transport.MaxIdleConnsPerHost = 4
 	transport.IdleConnTimeout = 90 * time.Second
+	return &http.Client{Transport: transport, Jar: jar, Timeout: publicScheduleTimeout}
+}
+
+func NewEnrollmentService(config *ConfigStore, logger *slog.Logger) *EnrollmentService {
 	service := &EnrollmentService{
 		config:       config,
 		logger:       logger,
-		client:       &http.Client{Transport: transport, Jar: jar, Timeout: publicScheduleTimeout},
+		client:       NewPublicScheduleClient(),
 		wake:         make(chan struct{}, 1),
 		snapshotPath: filepath.Join(filepath.Dir(config.Path()), "enrollment_snapshot.json"),
 	}
@@ -238,9 +252,10 @@ func (s *EnrollmentService) wait(ctx context.Context, wait time.Duration) bool {
 func (s *EnrollmentService) disableForPreselect(now time.Time, interval int) {
 	message := "当前默认阶段为预选：预选目录不含实时人数，KKAP 轮询已按阶段关闭"
 	s.mu.Lock()
+	// 这条是阶段语义，不是故障详情，对外照原样显示。
 	s.state = enrollmentState{
 		OK: false, Refreshing: false, NextRefreshAt: now.Add(time.Duration(interval) * time.Second).UTC().Format(time.RFC3339),
-		RefreshIntervalMS: interval * 1000, Error: &message,
+		RefreshIntervalMS: interval * 1000, Error: &message, PublicError: &message,
 	}
 	s.reencodeLocked()
 	s.mu.Unlock()
@@ -264,10 +279,13 @@ func (s *EnrollmentService) finishAttempt(snapshot *EnrollmentSnapshot, err erro
 	s.state.RefreshIntervalMS = interval * 1000
 	if err != nil {
 		message := err.Error()
+		public := publicEnrollmentErrorMessage
 		s.state.Error = &message
+		s.state.PublicError = &public
 	} else {
 		s.state.Snapshot = snapshot
 		s.state.Error = nil
+		s.state.PublicError = nil
 	}
 	s.state.OK = s.state.Snapshot != nil
 	s.reencodeLocked()
@@ -278,7 +296,7 @@ func (s *EnrollmentService) reencodeLocked() {
 	health := map[string]any{
 		"ok": s.state.OK, "refreshing": s.state.Refreshing,
 		"lastAttemptAt": s.state.LastAttemptAt, "nextRefreshAt": s.state.NextRefreshAt,
-		"refreshIntervalMs": s.state.RefreshIntervalMS, "error": s.state.Error,
+		"refreshIntervalMs": s.state.RefreshIntervalMS, "error": s.state.PublicError,
 	}
 	full := make(map[string]any, len(health)+8)
 	for key, value := range health {
@@ -311,9 +329,9 @@ func (s *EnrollmentService) Status() enrollmentState {
 	defer s.mu.RUnlock()
 	state := s.state
 	if state.Snapshot != nil {
-		copy := *state.Snapshot
-		copy.Items = nil
-		state.Snapshot = &copy
+		trimmed := *state.Snapshot
+		trimmed.Items = nil
+		state.Snapshot = &trimmed
 	}
 	return state
 }

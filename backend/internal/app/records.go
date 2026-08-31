@@ -261,6 +261,19 @@ func classNameToPlanKey(className string, valid map[string]bool) string {
 	return ""
 }
 
+// 这些解析器是按「每个学生 × 每门课」调用的：一次固化学期批处理要跑 2.8 万名学生，
+// 正则和查表都必须在包级建一次。
+var (
+	classNameHeadPattern    = regexp.MustCompile(`^(\d{2})级`)
+	classNameTailPattern    = regexp.MustCompile(`(\d+)?班\s*(?:（([^）]*)）)?\s*$`)
+	planKeyYearPattern      = regexp.MustCompile(`(\d{4})`)
+	classNameYearPattern    = regexp.MustCompile(`^\s*(\d{2})`)
+	studentSemesterPattern  = regexp.MustCompile(`(\d{2})-(\d{2})第(\d+)学期`)
+	arabicTermIndexPattern  = regexp.MustCompile(`第\s*(\d+)\s*学期`)
+	chineseTermIndexPattern = regexp.MustCompile(`第\s*([一二三四五六七八九十]+)\s*学期`)
+	chineseTermNumbers      = map[string]int{"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10, "十一": 11, "十二": 12}
+)
+
 type parsedClassName struct {
 	year               int
 	body, middle, tail string
@@ -268,14 +281,13 @@ type parsedClassName struct {
 
 func parseClassName(className string) (parsedClassName, bool) {
 	value := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(className), "(", "（"), ")", "）")
-	head := regexp.MustCompile(`^(\d{2})级`).FindStringSubmatchIndex(value)
+	head := classNameHeadPattern.FindStringSubmatchIndex(value)
 	if len(head) == 0 {
 		return parsedClassName{}, false
 	}
 	year, _ := strconv.Atoi(value[head[2]:head[3]])
 	rest := value[head[1]:]
-	tailRe := regexp.MustCompile(`(\d+)?班\s*(?:（([^）]*)）)?\s*$`)
-	tailMatch := tailRe.FindStringSubmatchIndex(rest)
+	tailMatch := classNameTailPattern.FindStringSubmatchIndex(rest)
 	if len(tailMatch) == 0 {
 		return parsedClassName{}, false
 	}
@@ -310,18 +322,18 @@ type calendarTerm struct {
 }
 
 func enrollYearOf(planKey, className string) int {
-	if match := regexp.MustCompile(`(\d{4})`).FindStringSubmatch(planKey); len(match) > 1 {
+	if match := planKeyYearPattern.FindStringSubmatch(planKey); len(match) > 1 {
 		year, _ := strconv.Atoi(match[1])
 		return year
 	}
-	if match := regexp.MustCompile(`^\s*(\d{2})`).FindStringSubmatch(className); len(match) > 1 {
+	if match := classNameYearPattern.FindStringSubmatch(className); len(match) > 1 {
 		year, _ := strconv.Atoi(match[1])
 		return 2000 + year
 	}
 	return 0
 }
 func parseStudentSemester(label string) (calendarTerm, bool) {
-	match := regexp.MustCompile(`(\d{2})-(\d{2})第(\d+)学期`).FindStringSubmatch(label)
+	match := studentSemesterPattern.FindStringSubmatch(label)
 	if len(match) == 0 {
 		return calendarTerm{}, false
 	}
@@ -368,13 +380,12 @@ func calendarTermKey(term calendarTerm) string {
 	return fmt.Sprintf("%04d-%s", term.year, month)
 }
 func chineseTermIndex(label string) int {
-	if match := regexp.MustCompile(`第\s*(\d+)\s*学期`).FindStringSubmatch(label); len(match) > 1 {
+	if match := arabicTermIndexPattern.FindStringSubmatch(label); len(match) > 1 {
 		n, _ := strconv.Atoi(match[1])
 		return n
 	}
-	words := map[string]int{"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10, "十一": 11, "十二": 12}
-	if match := regexp.MustCompile(`第\s*([一二三四五六七八九十]+)\s*学期`).FindStringSubmatch(label); len(match) > 1 {
-		return words[match[1]]
+	if match := chineseTermIndexPattern.FindStringSubmatch(label); len(match) > 1 {
+		return chineseTermNumbers[match[1]]
 	}
 	return 0
 }

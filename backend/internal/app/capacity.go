@@ -21,6 +21,15 @@ import (
 
 const xkBase = "https://xk.jxnu.edu.cn"
 
+// 容量抓取一轮 1400+ 门课、每门十几个班，intPtrAt 会被调用几万次；
+// 正则必须在包级编译一次，不能每次调用都重编译。
+var integerCellPattern = regexp.MustCompile(`^-?\d+$`)
+
+// 连续这么多门课都取不到结果，就认定会话已经废了，提前收工。
+// 教务会话掉线时逐门跑完 1400 次注定失败的请求要十几分钟，还会把真正的原因
+// 埋在几千行日志里（2026-07 的「容量全 0」就是这么难查的）。
+const capacityAbortAfterConsecutiveFailures = 25
+
 type CapacityClass struct {
 	ClassID   string `json:"bjh"`
 	ClassName string `json:"className"`
@@ -139,19 +148,18 @@ func (c *XKClient) SystemConfig(ctx context.Context) map[string]any {
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
-	text := cleanTextFromHTML(raw)
-	if len(text) > 600 {
-		text = text[:600]
-	}
-	return map[string]any{"len": len(raw), "excerpt": text}
+	return map[string]any{"len": len(raw), "excerpt": truncate(cleanTextFromHTML(raw), 600)}
 }
 func (c *XKClient) ChangeClass(ctx context.Context, courseID, urlTemplate string) (CapacityCourse, error) {
 	if err := validateCapacityURL(urlTemplate); err != nil {
 		return CapacityCourse{}, err
 	}
 	target := strings.ReplaceAll(urlTemplate, "{courseId}", url.QueryEscape(courseID))
-	parsed, _ := url.Parse(target)
+	parsed, parseErr := url.Parse(target)
 	referer := xkBase + "/"
+	if parseErr != nil {
+		return CapacityCourse{}, fmt.Errorf("容量嗅探 URL 代入课程号后不可解析: %w", parseErr)
+	}
 	if slash := strings.LastIndex(parsed.Path, "/"); slash >= 0 {
 		referer = parsed.Scheme + "://" + parsed.Host + parsed.Path[:slash+1]
 	}
@@ -213,7 +221,7 @@ func intPtrAt(values []string, index int) *int {
 	if index < 0 || index >= len(values) {
 		return nil
 	}
-	if !regexp.MustCompile(`^-?\d+$`).MatchString(strings.TrimSpace(values[index])) {
+	if !integerCellPattern.MatchString(strings.TrimSpace(values[index])) {
 		return nil
 	}
 	n, _ := strconv.Atoi(strings.TrimSpace(values[index]))
@@ -254,14 +262,39 @@ func CrawlCapacity(ctx context.Context, client *XKClient, semester, formalPath, 
 		return nil, err
 	}
 	snapshot := &CapacitySnapshot{Semester: semester, FetchedAt: time.Now().Format("2006-01-02 15:04:05"), SourceURL: urlTemplate, Config: client.SystemConfig(ctx), Courses: []CapacityCourse{}}
+	fetch := func(ctx context.Context, courseID string) (CapacityCourse, error) {
+		return client.ChangeClass(ctx, courseID, urlTemplate)
+	}
+	return crawlCapacityCourses(ctx, snapshot, courseIDs, names, fetch, delay, progress)
+}
+
+// crawlCapacityCourses 是抓取循环本体，抽出来是为了能脱离 CAS 登录单独测试中止逻辑。
+func crawlCapacityCourses(ctx context.Context, snapshot *CapacitySnapshot, courseIDs []string, names map[string]string,
+	fetch func(context.Context, string) (CapacityCourse, error), delay time.Duration, progress func(int, int, CapacityCourse)) (*CapacitySnapshot, error) {
+	consecutiveFailures := 0
+	var firstFailure error
 	for i, id := range courseIDs {
-		record, fetchErr := client.ChangeClass(ctx, id, urlTemplate)
+		// delay 可以配成 0，那样下面的 select 不会执行，这里必须自己让出取消点，
+		// 否则面板上的「取消」和进程退出都要等 1400 门课跑完。
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+		record, fetchErr := fetch(ctx, id)
 		if fetchErr != nil {
+			consecutiveFailures++
+			if firstFailure == nil {
+				firstFailure = fetchErr
+			}
 			if progress != nil {
 				progress(i+1, len(courseIDs), CapacityCourse{CourseID: id, Name: "ERROR: " + fetchErr.Error()})
 			}
+			if consecutiveFailures >= capacityAbortAfterConsecutiveFailures {
+				return nil, fmt.Errorf("连续 %d 门课抓取失败（已处理 %d/%d），判定会话或选课阶段异常，提前中止；首个错误：%w",
+					consecutiveFailures, i+1, len(courseIDs), firstFailure)
+			}
 			continue
 		}
+		consecutiveFailures = 0
 		record.Name = names[id]
 		snapshot.Courses = append(snapshot.Courses, record)
 		if record.Blocked {
