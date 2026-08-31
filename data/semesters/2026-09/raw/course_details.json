@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-08-31T06:36:36Z",
+ "fetchedAt": "2026-08-31T09:55:50Z",
  "courses": [
   {
    "courseId": "002166",
@@ -380,6 +380,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194921",
    "fetchedAt": "2026-08-28T06:08:10Z"
+  },
+  {
+   "courseId": "252494",
+   "courseName": "中学英语课标解读与教材分析",
+   "courseNameIdentity": "中学英语课标解读与教材分析",
+   "credits": 2,
+   "classId": "002358$1",
+   "courseSiteId": "195310",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195310",
+   "fetchedAt": "2026-08-31T09:55:48Z"
   },
   {
    "courseId": "252528",
@@ -908,6 +919,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194036",
    "fetchedAt": "2026-08-28T06:08:12Z"
+  },
+  {
+   "courseId": "262569",
+   "courseName": "德育和班级管理",
+   "courseNameIdentity": "德育和班级管理",
+   "credits": 2,
+   "classId": "20240031",
+   "courseSiteId": "192270",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192270",
+   "fetchedAt": "2026-08-31T09:55:50Z"
   },
   {
    "courseId": "262572",
