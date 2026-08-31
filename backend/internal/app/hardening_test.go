@@ -145,3 +145,36 @@ func TestEnrollmentRefreshSecondsBounds(t *testing.T) {
 		}
 	}
 }
+
+func TestCappedReaderRejectsOversizedStream(t *testing.T) {
+	_, err := ParsePublicScheduleFrom(&cappedReader{
+		reader: strings.NewReader(strings.Repeat("<tr><td>x</td></tr>", 5000)),
+		limit:  100,
+	})
+	if err == nil {
+		t.Fatal("超过上限的流必须整体报错，不能按截断内容解析出行")
+	}
+	if !strings.Contains(err.Error(), "上限") {
+		t.Fatalf("错误应说明是超限，got=%v", err)
+	}
+}
+
+func TestParsePublicScheduleFromMatchesStringVariant(t *testing.T) {
+	page := `<table><tr><td>1</td><td>计算机学院</td><td>数据结构</td><td>24计科1班</td>` +
+		`<td>张三</td><td>A101</td><td>周一</td><td>第12节</td><td>60</td>` +
+		`<td><a href="x.aspx?kch=C001&bjh=B01&xq=2026/9/1">详情</a></td></tr></table>`
+	fromString, err := ParsePublicSchedule(page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromStream, err := ParsePublicScheduleFrom(&cappedReader{reader: strings.NewReader(page), limit: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fromStream) != len(fromString) {
+		t.Fatalf("流式与字符串版本行数不一致：%d vs %d", len(fromStream), len(fromString))
+	}
+	if fromStream[0] != fromString[0] {
+		t.Fatalf("流式与字符串版本解析结果不一致：\n%#v\n%#v", fromStream[0], fromString[0])
+	}
+}

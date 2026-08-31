@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
@@ -29,7 +30,12 @@ const (
 	maxJSONBytes = 32 << 20
 	// Public_Kkap occasionally takes longer than the configured interval. Never
 	// hammer it in a zero-delay loop when that happens.
-	minimumRefreshPause   = 5 * time.Second
+	//
+	// 这个下限是抓取「结束之后」再等的固定间隔，当年一轮要 15–90 秒（海外抓取），
+	// 5 秒相对可忽略。后端搬进校园网后一轮只要约 2.5 秒，5 秒的间隔反而成了
+	// 周期里的大头（实测 7.5s 中占 5s）。降到 1 秒：既保证任意两次抓取之间
+	// 一定有间隔、不会退化成紧循环，又让补退选期间的节奏真正跟上席位变化。
+	minimumRefreshPause   = 1 * time.Second
 	publicScheduleTimeout = 300 * time.Second
 )
 
@@ -209,10 +215,13 @@ func (s *EnrollmentService) Run(ctx context.Context) {
 		}
 		s.setAttempt(started, cfg.EnrollmentRefreshSeconds)
 		snapshot, err := FetchEnrollmentSnapshot(ctx, s.client, target)
+		// 把整轮耗时记下来：周期＝这段时间＋下面的 wait，出问题时能一眼看出
+		// 是学校变慢了还是我们自己的间隔设置不对。
+		elapsed := time.Since(started)
 		if err != nil {
-			s.logger.Error("实时人数刷新失败", "error", err)
+			s.logger.Error("实时人数刷新失败", "error", err, "elapsedMs", elapsed.Milliseconds())
 		} else {
-			s.logger.Info("实时人数刷新完成", "semester", snapshot.Semester, "classes", snapshot.ClassCount, "sourceRows", snapshot.SourceRows)
+			s.logger.Info("实时人数刷新完成", "semester", snapshot.Semester, "classes", snapshot.ClassCount, "sourceRows", snapshot.SourceRows, "elapsedMs", elapsed.Milliseconds())
 		}
 		wait := time.Duration(cfg.EnrollmentRefreshSeconds)*time.Second - time.Since(started)
 		if wait < minimumRefreshPause {
@@ -454,15 +463,12 @@ func FetchPublicSchedule(ctx context.Context, client *http.Client, targetSemeste
 	if err != nil {
 		return nil, fmt.Errorf("查询 Public_Kkap: %w", err)
 	}
-	resultBytes, readErr := readLimited(response.Body, maxHTMLBytes)
-	response.Body.Close()
-	if readErr != nil {
-		return nil, readErr
-	}
+	defer response.Body.Close()
+	// 状态码先判，再决定要不要解析——流式解析没法「读完再回头看状态」。
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Public_Kkap POST HTTP %d", response.StatusCode)
 	}
-	rows, err := ParsePublicSchedule(string(resultBytes))
+	rows, err := ParsePublicScheduleFrom(&cappedReader{reader: response.Body, limit: maxHTMLBytes})
 	if err != nil {
 		return nil, &TargetScheduleIncompleteError{TargetSemester: targetSemester, TargetTerm: targetTerm, Cause: err}
 	}
@@ -511,6 +517,22 @@ func ParsePublicSchedule(raw string) ([]ScheduleRow, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scheduleRowsFromDoc(doc)
+}
+
+// ParsePublicScheduleFrom 直接从响应流解析，不先把整页读成 []byte 再转 string。
+// KKAP 全量页 9MB，原来的做法要在内存里躺三份（body 缓冲、[]byte、string），
+// 而且必须等最后一个字节到齐才开始解析。改成流式后解析与传输天然重叠，
+// 校园内网下 0.5 秒的传输窗口正好把解析吃掉。
+func ParsePublicScheduleFrom(reader io.Reader) ([]ScheduleRow, error) {
+	doc, err := xhtml.Parse(reader)
+	if err != nil {
+		return nil, err
+	}
+	return scheduleRowsFromDoc(doc)
+}
+
+func scheduleRowsFromDoc(doc *xhtml.Node) ([]ScheduleRow, error) {
 	trs := findAll(doc, func(n *xhtml.Node) bool { return n.Type == xhtml.ElementNode && strings.EqualFold(n.Data, "tr") })
 	rows := make([]ScheduleRow, 0, len(trs))
 	for _, tr := range trs {

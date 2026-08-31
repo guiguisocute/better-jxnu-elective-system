@@ -147,6 +147,23 @@ func parsePositiveAttr(node *xhtml.Node, key string) int {
 // KKAP 全量开课安排 2026-08 已经是 9MB 并且逐年变大；如果哪天越过上限，
 // 静默截断会喂给解析器半张表——行数可能仍然高于安全闸，于是坏数据一路发布出去。
 // 宁可整轮失败留住旧数据，也不要发布一份看起来正常的残缺课表。
+// cappedReader 是 readLimited 的流式版本：边读边计数，超过上限立刻返回错误，
+// 让解析器整体失败，而不是拿到半张表当成完整结果。
+type cappedReader struct {
+	reader io.Reader
+	limit  int64
+	read   int64
+}
+
+func (c *cappedReader) Read(p []byte) (int, error) {
+	n, err := c.reader.Read(p)
+	c.read += int64(n)
+	if c.read > c.limit {
+		return n, fmt.Errorf("响应超过 %d 字节上限，拒绝按截断内容解析", c.limit)
+	}
+	return n, err
+}
+
 func readLimited(body io.Reader, limit int64) ([]byte, error) {
 	raw, err := io.ReadAll(io.LimitReader(body, limit+1))
 	if err != nil {
