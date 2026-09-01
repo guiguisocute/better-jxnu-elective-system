@@ -56,7 +56,8 @@ export function PinAlertToggle({ count, alert, onUpdate, onClear }: Props) {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-9 z-50 w-64 rounded-xl border border-gray-100 bg-white p-3 shadow-lg dark:bg-[#161B22] dark:border-[#30363D]">
             <p className="text-[11px] text-gray-500 mb-2">
-              置顶的教学班会固定在表格顶部。开启提醒后，一旦它<b>出现余量</b>就立刻通知你。
+              置顶的教学班会固定在表格顶部（琥珀底）。开启提醒后，一旦它<b>出现余量</b>就立刻通知你。
+              置顶开关在<b>右侧班级详情页</b>的「本班级信息」里。
             </p>
 
             <label className="flex items-center justify-between py-1.5 text-xs cursor-pointer">

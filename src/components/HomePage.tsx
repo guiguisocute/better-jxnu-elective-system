@@ -19,7 +19,7 @@ import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
 import { useAppConfig } from "../lib/appConfig";
 import { acquireScrollLock } from "../lib/scrollLock";
-import { usePinnedCourses, usePinAvailabilityAlert } from "../hooks/usePinnedCourses";
+import { usePinnedCourses, usePinAvailabilityAlert, sectionPinKey } from "../hooks/usePinnedCourses";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { ScheduleFilter } from "./ScheduleFilter";
@@ -1158,6 +1158,9 @@ export function HomePage() {
               onRequestEnableSim={() => setEnableSimPrompt(true)}
               enrolled={liveEnrollment.getEnrollment(mobileSection)}
               enrollmentStale={liveEnrollment.status.stale}
+              pinned={pins.has(sectionPinKey(mobileSection))}
+              onTogglePin={() => pins.toggle(sectionPinKey(mobileSection))}
+              pinAlertEnabled={pins.alert.enabled}
             />
           ) : null}
         </div>
@@ -1264,7 +1267,6 @@ export function HomePage() {
             liveEnrollmentStatus={liveEnrollment.status}
             pinnedKeys={pins.keys}
             isPinned={pins.has}
-            onTogglePin={pins.toggle}
             pinAlert={pins.alert}
             onUpdatePinAlert={pins.updateAlert}
             onClearPins={pins.clear}
@@ -1348,6 +1350,9 @@ export function HomePage() {
               onRequestEnableSim={() => setEnableSimPrompt(true)}
               enrolled={liveEnrollment.getEnrollment(selectedSection)}
               enrollmentStale={liveEnrollment.status.stale}
+              pinned={pins.has(sectionPinKey(selectedSection))}
+              onTogglePin={() => pins.toggle(sectionPinKey(selectedSection))}
+              pinAlertEnabled={pins.alert.enabled}
             />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 px-8">

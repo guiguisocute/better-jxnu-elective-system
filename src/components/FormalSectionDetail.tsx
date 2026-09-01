@@ -38,6 +38,14 @@ interface Props {
   /** VPS 实时授课人数；null 表示尚未匹配或服务不可用。 */
   enrolled?: number | null;
   enrollmentStale?: boolean;
+  /**
+   * 置顶该教学班。开关只在这里 —— 表格行里那列（课程号）宽度按百分比分，
+   * 低分辨率下放不下第三个元素，按钮会溢出压到隔壁列。
+   */
+  pinned?: boolean;
+  onTogglePin?: () => void;
+  /** 「出现余量时提醒」是否已开启，仅用于置顶后的说明文案。 */
+  pinAlertEnabled?: boolean;
 }
 
 function joinUniqueSegments(values: string[]): string {
@@ -51,6 +59,7 @@ export function FormalSectionDetail({
   section, relatedSections = [], course, onClose, scheduleFilter,
   simMode = false, cartStatus = "none", onToggleCart, onSwitchChosenSection, onRequestEnableSim,
   enrolled = null, enrollmentStale = false,
+  pinned = false, onTogglePin, pinAlertEnabled = false,
 }: Props) {
   const { getDims, refresh } = useCourseReviews(section.id);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -150,6 +159,24 @@ export function FormalSectionDetail({
             <div className="flex items-center gap-2.5 px-4 py-3">
               <span className="w-1 h-5 bg-red-500 rounded-sm" aria-hidden />
               <h3 className="text-[13px] font-semibold text-gray-800">本班级信息</h3>
+              {onTogglePin && (
+                <button
+                  type="button"
+                  onClick={onTogglePin}
+                  aria-pressed={pinned}
+                  title={pinned ? "取消置顶" : "置顶该教学班：固定在列表顶部，方便盯余量"}
+                  className={`ml-auto shrink-0 inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-medium transition-colors ${
+                    pinned
+                      ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
+                      : "bg-gray-50 text-gray-500 ring-1 ring-gray-200 hover:text-amber-600 hover:ring-amber-200"
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z" />
+                  </svg>
+                  {pinned ? "已置顶" : "置顶"}
+                </button>
+              )}
             </div>
             <div className="mx-4 mb-3 px-3.5 py-3 bg-white rounded-lg ring-1 ring-red-200">
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[13px]">
@@ -184,6 +211,18 @@ export function FormalSectionDetail({
                     <path fillRule="evenodd" clipRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" />
                   </svg>
                   <span>深红时段不在您筛选时段内，这门课会占用它，可能与您其它课程冲突。</span>
+                </p>
+              )}
+
+              {pinned && (
+                <p className="mt-2.5 text-[11px] text-amber-700 leading-relaxed flex items-start gap-1">
+                  <svg className="w-3.5 h-3.5 shrink-0 mt-px" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z" />
+                  </svg>
+                  <span>
+                    已置顶：这个教学班会固定在正选列表顶部
+                    {pinAlertEnabled ? "，一出现余量就会提醒你。" : "。想在它出现余量时收到提醒，可在列表右上角的「置顶」里打开。"}
+                  </span>
                 </p>
               )}
             </div>

@@ -54,10 +54,10 @@ interface Props {
   /** 当前选中行的 key，格式：`${id}|${className}|${teacherId}`。 */
   selectedSectionKey?: string | null;
   /** 模拟选课模式：预选行尾出现加车按钮、名称旁出现「已加入」徽章。 */
-  /** 已置顶的教学班 key（有序：先置顶的排在更上面）。 */
+  /** 已置顶的教学班 key（有序：先置顶的排在更上面）。
+   *  表格只负责「提到顶部 + 琥珀底」，置顶开关本身在右侧详情页（FormalSectionDetail）。 */
   pinnedKeys?: string[];
   isPinned?: (key: string) => boolean;
-  onTogglePin?: (key: string) => void;
   pinAlert?: PinAlertSettings;
   onUpdatePinAlert?: (patch: Partial<PinAlertSettings>) => void;
   onClearPins?: () => void;
@@ -241,9 +241,8 @@ interface RowShared {
   /** 最近一次更新时刻；作为徽章 key 的一部分，变化时重挂触发闪烁动画。 */
   enrollmentChangedAt?: number | null;
   onSelectSection?: (s: FormalSection) => void;
-  /** 该教学班是否已置顶。 */
+  /** 该教学班是否已置顶（只用于行底色标识；置顶开关在右侧详情页）。 */
   isPinned?: (key: string) => boolean;
-  onTogglePin?: (key: string) => void;
 }
 
 function useProgressiveSectionCount(expanded: boolean, total: number) {
@@ -348,12 +347,14 @@ const FormalSectionMoreCard = memo(function FormalSectionMoreCard({
   );
 });
 
-const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned, onTogglePin, stickyTop }: RowShared & { s: FormalSection; indented?: boolean; stickyTop?: number }) {
+const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned, stickyTop }: RowShared & { s: FormalSection; indented?: boolean; stickyTop?: number }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
+  // 置顶行只留琥珀底作标识，开关在右侧详情页 —— 课程号那格宽度按 8~9% 分，
+  // 塞不下「课程号 + 复制 + 置顶」三件套，低分辨率下按钮会溢出压到隔壁列。
   const pinned = isPinned?.(sKey) ?? false;
   // 吸顶：sticky 必须加在 td 上（表格布局里 tr 不是定位容器）。逐个 td 写 style 太笨重，
   // 改成给 tr 挂一个类 + CSS 变量，由 index.css 里的 `tr.pinned-sticky > td` 统一接管。
-  // 那条规则同时给单元格补了不透明背景——sticky 的 td 脱离常规流后，tr 的背景不会跟着走。
+  // 琥珀底由 `tr.pinned-row > td` 给（sticky 的 td 脱离常规流后 tr 的背景不会跟着走）。
   const sticky = stickyTop !== undefined;
   const isSelected = sKey === selectedSectionKey;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
@@ -363,27 +364,16 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
   return (
     <tr
       onClick={() => onSelectSection?.(s)}
-      className={`group transition-colors cursor-pointer ${sticky ? "pinned-sticky " : ""}${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : indented ? "bg-gray-50 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
+      className={`group transition-colors cursor-pointer ${pinned ? "pinned-row " : ""}${sticky ? "pinned-sticky " : ""}${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : indented ? "bg-gray-50 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
       style={sticky ? ({ "--pin-top": `${stickyTop}px` } as React.CSSProperties) : undefined}
     >
-      <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected && !indented ? "border-l-2 border-l-indigo-400" : ""} ${indented ? "pl-9 shadow-[inset_24px_0_0_-22px_#d1d5db] dark:shadow-[inset_24px_0_0_-22px_#30363d]" : ""}`}>
-        <span className="inline-flex items-center gap-1">
-          {s.id}
-          <CopyIdButton text={s.id} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-          {onTogglePin && (
-            <button
-              type="button"
-              // 行本身是点开详情的，置顶按钮必须拦住冒泡，否则一点就跳详情页。
-              onClick={(e) => { e.stopPropagation(); onTogglePin(sKey); }}
-              title={pinned ? "取消置顶" : "置顶该教学班"}
-              aria-pressed={pinned}
-              className={`shrink-0 transition-opacity ${pinned ? "text-amber-500 opacity-100" : "text-gray-300 hover:text-amber-500 opacity-0 group-hover:opacity-100"}`}
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z" />
-              </svg>
-            </button>
-          )}
+      {/* 课程号格：overflow-hidden + truncate 是硬约束 —— table-fixed 下这列只有 9%，
+          折叠组子行还要再吃掉一段缩进，内容溢出就会压到「课程名称」上（低分辨率下明显）。
+          复制按钮 shrink-0 保证它永远完整可见：正是读不全课程号时最需要它。 */}
+      <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap overflow-hidden ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected && !indented ? "border-l-2 border-l-indigo-400" : ""} ${indented ? "pl-6 shadow-[inset_24px_0_0_-22px_#d1d5db] dark:shadow-[inset_24px_0_0_-22px_#30363d]" : ""}`}>
+        <span className="flex items-center gap-1 min-w-0">
+          <span className="truncate" title={s.id}>{s.id}</span>
+          <CopyIdButton text={s.id} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         </span>
       </td>
       <td className={`px-3 py-3 text-[13px] font-medium border-b border-gray-50 ${isSelected ? "text-red-600" : "text-gray-800"}`}>
@@ -393,7 +383,8 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
           <span className="block truncate" title={s.name}>{s.name}</span>
         </span>
       </td>
-      <td className="px-3 py-3 border-b border-gray-50">
+      {/* 学分/已选容量两列是定宽徽章，padding 收到 px-2 才塞得进 46px / 80px 的定宽列 */}
+      <td className="px-2 py-3 border-b border-gray-50">
         <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${getCreditColor(s.credits)}`}>
           {s.credits || "—"}
         </span>
@@ -429,7 +420,7 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
       <td className="px-3 py-3 text-xs text-gray-500 font-mono border-b border-gray-50 whitespace-nowrap">
         <span className="block truncate" title={s.classroom}>{s.classroom || "—"}</span>
       </td>
-      <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50 whitespace-nowrap">
+      <td className="px-2 py-3 text-xs text-gray-500 border-b border-gray-50 whitespace-nowrap">
         {(() => {
           const changed = isEnrollmentChanged?.(s) ?? false;
           return (
@@ -461,13 +452,13 @@ const FormalGroupHeaderRow = memo(function FormalGroupHeaderRow({ group, expande
       onClick={onToggle}
       className={`group transition-colors cursor-pointer select-none ${inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
     >
-      <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap text-gray-500 ${inPlan ? "border-l-2 border-l-indigo-400" : ""}`}>
-        <span className="inline-flex items-center gap-1">
-          <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expanded ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <td className={`px-3 py-3 text-xs font-mono tracking-wide border-b border-gray-50 whitespace-nowrap overflow-hidden text-gray-500 ${inPlan ? "border-l-2 border-l-indigo-400" : ""}`}>
+        <span className="flex items-center gap-1 min-w-0">
+          <svg className={`w-3.5 h-3.5 shrink-0 text-gray-400 transition-transform ${expanded ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
           </svg>
-          {id}
-          <CopyIdButton text={id} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+          <span className="truncate" title={id}>{id}</span>
+          <CopyIdButton text={id} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         </span>
       </td>
       <td className="px-3 py-3 text-[13px] font-medium border-b border-gray-50 text-gray-800">
@@ -476,7 +467,7 @@ const FormalGroupHeaderRow = memo(function FormalGroupHeaderRow({ group, expande
           <span className="block truncate" title={head.name}>{head.name}</span>
         </span>
       </td>
-      <td className="px-3 py-3 border-b border-gray-50">
+      <td className="px-2 py-3 border-b border-gray-50">
         <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${getCreditColor(head.credits)}`}>
           {head.credits || "—"}
         </span>
@@ -536,9 +527,11 @@ const FormalGroupFragment = memo(function FormalGroupFragment({ group, expanded,
 });
 
 // 一张「班级」卡（mobile）。
-const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection }: RowShared & { s: FormalSection }) {
+const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned }: RowShared & { s: FormalSection }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   const isSelected = sKey === selectedSectionKey;
+  // 置顶态优先于选中/归属配色：这张卡被提到了列表最前面，得先解释清楚"它为什么在这"。
+  const pinned = isPinned?.(sKey) ?? false;
   const warnSlots = scheduleFilter ? unselectedIncludeSlots(s, scheduleFilter) : [];
   const sCourse = selectedPlan ? coursesById?.get(s.id) : undefined;
   const inPlan = !!sCourse && isInPlan(sCourse, selectedPlan);
@@ -546,7 +539,7 @@ const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, cou
   return (
     <div
       onClick={() => onSelectSection?.(s)}
-      className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm ${isSelected ? "bg-red-50/50 border-red-200 border-l-[3px] border-l-red-500" : inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
+      className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm ${pinned ? "bg-amber-50/70 border-amber-200 border-l-[3px] border-l-amber-400 dark:bg-[#2A2113] dark:border-[#4D3B12]" : isSelected ? "bg-red-50/50 border-red-200 border-l-[3px] border-l-red-500" : inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
@@ -680,7 +673,7 @@ export function CourseTable({
   allSemesters = [], selectedSemester = "", onChangeSemester,
   onSelectSection,
   selectedSectionKey = null,
-  pinnedKeys, isPinned, onTogglePin, pinAlert, onUpdatePinAlert, onClearPins,
+  pinnedKeys, isPinned, pinAlert, onUpdatePinAlert, onClearPins,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
   showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
 }: Props) {
@@ -704,9 +697,9 @@ export function CourseTable({
       selectedPlan, coursesById, scheduleFilter, selectedSectionKey,
       getEnrollment, enrollmentStale: liveEnrollmentStatus?.stale,
       isEnrollmentChanged, enrollmentChangedAt: liveEnrollmentStatus?.lastUpdateAt ?? null,
-      onSelectSection, isPinned, onTogglePin,
+      onSelectSection, isPinned,
     }),
-    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection, isPinned, onTogglePin],
+    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection, isPinned],
   );
   const handleSort = () => {
     setEnrollmentSortAsc(null);
@@ -837,21 +830,27 @@ export function CourseTable({
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
              表格让其自然占满 main 宽度（main 已是 min-w-0 弹性宽度）。 */
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              {/* 列宽（顺序）：课程号8 / 课程名称15 / 学分5 / 开课学院10 / 标签11 /
-                 任课教师8 / 上课时间11 / 班级名称15 / 教室代号8 / 已选容量9 (%)。
-                 标签/教师压缩、班级名称加宽 —— 尽量让班级名完整展示。
+              {/* 列宽（顺序）：课程号 106px / 课程名称15% / 学分 46px / 开课学院10% / 标签11% /
+                 任课教师8% / 上课时间11% / 班级名称15% / 教室代号8% / 已选容量 80px。
+                 **内容宽度固定的三列（课程号、学分徽章、已选/容量徽章）用 px，其余用 %**：
+                 这三列装的都是定宽元件（6 位课程号 + 复制按钮 / w-7 徽章 / "16 / 30" 徽章），
+                 按百分比分只会在窄窗口下把它们挤到显示不全甚至压到隔壁列 —— 1280px 视口时
+                 表格只剩 ~646px，课程号 9% = 58px 连号本身都放不下，学分徽章也会溢出 6px（实测）。
+                 定 px 后余下 78% 由浏览器按比例缩放分摊（fixed 布局下超出表宽时等比压缩、
+                 有富余时均摊，实测验证），文本列该截断就截断，但不再互相重叠。
+                 注意：<col> 的 width 不吃 clamp()/max()/min-width（实测被忽略），只有纯 px 或 % 生效。
                  注意：<colgroup> 只能含 <col>，勿加行内注释。 */}
               <colgroup>
-                <col style={{ width: "8%" }} />
+                <col style={{ width: "106px" }} />
                 <col style={{ width: "15%" }} />
-                <col style={{ width: "5%" }} />
+                <col style={{ width: "46px" }} />
                 <col style={{ width: "10%" }} />
                 <col style={{ width: "11%" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "11%" }} />
                 <col style={{ width: "15%" }} />
                 <col style={{ width: "8%" }} />
-                <col style={{ width: "9%" }} />
+                <col style={{ width: "80px" }} />
               </colgroup>
               <thead ref={theadRef} className="sticky" style={{ top: tableHeaderTop, zIndex: 10 }}>
                 <tr>
@@ -862,7 +861,7 @@ export function CourseTable({
                         <th
                           key={h}
                           onClick={handleSort}
-                          className="px-3 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
+                          className="px-2 py-3.5 text-left overflow-hidden bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
                         >
                           <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
                             enrollmentSortAsc === null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
@@ -879,7 +878,7 @@ export function CourseTable({
                         <th
                           key={h}
                           onClick={handleEnrollmentSort}
-                          className="px-3 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
+                          className="px-2 py-3.5 text-left overflow-hidden bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
                           title="按剩余名额排序"
                         >
                           <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
@@ -893,9 +892,11 @@ export function CourseTable({
                       );
                     }
                     return (
+                      // truncate（含 overflow-hidden）：窄窗口下表头文字也会超出定宽列，
+                      // 不裁的话「任课教师」「上课时间」两个表头会叠在一起（低分辨率实测）。
                       <th
                         key={h}
-                        className="px-3 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100"
+                        className="px-3 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider truncate bg-gray-50 border-b border-gray-100"
                       >
                         {h}
                       </th>
@@ -981,9 +982,10 @@ export function CourseTable({
           <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             {/* 列宽：课程号 / 课程名称 / 学分 / 开课学院 / 标签 / 教师 / 往期容量 (+ 模拟选课加车列)。
                评分列已移除；往期容量 = 同课程号最近学期正选班级容量区间。
-               固定布局避免长课名（如"教育实践 (含专题见习、教育实习、实践研习)"）把右侧顶出。 */}
+               固定布局避免长课名（如"教育实践 (含专题见习、教育实习、实践研习)"）把右侧顶出。
+               课程号同正选表：定 px（内容定宽，百分比在窄窗口下会把课程号挤到显示不全）。 */}
             <colgroup>
-              <col style={{ width: simMode ? "10%" : "11%" }} />
+              <col style={{ width: "104px" }} />
               <col style={{ width: simMode ? "26%" : "28%" }} />
               <col style={{ width: simMode ? "6%"  : "7%"  }} />
               <col style={{ width: simMode ? "17%" : "18%" }} />
@@ -1027,10 +1029,11 @@ export function CourseTable({
                         : "hover:bg-gray-50"
                     }`}
                   >
-                    <td className={`px-5 py-4 text-xs font-mono tracking-wide border-b border-gray-50 ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected ? "border-l-2 border-l-indigo-400" : ""}`}>
-                      <span className="inline-flex items-center gap-1">
-                        {c.id}
-                        <CopyIdButton text={c.id} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* 同正选表：overflow-hidden + truncate 兜底，窄窗口下课程号不会压到课程名称列上 */}
+                    <td className={`px-5 py-4 text-xs font-mono tracking-wide border-b border-gray-50 overflow-hidden ${isSelected ? "text-gray-600" : "text-gray-400"} ${inPlan && !isSelected ? "border-l-2 border-l-indigo-400" : ""}`}>
+                      <span className="flex items-center gap-1 min-w-0">
+                        <span className="truncate" title={c.id}>{c.id}</span>
+                        <CopyIdButton text={c.id} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </span>
                     </td>
                     <td className={`px-5 py-4 text-[13px] font-medium border-b border-gray-50 transition-colors ${isSelected ? "text-red-600" : "text-gray-800 group-hover:text-red-600"}`}>
@@ -1096,10 +1099,20 @@ export function CourseTable({
 
       {/* ===== 移动端 ===== */}
       <div className="md:hidden">
-        {/* Mobile toolbar: 数据源切换 */}
+        {/* Mobile toolbar: 数据源切换 + 置顶设置（详情页能置顶了，提醒开关也得在手机上够得着） */}
         <div className="flex items-center justify-between gap-3 px-1 pt-1 pb-2.5 bg-page">
           <DataSourceSwitcher value={dataSource} onChange={onChangeDataSource} />
-          {isFormal && liveEnrollmentStatus && <LiveEnrollmentIndicator status={liveEnrollmentStatus} compact />}
+          <div className="flex items-center gap-2">
+            {isFormal && pinAlert && (
+              <PinAlertToggle
+                count={pinnedSections.length}
+                alert={pinAlert}
+                onUpdate={onUpdatePinAlert ?? (() => {})}
+                onClear={onClearPins ?? (() => {})}
+              />
+            )}
+            {isFormal && liveEnrollmentStatus && <LiveEnrollmentIndicator status={liveEnrollmentStatus} compact />}
+          </div>
         </div>
 
         {/* Mobile semester selector */}
@@ -1158,7 +1171,13 @@ export function CourseTable({
                 </button>
               </div>
               <div className="space-y-2">
-                {formalGroups.map((g) => {
+                {/* 置顶的班级卡提到最前面（顺序同桌面端）。手机不做吸顶——一屏就那么高，
+                    粘住两三张卡等于把列表吃掉一半；卡片自带琥珀描边作标识。
+                    和桌面端一样是「移上来」不是「复制一份」，所以下面用 groupsWithoutPinned。 */}
+                {pinnedSections.map((s) => (
+                  <FormalSectionCard key={`pin-${s.id}-${s.className}-${s.teacherId}`} s={s} {...rowProps} />
+                ))}
+                {groupsWithoutPinned.map((g) => {
                   if (g.sections.length === 1) {
                     return <FormalSectionCard key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
                   }

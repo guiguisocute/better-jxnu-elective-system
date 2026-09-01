@@ -427,20 +427,25 @@ body {
 /* 空格内「该时段有课」提示点：中性灰，不在中性网格里留扎眼色点 */
 :where(.dark) .fltgrid-dot         { background-color: #586069 }
 
-/* ── 置顶教学班的吸顶行 ──────────────────────────────────────────────
-   sticky 只能加在 td 上（表格布局里 tr 不是定位容器），所以由 tr 传下一个
+/* ── 置顶教学班 ──────────────────────────────────────────────────────
+   琥珀底是表格里唯一的「这是置顶行」标识（置顶开关在右侧详情页，行内不再放
+   按钮——课程号那列塞不下），所以每一条置顶行都要给，不能只给吸顶的那几条：
+   超过 MAX_STICKY_PINS 的置顶行只是跟着滚，仍然需要被认出来。
+   背景也必须落在 td 上：sticky 的 td 视觉上脱离常规流，tr 的背景不会跟着走，
+   不补背景就会看到下方内容穿透。 */
+tr.pinned-row > td {
+  background-color: #FFFBEB;
+  border-bottom-color: #FDE68A;
+}
+:where(.dark) tr.pinned-row > td {
+  background-color: #2A2113;
+  border-bottom-color: #4D3B12;
+}
+/* 吸顶：sticky 只能加在 td 上（表格布局里 tr 不是定位容器），所以由 tr 传下一个
    --pin-top 变量，这里统一接管所有子单元格。top 的值由 CourseTable 按
-   「表头底边 + 前面几行已占高度」实测算出，多行置顶时层叠而不互相遮挡。
-   背景必须显式给：sticky 的 td 视觉上脱离常规流，tr 的背景不会跟着走，
-   不补背景就会看到下方内容穿透。琥珀色同时承担「这是置顶行」的视觉标识。 */
+   「表头底边 + 前面几行已占高度」实测算出，多行置顶时层叠而不互相遮挡。 */
 tr.pinned-sticky > td {
   position: sticky;
   top: var(--pin-top, 0px);
   z-index: 9;
-  background-color: #FFFBEB;
-  border-bottom-color: #FDE68A;
-}
-:where(.dark) tr.pinned-sticky > td {
-  background-color: #2A2113;
-  border-bottom-color: #4D3B12;
 }
