@@ -51,6 +51,24 @@ export interface LiveEnrollmentStatus {
   lastUpdateAt: number | null;
 }
 
+/**
+ * 排序与「仅看有余量」共用的**可信余量**定义。返回 null = 无法判定。
+ *
+ * 两种情况都算无法判定：
+ *  1. 已选或容量未知（实时快照没匹配上、或该学期没有容量数据）；
+ *  2. 算出来是负数 —— 容量来自 xk 逐课抓取、已选来自教务 KKAP，两个账本口径不同：
+ *     合班课 KKAP 记合并后人数（89/30），采集账号看不到容量的公共必修课报 0（74/0）。
+ *     现实中余量不可能为负，出现即说明容量不可信（2026-09 实测约 233 条）。
+ *
+ * 排序把 null 排到最后，筛选把 null 判为"不确定有余量"而隐藏 —— 两处必须同一口径，
+ * 否则会出现"排序认为它没余量、筛选却把它留下"这种自相矛盾。
+ */
+export function trustedRemaining(capacity: number | null, enrolled: number | null): number | null {
+  if (enrolled == null || capacity == null) return null;
+  const remaining = capacity - enrolled;
+  return remaining < 0 ? null : remaining;
+}
+
 /** 一份快照的「课程班级 → 已选人数」映射，用于和下一份做差。 */
 export function enrollmentCountMap(items: LiveEnrollmentItem[]): Map<string, number> {
   const map = new Map<string, number>();

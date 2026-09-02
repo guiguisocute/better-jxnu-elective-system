@@ -409,7 +409,7 @@ function RemainingToggle({ active, onClick }: { active: boolean; onClick: () => 
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      title="按实时人数隐藏已确认满员的班级；人数或容量未知的班级仍会保留"
+      title="只显示按实时人数确认还有空位的班级；满员、以及人数或容量无法判定的班级都会隐藏"
       className="w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs transition-colors select-none min-h-[36px] hover:bg-gray-50"
     >
       <span className={labelCls}>仅看有余量</span>

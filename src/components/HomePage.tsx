@@ -18,6 +18,7 @@ import { isInPlan, isAnyElective, displayTags } from "../lib/planMatch";
 import { areasOf, sectionInArea } from "../lib/classroomArea";
 import { decodeBundle, readCodeFromUrl, clearCodeFromUrl, type PlanBundle } from "../lib/planShare";
 import { useAppConfig } from "../lib/appConfig";
+import { trustedRemaining } from "../lib/liveEnrollments";
 import { acquireScrollLock } from "../lib/scrollLock";
 import { usePinnedCourses, usePinAvailabilityAlert, sectionPinKey } from "../hooks/usePinnedCourses";
 import { FilterBar } from "./FilterBar";
@@ -564,18 +565,24 @@ export function HomePage() {
   // 「仅看有余量」实际生效时才需要跟着实时人数重算；未开启时不能把 getEnrollment 放进依赖 ——
   // 否则每次实时轮询（哪怕只是刷新已选人数）都会强制重新过滤全量班级列表，白白扫一遍几千行。
   // 单个班级行的已选人数徽章仍通过 rowProps.getEnrollment 独立更新，不受这里影响。
-  const remainingFilterActive = filter.deferredFilters.remaining === "available";
+  // 「仅看有余量」只有在**手里真有一份实时快照**时才生效。
+  // 否则（非直播学期 / 快照还没到 / 服务故障）所有班级的已选人数都是 null，
+  // 旧实现"未知则保留"会把筛选退化成"全都显示"，还把一整屏 `-/容量` 刷出来，
+  // 用户看到的是"开了开关反而更乱"。此时按钮本身也是隐藏的（showRemainingFilter），
+  // 一个看不见的开关还在偷偷筛选，更难排查——所以这里直接让它失效。
+  const remainingFilterUsable = liveEnrollment.status.enabled && liveEnrollment.status.fetchedAt != null;
+  const remainingFilterActive = filter.deferredFilters.remaining === "available" && remainingFilterUsable;
   // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）+ 余量筛选。
   const visibleFormalSections = useMemo(() => {
     let result = schedule.active
       ? contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter))
       : contentFilteredSections;
     if (remainingFilterActive) {
+      // 「仅看有余量」= 只留**确认有余量**的班级：满员、以及余量无法判定的（含负余量
+      // 这种容量不可信的行）一律隐藏。判定口径与排序共用 trustedRemaining。
       result = result.filter((s) => {
-        const enrolled = liveEnrollment.getEnrollment(s);
-        // 人数或容量未知 → 无法判定，保留以免误杀；已确认满员的班级隐藏。
-        if (enrolled == null || s.capacity == null) return true;
-        return s.capacity - enrolled > 0;
+        const remaining = trustedRemaining(s.capacity, liveEnrollment.getEnrollment(s));
+        return remaining !== null && remaining > 0;
       });
     }
     return result;
@@ -610,21 +617,10 @@ export function HomePage() {
   }, []);
 
   const formalGroupsAll = useMemo<FormalGroup[]>(() => {
-    /**
-     * 排序用的余量。**负余量一律当作"容量未知"**（返回 null，被排到最后）。
-     *
-     * 容量来自 xk 的逐课抓取，已选来自教务 KKAP，两个账本口径不同：合班课 KKAP
-     * 把合并后的人数记在每一行（89/30），采集账号看不到的公共必修课容量报 0（74/0）。
-     * 这类行的 remaining 是 -59、-74，比任何真实的"零余量"都小，升序时会把它们
-     * 永久钉在表格最前面（2026-09 实测约 233 条）。现实中余量不可能为负，
-     * 出现即说明容量不可信，不该参与比较。
-     */
-    const remainingForSort = (s: FormalSection): number | null => {
-      const enrolled = liveEnrollment.getEnrollment(s);
-      if (enrolled == null || s.capacity == null) return null;
-      const remaining = s.capacity - enrolled;
-      return remaining < 0 ? null : remaining;
-    };
+    // 排序用的余量：null（未知或负数）一律排到最后。口径见 trustedRemaining，
+    // 与「仅看有余量」筛选共用同一个定义。
+    const remainingForSort = (s: FormalSection): number | null =>
+      trustedRemaining(s.capacity, liveEnrollment.getEnrollment(s));
     // 次级键：主键并列时按课程号+班级名定序，保证升降序真的互为镜像、且结果稳定。
     const tieBreak = (a: FormalSection, b: FormalSection) =>
       a.id.localeCompare(b.id) || a.className.localeCompare(b.className);

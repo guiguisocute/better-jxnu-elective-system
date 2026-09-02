@@ -18,6 +18,12 @@ import type { LiveEnrollmentStatus } from "../lib/liveEnrollments";
 
 const MAX_STICKY_PINS = 3;
 
+// 单班级组（solo 行/卡）的稳定唯一 key。扁平模式下 g.id 会重复，必须带上班级与教号。
+function soloKey(g: FormalGroup): string {
+  const s = g.sections[0];
+  return `${g.id}|${s?.className ?? ""}|${s?.teacherId ?? ""}`;
+}
+
 interface Props {
   courses: Course[];
   selectedId?: string;
@@ -979,7 +985,10 @@ export function CourseTable({
                   groupsWithoutPinned.map((g) => {
                     // 单班级：直接平铺一行；多班级：组头 + （展开时）各班级。
                     if (g.sections.length === 1) {
-                      return <FormalSectionRow key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
+                      // key 必须带上班级+教号：关闭「同课程号折叠」时同一课程号的每个班级
+                      // 各成一组、g.id 全都相同，只用 g.id 会撞 key，React 报
+                      // "two children with the same key" 并可能重复/丢行（实测 001018×3）。
+                      return <FormalSectionRow key={`solo-${soloKey(g)}`} s={g.sections[0]} {...rowProps} />;
                     }
                     const expanded = isGroupExpanded(g.id);
                     return (
@@ -1212,7 +1221,7 @@ export function CourseTable({
                 ))}
                 {groupsWithoutPinned.map((g) => {
                   if (g.sections.length === 1) {
-                    return <FormalSectionCard key={`solo-${g.id}`} s={g.sections[0]} {...rowProps} />;
+                    return <FormalSectionCard key={`solo-${soloKey(g)}`} s={g.sections[0]} {...rowProps} />;
                   }
                   const expanded = isGroupExpanded(g.id);
                   return (
