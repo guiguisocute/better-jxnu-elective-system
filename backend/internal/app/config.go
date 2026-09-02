@@ -178,6 +178,23 @@ func (c RuntimeConfig) ActiveAcquisitionProfile() AcquisitionProfile {
 	}
 }
 
+// selectionStepPattern 抓容量嗅探 URL 路径里的阶段前缀（/Step4/ChangeClass.aspx…）。
+var selectionStepPattern = regexp.MustCompile(`/(Step[1-9])/`)
+
+// SelectionStep 返回当前正选/补退选阶段的 Step 前缀（如 "Step4"），取不到时返回空串。
+//
+// 它**派生自 SelectionCapacityURL**，不另设配置项：阶段切换时运维本来就只改那一个
+// URL（面板上写着"正选转补退选时只需把 URL 改为当时真实页面地址"），派生出来就等于
+// 一处改动、处处跟随。前端据此拼「跳转此课程选课界面」的 AddCourse 地址——那两条
+// 链接原先是硬编码的 Step3/Step1，阶段一变就指向关掉的页面（2026-09 补退选实测踩到）。
+func (c RuntimeConfig) SelectionStep() string {
+	match := selectionStepPattern.FindStringSubmatch(c.SelectionCapacityURL)
+	if match == nil {
+		return ""
+	}
+	return match[1]
+}
+
 // LiveEnrollmentTarget is derived from the active display stage. Preselect has
 // no live headcount semantics, so returning an empty target disables polling.
 func (c RuntimeConfig) LiveEnrollmentTarget() string {

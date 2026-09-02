@@ -20,6 +20,12 @@ export interface AppConfig {
   testSemesters: string[];
   /** 实时人数只在该学期开启（HomePage 的 enabled 比较）。 */
   liveEnrollmentSemester: string;
+  /**
+   * 选课系统当前阶段的 Step 前缀（"Step4"）。后端从容量嗅探 URL 派生，
+   * 运维在面板切阶段时自动跟随。空串 = 后端不可达/取不到，此时调用方
+   * 保留各自的历史默认值，行为与接这个字段之前完全一致。
+   */
+  selectionStep: string;
   featureFlags: AppFeatureFlags;
 }
 
@@ -27,6 +33,7 @@ export const APP_CONFIG_DEFAULTS: AppConfig = {
   defaultDataSource: "formal",
   testSemesters: [],
   liveEnrollmentSemester: LIVE_ENROLLMENT_SEMESTER,
+  selectionStep: "",
   featureFlags: { studentImport: true, aiPick: true },
 };
 
@@ -83,6 +90,11 @@ function normalize(raw: unknown, d: AppConfig = APP_CONFIG_DEFAULTS): AppConfig 
       typeof data.liveEnrollmentSemester === "string"
         ? data.liveEnrollmentSemester
         : d.liveEnrollmentSemester,
+    // 只认 Step1..Step9；这个值要拼进跳转到学校选课系统的 URL，坏值宁可退回默认。
+    selectionStep:
+      typeof data.selectionStep === "string" && /^Step[1-9]$/.test(data.selectionStep)
+        ? data.selectionStep
+        : d.selectionStep,
     featureFlags: {
       studentImport:
         typeof flags.studentImport === "boolean" ? flags.studentImport : d.featureFlags.studentImport,

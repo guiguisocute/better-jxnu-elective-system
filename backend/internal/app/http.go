@@ -124,6 +124,9 @@ func (s *Servers) publicHandler() http.Handler {
 			"liveEnrollmentSemester": cfg.LiveEnrollmentTarget(),
 			"activeAcquisitionStage": profile.DataSource, "activeAcquisitionSemester": profile.Semester,
 			"activeAcquisitionAcademicTerm": academicTermLabel(profile.Semester),
+			// 选课系统当前阶段的 Step 前缀，供前端拼「跳转此课程选课界面」。
+			// 派生自容量嗅探 URL —— 阶段切换只改那一处，链接自动跟随。
+			"selectionStep": cfg.SelectionStep(),
 			"phaseSemesters":                map[string]string{"pre": cfg.PreselectSemester, "formal": cfg.SelectionSemester},
 			"studentScheduleTerm":           nullableString(cfg.StudentScheduleTerm),
 			"studentScheduleTermMode":       map[bool]string{true: "auto", false: "fixed"}[cfg.StudentScheduleTerm == ""],

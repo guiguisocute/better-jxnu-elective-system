@@ -171,6 +171,24 @@ func TestActiveAcquisitionProfileSeparatesPreselectFromSharedSelection(t *testin
 	}
 }
 
+func TestSelectionStepDerivesFromCapacityURL(t *testing.T) {
+	cfg := DefaultRuntimeConfig()
+	// 默认（正选）应当派生出 Step3；改成补退选的 URL 后自动跟到 Step4，
+	// 前端的「跳转此课程选课界面」就是靠这个值跟随阶段的。
+	if got := cfg.SelectionStep(); got != "Step3" {
+		t.Fatalf("default SelectionStep = %q, want Step3", got)
+	}
+	cfg.SelectionCapacityURL = "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}&action=change"
+	if got := cfg.SelectionStep(); got != "Step4" {
+		t.Fatalf("SelectionStep = %q, want Step4", got)
+	}
+	// 取不到时返回空串，让调用方各自回落，而不是硬塞一个可能已关闭的阶段。
+	cfg.SelectionCapacityURL = "https://xk.jxnu.edu.cn/ChangeClass.aspx?kch={courseId}"
+	if got := cfg.SelectionStep(); got != "" {
+		t.Fatalf("SelectionStep without step segment = %q, want empty", got)
+	}
+}
+
 func TestConfigStoreMigratesV4SharedTargetToStageTargets(t *testing.T) {
 	path := t.TempDir() + "/config.json"
 	raw := []byte(`{"version":4,"defaultDataSource":"formal","liveEnrollmentSemester":"2026-09","scheduleSyncSemester":"2027-03","studentScheduleTerm":"","enrollmentRefreshSeconds":30,"studentCacheSeconds":600,"capacityEnabled":true,"capacityStep":"Step2","capacityDelayMilliseconds":100,"minScheduleRows":6000,"minFormalSections":7000,"minCapacityVisible":300,"allowedOrigins":[],"autoSyncEnabled":true,"autoSyncIntervalMinutes":60,"formalScheduleWatchEnabled":true,"formalScheduleStableChecks":2,"courseDetailsEnabled":true,"courseDetailsRefreshHours":168,"courseDetailsMaxPerRun":30,"courseDetailsDelayMilliseconds":300}`)

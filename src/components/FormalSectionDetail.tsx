@@ -9,6 +9,8 @@ import { SectionScheduleGrid } from "./SectionScheduleGrid";
 import { TagBadge } from "./TagBadge";
 import { CopyIdButton } from "./CopyIdButton";
 import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
+import { selectCourseURL } from "../lib/xkLinks";
+import { useAppConfig } from "../lib/appConfig";
 import { useCourseReviews } from "../hooks/useReviews";
 import { DimensionBars } from "./ratings/DimensionBars";
 import { RatingSheet } from "./ratings/RatingSheet";
@@ -62,6 +64,8 @@ export function FormalSectionDetail({
   pinned = false, onTogglePin, pinAlertEnabled = false,
 }: Props) {
   const { getDims, refresh } = useCourseReviews(section.id);
+  // 选课系统阶段前缀（Step4…）随后端运行配置走，见 lib/xkLinks。
+  const { selectionStep } = useAppConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [plansExpanded, setPlansExpanded] = useState(false);
 
@@ -470,7 +474,7 @@ export function FormalSectionDetail({
 
           <div className="text-center">
             <a
-              href={`https://xk.jxnu.edu.cn/Step3/AddCourse.aspx?kch=${section.id}`}
+              href={selectCourseURL(selectionStep, section.id)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1.5 text-red-400 hover:text-red-500 transition-colors"
