@@ -11,6 +11,7 @@ import type { PinAlertSettings } from "../lib/pinStore";
 import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
 import { LiveEnrollmentIndicator } from "./LiveEnrollmentIndicator";
 import { isTestSemester } from "../lib/term";
+import { cycleSortState } from "../hooks/useCourseFilter";
 import { normalizePeriods, unselectedIncludeSlots, slotLabel } from "../lib/scheduleParse";
 import type { ScheduleFilterMap } from "../lib/scheduleParse";
 import type { LiveEnrollmentStatus } from "../lib/liveEnrollments";
@@ -21,8 +22,9 @@ interface Props {
   courses: Course[];
   selectedId?: string;
   onSelect: (course: Course) => void;
-  sortAsc: boolean;
-  setSortAsc: (v: boolean) => void;
+  /** 学分排序三态：null = 默认排序（按课程号），true = 升序，false = 降序。 */
+  sortAsc: boolean | null;
+  setSortAsc: (v: boolean | null) => void;
   enrollmentSortAsc: boolean | null;
   setEnrollmentSortAsc: (v: boolean | null) => void;
   stickyTop?: number;
@@ -701,15 +703,37 @@ export function CourseTable({
     }),
     [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection, isPinned],
   );
+  // 两列排序互斥，各自三态循环：默认 → 第一档 → 第二档 → 默认。
+  // **切列与翻方向必须分开**：原来点「学分」既切列又翻方向，从余量排序切回学分时
+  // 会白白吃掉一次方向翻转（用户只想换个排序列，方向却跟着变了）。
   const handleSort = () => {
-    setEnrollmentSortAsc(null);
-    setSortAsc(!sortAsc);
+    if (enrollmentSortAsc !== null) {
+      // 从余量排序切回学分排序：只切列，方向从升序起步，不消耗一次翻转。
+      setEnrollmentSortAsc(null);
+      setSortAsc(true);
+      return;
+    }
+    setSortAsc(cycleSortState(sortAsc, true));
   };
 
   const handleEnrollmentSort = () => {
-    // 首次点击默认余量从多到少；再次点击切为从少到多。
-    setEnrollmentSortAsc(enrollmentSortAsc === null ? false : !enrollmentSortAsc);
+    if (sortAsc !== null) {
+      // 从学分排序切过来：直接进第一档（余量从多到少），同样不消耗翻转。
+      setSortAsc(null);
+      setEnrollmentSortAsc(false);
+      return;
+    }
+    setEnrollmentSortAsc(cycleSortState(enrollmentSortAsc, false));
   };
+
+  const sortArrow = (state: boolean | null) => (state === null ? "↕" : state ? "↑" : "↓");
+  // 提示文案把三态循环讲明白，尤其是"再点一次能回到默认"——这是原来完全没有的出口。
+  const sortHint = (label: string, state: boolean | null, firstAsc: boolean, first: string, second: string) =>
+    state === null
+      ? `点击按${label}排序（${first}）`
+      : state === firstAsc
+        ? `当前：${label}${first}；再点切换为${second}`
+        : `当前：${label}${second}；再点恢复默认排序（按课程号）`;
 
   const isFormal = dataSource === "formal";
   const tableHeaderTop = stickyTop + DESKTOP_TOOLBAR_HEIGHT;
@@ -861,15 +885,16 @@ export function CourseTable({
                         <th
                           key={h}
                           onClick={handleSort}
+                          title={sortHint("学分", sortAsc, true, "从少到多", "从多到少")}
                           className="px-2 py-3.5 text-left overflow-hidden bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
                         >
                           <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
-                            enrollmentSortAsc === null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
+                            sortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
                           }`}>
                             学分
-                            <span className={enrollmentSortAsc === null ? "text-red-500" : "text-gray-400"}>{sortAsc ? "↑" : "↓"}</span>
+                            <span className={sortAsc !== null ? "text-red-500" : "text-gray-400"}>{sortArrow(sortAsc)}</span>
                           </span>
-                          <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${enrollmentSortAsc === null ? "bg-red-400" : "bg-transparent"}`} />
+                          <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${sortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
                         </th>
                       );
                     }
@@ -879,13 +904,13 @@ export function CourseTable({
                           key={h}
                           onClick={handleEnrollmentSort}
                           className="px-2 py-3.5 text-left overflow-hidden bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
-                          title="按剩余名额排序"
+                          title={sortHint("剩余名额", enrollmentSortAsc, false, "从多到少", "从少到多")}
                         >
                           <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
                             enrollmentSortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
                           }`}>
                             已选/容量
-                            <span className={enrollmentSortAsc !== null ? "text-red-500" : "text-gray-400"}>{enrollmentSortAsc === null ? "↕" : enrollmentSortAsc ? "↑" : "↓"}</span>
+                            <span className={enrollmentSortAsc !== null ? "text-red-500" : "text-gray-400"}>{sortArrow(enrollmentSortAsc)}</span>
                           </span>
                           <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${enrollmentSortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
                         </th>
@@ -998,12 +1023,18 @@ export function CourseTable({
               <tr>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">课程号</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">课程名称</th>
-                <th className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort" onClick={handleSort}>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors text-red-600">
+                <th
+                  className="px-5 py-3.5 text-left bg-gray-50 border-b border-gray-100 cursor-pointer select-none group/sort"
+                  onClick={handleSort}
+                  title={sortHint("学分", sortAsc, true, "从少到多", "从多到少")}
+                >
+                  <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                    sortAsc !== null ? "text-red-600" : "text-gray-500 group-hover/sort:text-gray-700"
+                  }`}>
                     学分
-                    <span className="text-red-500">{sortAsc ? "↑" : "↓"}</span>
+                    <span className={sortAsc !== null ? "text-red-500" : "text-gray-400"}>{sortArrow(sortAsc)}</span>
                   </span>
-                  <span className="mt-1 block h-0.5 w-5 rounded-full transition-colors bg-red-400" />
+                  <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${sortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
                 </th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">开课学院</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">标签</th>
@@ -1154,20 +1185,22 @@ export function CourseTable({
                 <button
                   type="button"
                   onClick={handleSort}
+                  title={sortHint("学分", sortAsc, true, "从少到多", "从多到少")}
                   className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
-                    enrollmentSortAsc === null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
+                    sortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
-                  学分 <span className="text-[10px]">{sortAsc ? "↑" : "↓"}</span>
+                  学分 <span className="text-[10px]">{sortArrow(sortAsc)}</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleEnrollmentSort}
+                  title={sortHint("剩余名额", enrollmentSortAsc, false, "从多到少", "从少到多")}
                   className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                     enrollmentSortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
                   }`}
                 >
-                  余量 <span className="text-[10px]">{enrollmentSortAsc === null ? "↕" : enrollmentSortAsc ? "↑" : "↓"}</span>
+                  余量 <span className="text-[10px]">{sortArrow(enrollmentSortAsc)}</span>
                 </button>
               </div>
               <div className="space-y-2">
@@ -1210,10 +1243,13 @@ export function CourseTable({
               <span className="text-[11px] text-gray-400 shrink-0">排序</span>
               <button
                 onClick={handleSort}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors bg-red-50 text-red-500"
+                title={sortHint("学分", sortAsc, true, "从少到多", "从多到少")}
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
+                  sortAsc !== null ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
+                }`}
               >
                 学分
-                <span className="text-[10px]">{sortAsc ? "↑" : "↓"}</span>
+                <span className="text-[10px]">{sortArrow(sortAsc)}</span>
               </button>
             </div>
             {/* Cards */}

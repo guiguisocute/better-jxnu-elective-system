@@ -610,18 +610,37 @@ export function HomePage() {
   }, []);
 
   const formalGroupsAll = useMemo<FormalGroup[]>(() => {
+    /**
+     * 排序用的余量。**负余量一律当作"容量未知"**（返回 null，被排到最后）。
+     *
+     * 容量来自 xk 的逐课抓取，已选来自教务 KKAP，两个账本口径不同：合班课 KKAP
+     * 把合并后的人数记在每一行（89/30），采集账号看不到的公共必修课容量报 0（74/0）。
+     * 这类行的 remaining 是 -59、-74，比任何真实的"零余量"都小，升序时会把它们
+     * 永久钉在表格最前面（2026-09 实测约 233 条）。现实中余量不可能为负，
+     * 出现即说明容量不可信，不该参与比较。
+     */
+    const remainingForSort = (s: FormalSection): number | null => {
+      const enrolled = liveEnrollment.getEnrollment(s);
+      if (enrolled == null || s.capacity == null) return null;
+      const remaining = s.capacity - enrolled;
+      return remaining < 0 ? null : remaining;
+    };
+    // 次级键：主键并列时按课程号+班级名定序，保证升降序真的互为镜像、且结果稳定。
+    const tieBreak = (a: FormalSection, b: FormalSection) =>
+      a.id.localeCompare(b.id) || a.className.localeCompare(b.className);
     const cmpSections = (a: FormalSection, b: FormalSection) => {
       if (filter.enrollmentSortAsc !== null) {
-        const aEnrolled = liveEnrollment.getEnrollment(a);
-        const bEnrolled = liveEnrollment.getEnrollment(b);
-        const aRemaining = aEnrolled == null || a.capacity == null ? null : a.capacity - aEnrolled;
-        const bRemaining = bEnrolled == null || b.capacity == null ? null : b.capacity - bEnrolled;
-        if (aRemaining === null) return bRemaining === null ? 0 : 1;
-        if (bRemaining === null) return -1;
-        if (aRemaining !== bRemaining) return filter.enrollmentSortAsc ? aRemaining - bRemaining : bRemaining - aRemaining;
+        const aRemaining = remainingForSort(a);
+        const bRemaining = remainingForSort(b);
+        if (aRemaining === null || bRemaining === null) {
+          if (aRemaining !== bRemaining) return aRemaining === null ? 1 : -1;
+        } else if (aRemaining !== bRemaining) {
+          return filter.enrollmentSortAsc ? aRemaining - bRemaining : bRemaining - aRemaining;
+        }
+      } else if (filter.sortAsc !== null && a.credits !== b.credits) {
+        return filter.sortAsc ? a.credits - b.credits : b.credits - a.credits;
       }
-      const cmp = a.credits - b.credits;
-      return filter.sortAsc ? cmp : -cmp;
+      return tieBreak(a, b);
     };
     // 折叠关闭：回退扁平模式 —— 每个班级各成一组（全部渲染为独立行），排序与原先一致。
     if (!foldGroups) {
@@ -644,29 +663,33 @@ export function HomePage() {
     for (const [id, arr] of byId) {
       groups.push({ id, course: coursesById.get(id), sections: sortSections(arr) });
     }
+    // 组的排序键：余量排序取组内最优的那个班（升序取最小、降序取最大），
+    // 学分排序取组内学分。NaN = 该组没有可信数据，统一排到最后。
     const groupKey = (g: FormalGroup): number => {
       if (filter.enrollmentSortAsc !== null) {
         const known = g.sections
-          .map((s) => {
-            const enrolled = liveEnrollment.getEnrollment(s);
-            return enrolled == null || s.capacity == null ? null : s.capacity - enrolled;
-          })
+          .map(remainingForSort)
           .filter((value): value is number => value !== null);
         if (known.length === 0) return Number.NaN;
         return filter.enrollmentSortAsc ? Math.min(...known) : Math.max(...known);
       }
       return g.sections[0]?.credits ?? 0;
     };
+    const asc = filter.enrollmentSortAsc ?? filter.sortAsc;
     return groups.sort((a, b) => {
-      const aKey = groupKey(a);
-      const bKey = groupKey(b);
-      if (Number.isNaN(aKey)) return Number.isNaN(bKey) ? 0 : 1;
-      if (Number.isNaN(bKey)) return -1;
-      const cmp = aKey - bKey;
-      const asc = filter.enrollmentSortAsc !== null
-        ? filter.enrollmentSortAsc
-        : filter.sortAsc;
-      return asc ? cmp : -cmp;
+      // 两个排序都关 → 默认顺序：课程号升序（稳定、可预期，也是"恢复默认"的落点）。
+      if (asc !== null) {
+        const aKey = groupKey(a);
+        const bKey = groupKey(b);
+        const aNaN = Number.isNaN(aKey);
+        const bNaN = Number.isNaN(bKey);
+        if (aNaN || bNaN) {
+          if (aNaN !== bNaN) return aNaN ? 1 : -1;
+        } else if (aKey !== bKey) {
+          return asc ? aKey - bKey : bKey - aKey;
+        }
+      }
+      return a.id.localeCompare(b.id);
     });
     // 按余量排序时才需要跟着实时人数重排；否则不把 getEnrollment 放进依赖，
     // 理由同上（避免每次轮询都重新分组+排序全量班级）。

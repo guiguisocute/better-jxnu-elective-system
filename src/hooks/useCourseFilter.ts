@@ -22,7 +22,7 @@ const EMPTY_FILTERS: Filters = {
   remaining: "all",
 };
 
-function loadSaved(): { filters: Filters; page: number; sortAsc: boolean } {
+function loadSaved(): { filters: Filters; page: number; sortAsc: boolean | null } {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -35,11 +35,25 @@ function loadSaved(): { filters: Filters; page: number; sortAsc: boolean } {
       return {
         filters,
         page: saved.page ?? 1,
-        sortAsc: saved.sortAsc ?? true,
+        // sortAsc 从 boolean 扩成三态（null = 默认排序）。老会话存的 true/false 照旧生效。
+        sortAsc: typeof saved.sortAsc === "boolean" ? saved.sortAsc : null,
       };
     }
   } catch {}
-  return { filters: EMPTY_FILTERS, page: 1, sortAsc: true };
+  return { filters: EMPTY_FILTERS, page: 1, sortAsc: null };
+}
+
+/**
+ * 排序三态循环：默认(null) → 升序 → 降序 → 默认。
+ *
+ * 原来 sortAsc 是 boolean，一旦点过就再也回不到"未排序"的自然顺序；
+ * 而 enrollmentSortAsc 虽然是 boolean|null，也只在 false↔true 之间转，
+ * 同样退不回默认。两列现在共用这一个循环。
+ */
+export function cycleSortState(current: boolean | null, firstAsc: boolean): boolean | null {
+  if (current === null) return firstAsc;
+  if (current === firstAsc) return !firstAsc;
+  return null;
 }
 
 export function useCourseFilter(
@@ -64,7 +78,7 @@ export function useCourseFilter(
     [restFilters, deferredSearch],
   );
 
-  const [sortAsc, setSortAsc] = useState(saved.sortAsc);
+  const [sortAsc, setSortAsc] = useState<boolean | null>(saved.sortAsc);
   const [enrollmentSortAsc, setEnrollmentSortAsc] = useState<boolean | null>(null);
   const [page, setPage] = useState(saved.page);
   const [pageSize] = useState(50);
@@ -235,9 +249,14 @@ export function useCourseFilter(
       result = result.filter((c) => !takenCids.has(c.id));
     }
 
+    // 默认顺序 = 课程号升序；它同时是学分并列时的次级键。
+    // 少了这个次级键，同学分的课在升/降序下顺序完全一样（大多数课都是 1~2 学分），
+    // 筛到只剩一个学分档时点表头更是"毫无反应"——被当成排序失效。
     result = [...result].sort((a, b) => {
-      const cmp = a.credits - b.credits;
-      return sortAsc ? cmp : -cmp;
+      if (sortAsc !== null && a.credits !== b.credits) {
+        return sortAsc ? a.credits - b.credits : b.credits - a.credits;
+      }
+      return a.id.localeCompare(b.id);
     });
 
     return result;
