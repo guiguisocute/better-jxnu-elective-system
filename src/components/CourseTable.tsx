@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, memo } from "react";
-import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
+import type { Course, DataSource, FormalSection, FormalGroup, RemainingRowState } from "../types";
 import { TagBadge } from "./TagBadge";
 import { CopyIdButton } from "./CopyIdButton";
 import { displayTags, isInPlan, compactTags } from "../lib/planMatch";
@@ -17,6 +17,21 @@ import type { ScheduleFilterMap } from "../lib/scheduleParse";
 import type { LiveEnrollmentStatus } from "../lib/liveEnrollments";
 
 const MAX_STICKY_PINS = 3;
+
+// 「仅看有余量」期间新腾出空位的班级标记。补退选时这是用户最想第一眼看到的信号，
+// 所以用翠绿（与"已加入/成功"同色系）而不是红色——红色在本表里承载的是"数据/选中"。
+function NewRoomBadge({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <span
+      title="你打开筛选之后，这个班级才腾出空位"
+      className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 text-[10px] font-semibold whitespace-nowrap dark:bg-emerald-400/15 dark:text-emerald-300 dark:ring-emerald-400/30"
+    >
+      <span className="w-1 h-1 rounded-full bg-emerald-500" aria-hidden />
+      新余量
+    </span>
+  );
+}
 
 // 单班级组（solo 行/卡）的稳定唯一 key。扁平模式下 g.id 会重复，必须带上班级与教号。
 function soloKey(g: FormalGroup): string {
@@ -76,6 +91,8 @@ interface Props {
   scheduleFilter?: ScheduleFilterMap;
   /** 课程号 → Course 映射。正选/补退选行据此回查 plans，做培养方案归属高亮。 */
   coursesById?: Map<string, Course>;
+  /** 「仅看有余量」下每行的成员状态（乐观集合：已满仍保留 / 新腾出空位）。 */
+  getRemainingState?: (s: FormalSection) => RemainingRowState;
   /** 无任何筛选时，用「功能说明层」替换正常课程列表（loading/未发布/空态仍优先）。 */
   showHints?: boolean;
   /** 「直接展示全部课程」—— 临时揭开本次列表。 */
@@ -251,6 +268,8 @@ interface RowShared {
   onSelectSection?: (s: FormalSection) => void;
   /** 该教学班是否已置顶（只用于行底色标识；置顶开关在右侧详情页）。 */
   isPinned?: (key: string) => boolean;
+  /** 「仅看有余量」下的成员状态：已满仍保留 / 新腾出空位。见 RemainingRowState。 */
+  getRemainingState?: (s: FormalSection) => RemainingRowState;
 }
 
 function useProgressiveSectionCount(expanded: boolean, total: number) {
@@ -355,7 +374,9 @@ const FormalSectionMoreCard = memo(function FormalSectionMoreCard({
   );
 });
 
-const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned, stickyTop }: RowShared & { s: FormalSection; indented?: boolean; stickyTop?: number }) {
+const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned, getRemainingState, stickyTop }: RowShared & { s: FormalSection; indented?: boolean; stickyTop?: number }) {
+  // 「仅看有余量」的乐观成员：已满仍保留的整行变淡，新腾出空位的挂翠绿标。
+  const remainingState = getRemainingState?.(s) ?? null;
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
   // 置顶行只留琥珀底作标识，开关在右侧详情页 —— 课程号那格宽度按 8~9% 分，
   // 塞不下「课程号 + 复制 + 置顶」三件套，低分辨率下按钮会溢出压到隔壁列。
@@ -372,7 +393,8 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
   return (
     <tr
       onClick={() => onSelectSection?.(s)}
-      className={`group transition-colors cursor-pointer ${pinned ? "pinned-row " : ""}${sticky ? "pinned-sticky " : ""}${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : indented ? "bg-gray-50 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
+      title={remainingState === "full" ? "你打开筛选后这个班级被选满了，暂时保留在列表中；下次调整筛选时移除" : undefined}
+      className={`group transition-colors cursor-pointer ${remainingState === "full" ? "opacity-55 " : ""}${pinned ? "pinned-row " : ""}${sticky ? "pinned-sticky " : ""}${isSelected ? "bg-red-50/50" : inPlan ? "bg-indigo-50/40 hover:bg-indigo-50/60 dark:bg-indigo-400/10 dark:hover:bg-indigo-400/15" : indented ? "bg-gray-50 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
       style={sticky ? ({ "--pin-top": `${stickyTop}px` } as React.CSSProperties) : undefined}
     >
       {/* 课程号格：overflow-hidden + truncate 是硬约束 —— table-fixed 下这列只有 9%，
@@ -389,6 +411,7 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
           {isSelected && <span className="w-[3px] h-4 rounded-full bg-red-500 shrink-0" />}
           {!isSelected && inPlan && <span className="w-[3px] h-4 rounded-full bg-indigo-400 shrink-0" />}
           <span className="block truncate" title={s.name}>{s.name}</span>
+          <NewRoomBadge show={remainingState === "new"} />
         </span>
       </td>
       {/* 学分/已选容量两列是定宽徽章，padding 收到 px-2 才塞得进 46px / 80px 的定宽列 */}
@@ -535,8 +558,9 @@ const FormalGroupFragment = memo(function FormalGroupFragment({ group, expanded,
 });
 
 // 一张「班级」卡（mobile）。
-const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned }: RowShared & { s: FormalSection }) {
+const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, enrollmentStale, isEnrollmentChanged, enrollmentChangedAt, onSelectSection, isPinned, getRemainingState }: RowShared & { s: FormalSection }) {
   const sKey = `${s.id}|${s.className}|${s.teacherId}`;
+  const remainingState = getRemainingState?.(s) ?? null;
   const isSelected = sKey === selectedSectionKey;
   // 置顶态优先于选中/归属配色：这张卡被提到了列表最前面，得先解释清楚"它为什么在这"。
   const pinned = isPinned?.(sKey) ?? false;
@@ -547,11 +571,15 @@ const FormalSectionCard = memo(function FormalSectionCard({ s, selectedPlan, cou
   return (
     <div
       onClick={() => onSelectSection?.(s)}
-      className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm ${pinned ? "bg-amber-50/70 border-amber-200 border-l-[3px] border-l-amber-400 dark:bg-[#2A2113] dark:border-[#4D3B12]" : isSelected ? "bg-red-50/50 border-red-200 border-l-[3px] border-l-red-500" : inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
+      title={remainingState === "full" ? "你打开筛选后这个班级被选满了，暂时保留在列表中；下次调整筛选时移除" : undefined}
+      className={`rounded-xl border p-4 active:bg-gray-50 transition-colors cursor-pointer shadow-sm ${remainingState === "full" ? "opacity-55 " : ""}${pinned ? "bg-amber-50/70 border-amber-200 border-l-[3px] border-l-amber-400 dark:bg-[#2A2113] dark:border-[#4D3B12]" : isSelected ? "bg-red-50/50 border-red-200 border-l-[3px] border-l-red-500" : inPlan ? "bg-indigo-50/30 border-indigo-200 border-l-[3px] border-l-indigo-400" : "bg-white border-gray-100"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="text-[13px] font-semibold text-gray-800 truncate">{s.name}</h3>
+          <span className="flex items-center gap-1.5 min-w-0">
+            <h3 className="text-[13px] font-semibold text-gray-800 truncate">{s.name}</h3>
+            <NewRoomBadge show={remainingState === "new"} />
+          </span>
           <p className="text-xs text-gray-500 mt-1">{s.id} · {s.dept}</p>
         </div>
         <span className={`shrink-0 inline-flex items-center justify-center px-2 h-8 rounded-lg text-xs font-bold gap-0.5 ${getCreditColor(s.credits)}`}>
@@ -681,7 +709,7 @@ export function CourseTable({
   allSemesters = [], selectedSemester = "", onChangeSemester,
   onSelectSection,
   selectedSectionKey = null,
-  pinnedKeys, isPinned, pinAlert, onUpdatePinAlert, onClearPins,
+  pinnedKeys, isPinned, pinAlert, onUpdatePinAlert, onClearPins, getRemainingState,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
   showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
 }: Props) {
@@ -705,9 +733,9 @@ export function CourseTable({
       selectedPlan, coursesById, scheduleFilter, selectedSectionKey,
       getEnrollment, enrollmentStale: liveEnrollmentStatus?.stale,
       isEnrollmentChanged, enrollmentChangedAt: liveEnrollmentStatus?.lastUpdateAt ?? null,
-      onSelectSection, isPinned,
+      onSelectSection, isPinned, getRemainingState,
     }),
-    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection, isPinned],
+    [selectedPlan, coursesById, scheduleFilter, selectedSectionKey, getEnrollment, liveEnrollmentStatus?.stale, isEnrollmentChanged, liveEnrollmentStatus?.lastUpdateAt, onSelectSection, isPinned, getRemainingState],
   );
   // 两列排序互斥，各自三态循环：默认 → 第一档 → 第二档 → 默认。
   // **切列与翻方向必须分开**：原来点「学分」既切列又翻方向，从余量排序切回学分时

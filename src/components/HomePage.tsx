@@ -31,7 +31,7 @@ import { Pagination } from "./Pagination";
 import { SimToggle } from "./sim/SimToggle";
 import { ConfirmDialog } from "./sim/ConfirmDialog";
 import { ThemeToggle } from "./ThemeToggle";
-import type { Course, DataSource, FormalSection, FormalGroup } from "../types";
+import type { Course, DataSource, FormalSection, FormalGroup, RemainingRowState } from "../types";
 
 // 模拟选课子树（SimPanel/OnboardingModal → CreditRing → ECharts）只在开启 sim 时才需要，
 // 懒加载把 ECharts 等重依赖从首屏 bundle 拆出去（浮层/弹窗短暂缺席可接受，fallback 空）。
@@ -572,22 +572,80 @@ export function HomePage() {
   // 一个看不见的开关还在偷偷筛选，更难排查——所以这里直接让它失效。
   const remainingFilterUsable = liveEnrollment.status.enabled && liveEnrollment.status.fetchedAt != null;
   const remainingFilterActive = filter.deferredFilters.remaining === "available" && remainingFilterUsable;
+
+  /**
+   * 「仅看有余量」的**乐观成员集合**。
+   *
+   * 实时人数每 10 秒刷新一次，若严格按当前余量过滤，某个班一满员就会立刻从列表里
+   * 消失——用户正在读、正要点的那一行凭空没了，比看到它变红更糟。所以：
+   *   · 进过集合的班级**只增不减**，哪怕它后来满了也继续显示（徽章会自己变红报满）；
+   *   · 新腾出空位的班级仍会被加进来（补退选期间这正是用户要盯的）；
+   *   · 集合只在**用户动作**时重建：改筛选条件、点时段格子、切学期、开关本开关。
+   * 这就是"乐观保持，等下一次筛选再去除"。
+   */
+  // 这些依赖对 useMemo 的返回值确实"没用"（永远返回 {}），但那正是它的用途：
+  // 任一用户动作变化时换一个新的对象身份，作为"该重建乐观集合了"的信号。
+  const remainingResetToken = useMemo(
+    () => ({}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contentFilteredSections, schedule.active, schedule.filter, remainingFilterActive, selectedSemester],
+  );
+  // baseline = 本轮筛选建立时就有余量的班级。之后进来的算「新余量」，
+  // 之后满掉的算「已满·保留」——两者含义相反，必须在行上分开表示。
+  const remainingKeepRef = useRef<{ token: object; keys: Set<string>; baseline: Set<string> } | null>(null);
+
   // 列表实际可见的班级 = 内容筛选 + 课表时段筛选（点格子三态；无激活格子时全放行）+ 余量筛选。
   const visibleFormalSections = useMemo(() => {
     let result = schedule.active
       ? contentFilteredSections.filter((s) => sectionMatchesSchedule(s, schedule.filter))
       : contentFilteredSections;
-    if (remainingFilterActive) {
-      // 「仅看有余量」= 只留**确认有余量**的班级：满员、以及余量无法判定的（含负余量
-      // 这种容量不可信的行）一律隐藏。判定口径与排序共用 trustedRemaining。
-      result = result.filter((s) => {
-        const remaining = trustedRemaining(s.capacity, liveEnrollment.getEnrollment(s));
-        return remaining !== null && remaining > 0;
-      });
+    if (!remainingFilterActive) {
+      remainingKeepRef.current = null;
+      return result;
     }
+    // token 变了说明是用户动作触发的重算 → 丢掉上一轮的乐观集合，从当前余量重新起算。
+    const carried = remainingKeepRef.current?.token === remainingResetToken
+      ? remainingKeepRef.current
+      : null;
+    const keys = new Set(carried?.keys);
+    // 「仅看有余量」= 只留**确认有余量**的班级：满员、以及余量无法判定的（含负余量
+    // 这种容量不可信的行）都不新增。判定口径与排序共用 trustedRemaining。
+    result = result.filter((s) => {
+      const remaining = trustedRemaining(s.capacity, liveEnrollment.getEnrollment(s));
+      const key = sectionPinKey(s);
+      if (remaining !== null && remaining > 0) {
+        keys.add(key);
+        return true;
+      }
+      return keys.has(key); // 本轮已满，但上一轮显示过 → 乐观保留
+    });
+    // 第一次求值（carried 为空）时的成员就是 baseline，此后不再变。
+    remainingKeepRef.current = { token: remainingResetToken, keys, baseline: carried?.baseline ?? new Set(keys) };
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentFilteredSections, schedule.active, schedule.filter, remainingFilterActive, remainingFilterActive ? liveEnrollment.getEnrollment : null]);
+  }, [contentFilteredSections, schedule.active, schedule.filter, remainingFilterActive, remainingResetToken, remainingFilterActive ? liveEnrollment.getEnrollment : null]);
+
+  /**
+   * 「仅看有余量」下每一行的成员状态，供表格加视觉区分：
+   *   "full" —— 打开筛选时有余量、现在被抢光了，乐观保留在列表里（整行变淡）；
+   *   "new"  —— 打开筛选之后才腾出空位的（翠绿「新余量」标，补退选期间最该被看见）；
+   *   null   —— 普通行，或筛选未生效。
+   * 依赖 getEnrollment，随轮询变化；筛选未开启时返回恒定 null，不产生额外重渲染。
+   */
+  const getRemainingState = useCallback(
+    (s: FormalSection): RemainingRowState => {
+      if (!remainingFilterActive) return null;
+      const snapshot = remainingKeepRef.current;
+      if (!snapshot) return null;
+      const key = sectionPinKey(s);
+      const remaining = trustedRemaining(s.capacity, liveEnrollment.getEnrollment(s));
+      if (remaining !== null && remaining > 0) return snapshot.baseline.has(key) ? null : "new";
+      return snapshot.keys.has(key) ? "full" : null;
+    },
+    // visibleFormalSections 每轮重算后 ref 才是最新的，所以跟着它一起更新引用。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [remainingFilterActive, visibleFormalSections, remainingFilterActive ? liveEnrollment.getEnrollment : null],
+  );
 
   // 课表每格班级数：基于「内容筛选后」的班级统计（issue #2 · 方案① —— 随内容筛选变，不随已选时段格子变）。
   const scheduleCellCounts = useMemo(() => {
@@ -1286,6 +1344,7 @@ export function HomePage() {
             liveEnrollmentStatus={liveEnrollment.status}
             pinnedKeys={pins.keys}
             isPinned={pins.has}
+            getRemainingState={getRemainingState}
             pinAlert={pins.alert}
             onUpdatePinAlert={pins.updateAlert}
             onClearPins={pins.clear}

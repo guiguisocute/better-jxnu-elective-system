@@ -8,6 +8,15 @@ export interface Teacher {
 // 展示阶段：预选 / 正选与补退选（后二者共用同一课表入口）。
 export type DataSource = "pre" | "formal";
 
+/**
+ * 「仅看有余量」筛选下一行的成员状态。筛选的成员集合是**乐观**的：
+ * 只在用户动作时重建，中途不因实时人数变化而移除已显示的行。
+ *   "full" —— 打开筛选时有余量、之后被抢光，仍保留在列表里；
+ *   "new"  —— 打开筛选之后才腾出空位，是新进来的；
+ *   null   —— 普通行（或筛选未生效）。
+ */
+export type RemainingRowState = "full" | "new" | null;
+
 // 正选/补退选阶段数据：每行 = 一个实际开班的 section。
 export interface FormalSection {
   id: string;             // 课程号
