@@ -23,7 +23,7 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
   // tone: "idle"(倒计时) | "updating"(后端刷新中) | "updated"(刚拿到新数据) | "alert"。
   const view = useMemo(() => {
     const target = status.nextRefreshAt ? Date.parse(status.nextRefreshAt) : now + status.refreshIntervalMs;
-    const start = target - status.refreshIntervalMs; // 进度条锚在「后端上次刷新→下次刷新」整段上
+    const start = target - status.refreshIntervalMs; // 进度条锚在「客户端上次轮询→下次轮询」整段上
     const progress = Math.max(0, Math.min(100, ((now - start) / status.refreshIntervalMs) * 100));
     const seconds = Math.max(0, Math.ceil((target - now) / 1000));
     const justUpdated = status.lastUpdateAt != null && now - status.lastUpdateAt < 3500;
@@ -52,7 +52,9 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
     <div
       className={`${compact ? "w-[128px]" : "w-[138px]"} shrink-0`}
       role="status"
-      title={status.error ? `实时人数服务：${status.error}` : `实时人数与后端刷新节奏同步（约每 ${refreshIntervalLabel(status.refreshIntervalMs)}）`}
+      title={status.error
+        ? `实时人数服务：${status.error}`
+        : `本页每 ${refreshIntervalLabel(status.refreshIntervalMs)}同步一次（后端每 ${refreshIntervalLabel(status.serverIntervalMs)}从教务抓取）`}
     >
       <div className={`mb-1 flex items-center justify-between text-[10px] font-medium ${alert ? "text-amber-600" : "text-gray-500"}`}>
         <span className="inline-flex items-center gap-1">

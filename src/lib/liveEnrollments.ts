@@ -37,11 +37,14 @@ export interface LiveEnrollmentStatus {
   refreshing: boolean;
   stale: boolean;
   error: string | null;
-  /** 后端快照构建时间（数据真值时刻），用于进度条锚点。 */
+  /** 后端快照构建时间（数据真值时刻）。注意：采集机时钟可能超前，别拿它做本地时间运算。 */
   fetchedAt: string | null;
-  /** 后端下次刷新时刻（权威），倒计时严格对齐它，不随前端轮询重置。 */
+  /** **客户端**下一次轮询时刻，倒计时/进度条锚点。不是后端的抓取时刻。 */
   nextRefreshAt: string | null;
+  /** 客户端轮询周期，与 nextRefreshAt 同一把尺子。 */
   refreshIntervalMs: number;
+  /** 后端抓取周期，仅用于提示文案；不参与排程与进度计算。 */
+  serverIntervalMs: number;
   /** 最近一次拿到「新快照」时变化的班级条数（与上一份比）。 */
   lastUpdateCount: number;
   /** 最近一次更新的本地时刻（毫秒）；null = 尚未发生过更新。 */
@@ -169,7 +172,11 @@ export function parseLiveEnrollmentSnapshot(value: unknown): LiveEnrollmentSnaps
     semester: data.semester,
     fetchedAt: data.fetchedAt,
     nextRefreshAt: data.nextRefreshAt,
-    refreshIntervalMs: Math.max(10_000, data.refreshIntervalMs),
+    // 如实保留后端上报的抓取间隔。以前钳到 ≥10s 是因为它曾用于驱动客户端排程；
+    // 现在排程完全由客户端固定定时器负责，这个值只剩两个用途：tooltip 文案，
+    // 以及 staleThresholdMs 里的 max(它, 客户端间隔)——两处都不怕小值。
+    // 继续钳的话，后端设 5 秒时 tooltip 会显示"后端每 10 秒"，是条假信息。
+    refreshIntervalMs: Math.max(0, data.refreshIntervalMs),
     classCount: typeof data.classCount === "number" ? data.classCount : items.length,
     conflictCount: typeof data.conflictCount === "number" ? data.conflictCount : 0,
     items,

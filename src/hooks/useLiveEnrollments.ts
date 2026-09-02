@@ -9,13 +9,17 @@ import {
 } from "../lib/liveEnrollments";
 import type { LiveEnrollmentSnapshot, LiveEnrollmentStatus } from "../lib/liveEnrollments";
 
-// 固定客户端轮询节奏——不再对齐后端回传的 nextRefreshAt。之前那套「按后端时间表 + 5s 下限」
+// 固定客户端轮询节奏——**绝不对齐后端回传的 nextRefreshAt**。之前那套「按后端时间表 + 5s 下限」
 // 的调度，一旦客户端/服务端时钟有偏差（或后端 nextRefreshAt 略滞后于当前时间），
 // untilBackend 会长期算出负值/接近 0，导致每次都撞 5s 下限、退化成准秒级轮询——
 // 长时间停留后把整棵组件树反复拖入重渲染，是"筛选筛不掉、要 F5"这个 bug 的根因。
-// 客户端只是在读取后端已有快照，保持较短轮询便于尽快展示更新；真正的抓取节奏
-// 由后端随快照回传，不能把它写死成 30s。
-const CLIENT_POLL_INTERVAL_MS = 30_000;
+// 这条不变量必须守住：2026-09-02 实测采集机时钟比真实时间快 5~9 秒（边缘 nginx 的
+// Date 头准、快照 body 里的 fetchedAt 超前），跟着后端时间戳排程一定会翻车。
+//
+// 间隔本身从 30s 降到 10s：补退选期间席位以秒计变化，后端已经每 5 秒出一份新快照，
+// 30s 意味着用户看到的数字最多滞后 30 秒、且后端每 6 轮抓取只有 1 轮被消费。
+// 代价是每用户每分钟 6 次 × 约 58KB gz 的边缘出流量，改这个值前先算这笔账。
+const CLIENT_POLL_INTERVAL_MS = 10_000;
 // 原 30 秒后端节奏下的延迟阈值为 90 秒，即允许连续三轮没有新快照。
 // 继续沿用这个比例，避免后端按较长间隔抓取时被前端过早误报为延迟。
 const STALE_INTERVALS = 3;
@@ -29,8 +33,9 @@ function staleThresholdMs(serverIntervalMs: number) {
 }
 const REQUEST_TIMEOUT_MS = 12_000;
 // 切回前台时：离上次真正发起请求太近就不重复拉，只需恢复固定节奏的下一次调度，
-// 避免反复切换标签页时把请求越攒越密。
-const VISIBILITY_REFRESH_MIN_GAP_MS = 10_000;
+// 避免反复切换标签页时把请求越攒越密。取轮询周期的一半——比周期本身大就等于
+// 「切回来必然重新拉」，失去了防抖意义；太小则频繁切标签页会把请求攒密。
+const VISIBILITY_REFRESH_MIN_GAP_MS = CLIENT_POLL_INTERVAL_MS / 2;
 
 export function useLiveEnrollments(
   sections: FormalSection[],
@@ -200,9 +205,15 @@ export function useLiveEnrollments(
     stale,
     error,
     fetchedAt: snapshot?.fetchedAt ?? null,
-    // 展示采用后端的真实抓取节奏；客户端自身仍每 30 秒读取一次已有快照。
-    nextRefreshAt: serverTiming.nextRefreshAt ?? (lastPolledAt != null ? new Date(lastPolledAt + CLIENT_POLL_INTERVAL_MS).toISOString() : null),
-    refreshIntervalMs: serverTiming.refreshIntervalMs,
+    // 倒计时锚在**客户端自己的下一次轮询**上，不再用后端的 nextRefreshAt。
+    // 后端节奏（5s）比客户端轮询（10s）快，而客户端要等下一次轮询才会拿到新的
+    // 后端时间戳；照着后端的锚点跑，进度条会在每个周期里提前跑完，然后一直卡在
+    // 「正在更新…」——实测 92 秒里有 54 秒（59%）显示这四个字，其实前端什么都没干。
+    // 采集机时钟还快 5~9 秒，会把这个假倒计时再撑长一截。锚回本地时钟后两者都不影响显示。
+    nextRefreshAt: lastPolledAt != null ? new Date(lastPolledAt + CLIENT_POLL_INTERVAL_MS).toISOString() : null,
+    refreshIntervalMs: CLIENT_POLL_INTERVAL_MS,
+    // 后端抓取节奏只做展示信息（tooltip），不参与任何排程或进度计算。
+    serverIntervalMs: serverTiming.refreshIntervalMs,
     lastUpdateCount: lastUpdate?.count ?? 0,
     lastUpdateAt: lastUpdate?.at ?? null,
   };
