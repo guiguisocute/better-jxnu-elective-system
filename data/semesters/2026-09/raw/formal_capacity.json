@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-04 05:35:29",
+ "fetched_at": "2026-09-04 06:40:29",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -6953,17 +6953,17 @@
      "bjh": "003480Z2",
      "className": "教工.杜国娟#2班",
      "teacher": "杜国娟",
-     "enrolled": 48,
-     "remaining": 3,
+     "enrolled": 49,
+     "remaining": 2,
      "full": false
     },
     {
      "bjh": "003757Z3",
      "className": "教工.张颖#3班",
      "teacher": "张颖",
-     "enrolled": 50,
-     "remaining": 0,
-     "full": true
+     "enrolled": 49,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "003757Z4",
@@ -17015,9 +17015,9 @@
      "bjh": "005345Z1",
      "className": "教工王成军#1班",
      "teacher": "王成军",
-     "enrolled": 79,
-     "remaining": 1,
-     "full": false
+     "enrolled": 80,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "教育电影与教师成长"
@@ -28520,8 +28520,8 @@
      "bjh": "20250059",
      "className": "25级数据科学与大数据技术2班",
      "teacher": "化志章",
-     "enrolled": 42,
-     "remaining": 8,
+     "enrolled": 43,
+     "remaining": 7,
      "full": false
     },
     {
@@ -30377,8 +30377,8 @@
      "bjh": "001235Z1",
      "className": "毛文华#1班",
      "teacher": "毛文华",
-     "enrolled": 33,
-     "remaining": 2,
+     "enrolled": 32,
+     "remaining": 3,
      "full": false
     },
     {
@@ -32446,8 +32446,8 @@
      "bjh": "005922Z1",
      "className": "教工王文德#1班",
      "teacher": "王文德",
-     "enrolled": 52,
-     "remaining": 8,
+     "enrolled": 53,
+     "remaining": 7,
      "full": false
     }
    ],
