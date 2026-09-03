@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-04 02:19:29",
+ "fetched_at": "2026-09-04 03:23:29",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -5135,8 +5135,8 @@
      "bjh": "003745Z1",
      "className": "教工龚穗丰#1班",
      "teacher": "龚穗丰",
-     "enrolled": 48,
-     "remaining": 2,
+     "enrolled": 49,
+     "remaining": 1,
      "full": false
     },
     {
@@ -5167,9 +5167,9 @@
      "bjh": "004871Z3",
      "className": "教工.俞玲#3班",
      "teacher": "俞玲",
-     "enrolled": 50,
-     "remaining": 0,
-     "full": true
+     "enrolled": 49,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "004871Z4",
@@ -13708,9 +13708,9 @@
      "bjh": "003443Z1",
      "className": "江玉梅#1班",
      "teacher": "江玉梅",
-     "enrolled": 49,
-     "remaining": 1,
-     "full": false
+     "enrolled": 50,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "花卉栽培与室内装饰"
@@ -15549,9 +15549,9 @@
      "bjh": "20250055",
      "className": "25级计算机科学与技术（师范）1班",
      "teacher": "郑燚",
-     "enrolled": 63,
-     "remaining": 1,
-     "full": false
+     "enrolled": 64,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "20250113",
@@ -23498,9 +23498,9 @@
      "bjh": "002444Z4",
      "className": "孟鹰#4班",
      "teacher": "孟鹰",
-     "enrolled": 99,
-     "remaining": 1,
-     "full": false
+     "enrolled": 100,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "002444Z5",
@@ -40146,8 +40146,8 @@
      "bjh": "005581Z1",
      "className": "教工丁翘#1班",
      "teacher": "温庆辉",
-     "enrolled": 49,
-     "remaining": 1,
+     "enrolled": 48,
+     "remaining": 2,
      "full": false
     },
     {
