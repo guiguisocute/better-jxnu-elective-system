@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-02T13:13:31Z",
+ "fetchedAt": "2026-09-03T08:27:20Z",
  "courses": [
   {
    "courseId": "002166",
@@ -391,6 +391,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195310",
    "fetchedAt": "2026-08-31T09:55:48Z"
+  },
+  {
+   "courseId": "252495",
+   "courseName": "中学英语课例分析与设计",
+   "courseNameIdentity": "中学英语课例分析与设计",
+   "credits": 2,
+   "classId": "002358$1",
+   "courseSiteId": "196728",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196728",
+   "fetchedAt": "2026-09-03T08:27:20Z"
   },
   {
    "courseId": "252528",
