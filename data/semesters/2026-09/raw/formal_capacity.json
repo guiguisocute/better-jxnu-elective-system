@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-04 06:40:29",
+ "fetched_at": "2026-09-04 07:45:29",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -385,8 +385,8 @@
      "bjh": "003550Z1",
      "className": "王渊#1班",
      "teacher": "王渊",
-     "enrolled": 36,
-     "remaining": 9,
+     "enrolled": 35,
+     "remaining": 10,
      "full": false
     }
    ],
@@ -2970,8 +2970,8 @@
      "bjh": "001227Z1",
      "className": "潘铭#1班",
      "teacher": "潘铭",
-     "enrolled": 28,
-     "remaining": 7,
+     "enrolled": 29,
+     "remaining": 6,
      "full": false
     },
     {
@@ -3290,8 +3290,8 @@
      "bjh": "002409Z3",
      "className": "教工万月红#3班",
      "teacher": "万月红",
-     "enrolled": 26,
-     "remaining": 9,
+     "enrolled": 25,
+     "remaining": 10,
      "full": false
     },
     {
@@ -5151,9 +5151,9 @@
      "bjh": "003745Z3",
      "className": "教工.龚穗丰#3班",
      "teacher": "龚穗丰",
-     "enrolled": 53,
-     "remaining": 0,
-     "full": true
+     "enrolled": 52,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "003745Z4",
@@ -5167,9 +5167,9 @@
      "bjh": "004871Z3",
      "className": "教工.俞玲#3班",
      "teacher": "俞玲",
-     "enrolled": 49,
-     "remaining": 1,
-     "full": false
+     "enrolled": 50,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "004871Z4",
@@ -6527,9 +6527,9 @@
      "bjh": "001275Z3",
      "className": "教工徐红#.3班",
      "teacher": "徐红",
-     "enrolled": 50,
-     "remaining": 0,
-     "full": true
+     "enrolled": 49,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "001275Z4",
@@ -6922,16 +6922,16 @@
      "bjh": "004432Z1",
      "className": "教工严俊#1班",
      "teacher": "严俊",
-     "enrolled": 50,
-     "remaining": 0,
-     "full": true
+     "enrolled": 49,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "004432Z2",
      "className": "教工严俊#2班",
      "teacher": "严俊",
-     "enrolled": 47,
-     "remaining": 3,
+     "enrolled": 48,
+     "remaining": 2,
      "full": false
     }
    ],
@@ -9240,8 +9240,8 @@
      "bjh": "005153Z3",
      "className": "教工余冲#3班",
      "teacher": "余冲",
-     "enrolled": 59,
-     "remaining": 1,
+     "enrolled": 58,
+     "remaining": 2,
      "full": false
     },
     {
@@ -9400,8 +9400,8 @@
      "bjh": "005735Z1",
      "className": "教工谢更生#1班",
      "teacher": "谢更生",
-     "enrolled": 47,
-     "remaining": 8,
+     "enrolled": 44,
+     "remaining": 11,
      "full": false
     }
    ],
@@ -13687,8 +13687,8 @@
      "bjh": "003601Z2",
      "className": "何彤宇#2班",
      "teacher": "何彤宇",
-     "enrolled": 128,
-     "remaining": 2,
+     "enrolled": 127,
+     "remaining": 3,
      "full": false
     }
    ],
@@ -14259,9 +14259,9 @@
      "bjh": "005268Z1",
      "className": "教工 刘健#1班",
      "teacher": "刘健",
-     "enrolled": 45,
-     "remaining": 0,
-     "full": true
+     "enrolled": 44,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "化妆品的化学"
@@ -15727,8 +15727,8 @@
      "bjh": "005246Z1",
      "className": "教工.郑洁#1班",
      "teacher": "郑洁",
-     "enrolled": 58,
-     "remaining": 2,
+     "enrolled": 59,
+     "remaining": 1,
      "full": false
     }
    ],
@@ -19996,8 +19996,8 @@
      "bjh": "005193Z1",
      "className": "教工朱忠文#1班",
      "teacher": "朱忠文",
-     "enrolled": 39,
-     "remaining": 2,
+     "enrolled": 40,
+     "remaining": 1,
      "full": false
     },
     {
@@ -24515,9 +24515,9 @@
      "bjh": "20241023",
      "className": "24级化学工程与工艺（智能石化化工卓越）班",
      "teacher": "周国兵",
-     "enrolled": 19,
-     "remaining": 1,
-     "full": false
+     "enrolled": 20,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "人工智能与化工项目设计"
@@ -31894,9 +31894,9 @@
      "bjh": "002215Z1",
      "className": "邓颖波#1班",
      "teacher": "邓颖波",
-     "enrolled": 45,
-     "remaining": 0,
-     "full": true
+     "enrolled": 44,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "外国小说欣赏"
@@ -34758,8 +34758,8 @@
      "bjh": "20230081",
      "className": "23级汉语言文学2班",
      "teacher": "刘赣洪",
-     "enrolled": 58,
-     "remaining": 1,
+     "enrolled": 57,
+     "remaining": 2,
      "full": false
     },
     {
@@ -34886,9 +34886,9 @@
      "bjh": "20250132",
      "className": "25级英语3班",
      "teacher": "刘赣洪",
-     "enrolled": 24,
-     "remaining": 1,
-     "full": false
+     "enrolled": 25,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "20250133",
@@ -37222,8 +37222,8 @@
      "bjh": "003370Z1",
      "className": "蔡险峰#1班",
      "teacher": "蔡险峰",
-     "enrolled": 164,
-     "remaining": 1,
+     "enrolled": 163,
+     "remaining": 2,
      "full": false
     },
     {
@@ -43505,8 +43505,8 @@
      "bjh": "003881Z1",
      "className": "谢中和#1班",
      "teacher": "谢中和",
-     "enrolled": 79,
-     "remaining": 1,
+     "enrolled": 78,
+     "remaining": 2,
      "full": false
     },
     {
