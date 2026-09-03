@@ -23,5 +23,9 @@ tools/xk_api_manual.md
 deploy/kkap.env
 deploy/cap/.env
 
+# 采集机运行期文件的本机镜像（backend.env 里是 ADMIN_PASSWORD / XK_PASSWORD /
+# LIVE_SECRET 明文）。它是排障时手工 scp 下来的副本，不是线上真值，也不该进仓库。
+.local-backend/
+
 # AI帮我选 本地开发密钥（wrangler pages dev 自动读取）
 .dev.vars

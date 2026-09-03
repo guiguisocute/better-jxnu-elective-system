@@ -39,6 +39,15 @@ const (
 	publicScheduleTimeout = 300 * time.Second
 )
 
+// 打开表单页只是为了拿 __VIEWSTATE，响应 8KB 上下，校园网内 0.1 秒就回来。
+// 它没有任何理由沿用整份 9MB 课表的 300 秒预算：2026-09-03 采集机网口闪断、
+// 校园路由被 NetworkManager 冲掉之后，这一步在「等响应头」上足足挂了 300 秒
+// 才报错（elapsedMs=300062），5 秒一轮的采集因此白白瞎了 5 分钟，日志和面板上
+// 什么都看不到。单独给它一个短预算，让断网在当轮就变成一条错误日志。
+//
+// 是 var 而不是 const，只为让测试把它压到毫秒级；生产代码不要改写它。
+var publicScheduleOpenTimeout = 20 * time.Second
+
 type ScheduleRow struct {
 	Sequence     string `json:"序号"`
 	Department   string `json:"单位名称"`
@@ -406,24 +415,7 @@ func FetchPublicSchedule(ctx context.Context, client *http.Client, targetSemeste
 		return nil, fmt.Errorf("KKAP 目标学期不合法：%s", targetSemester)
 	}
 	targetTerm := target.AcademicTerm
-	get, err := http.NewRequestWithContext(ctx, http.MethodGet, kkapURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	get.Header.Set("User-Agent", backendAgent)
-	response, err := client.Do(get)
-	if err != nil {
-		return nil, fmt.Errorf("打开 Public_Kkap: %w", err)
-	}
-	pageBytes, readErr := readLimited(response.Body, maxHTMLBytes)
-	response.Body.Close()
-	if readErr != nil {
-		return nil, readErr
-	}
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Public_Kkap GET HTTP %d", response.StatusCode)
-	}
-	doc, err := parseHTML(string(pageBytes))
+	doc, err := openPublicSchedule(ctx, client)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +451,7 @@ func FetchPublicSchedule(ctx context.Context, client *http.Client, targetSemeste
 	post.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	post.Header.Set("Referer", kkapURL)
 	post.Header.Set("Origin", "https://jwc.jxnu.edu.cn")
-	response, err = client.Do(post)
+	response, err := client.Do(post)
 	if err != nil {
 		return nil, fmt.Errorf("查询 Public_Kkap: %w", err)
 	}
@@ -476,6 +468,33 @@ func FetchPublicSchedule(ctx context.Context, client *http.Client, targetSemeste
 		return nil, err
 	}
 	return rows, nil
+}
+
+// openPublicSchedule 打开 KKAP 表单页，返回带 __VIEWSTATE 的文档。
+// 单独拆成一个函数是为了让 publicScheduleOpenTimeout 的作用域正好裹住这一次往返：
+// 函数一返回 cancel 就释放，后面那次拉全量课表的 POST 仍走调用方的 ctx 和
+// client.Timeout（publicScheduleTimeout），不会被这条短预算连累。
+func openPublicSchedule(ctx context.Context, client *http.Client) (*xhtml.Node, error) {
+	openCtx, cancel := context.WithTimeout(ctx, publicScheduleOpenTimeout)
+	defer cancel()
+	get, err := http.NewRequestWithContext(openCtx, http.MethodGet, kkapURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	get.Header.Set("User-Agent", backendAgent)
+	response, err := client.Do(get)
+	if err != nil {
+		return nil, fmt.Errorf("打开 Public_Kkap: %w", err)
+	}
+	pageBytes, readErr := readLimited(response.Body, maxHTMLBytes)
+	response.Body.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Public_Kkap GET HTTP %d", response.StatusCode)
+	}
+	return parseHTML(string(pageBytes))
 }
 
 func parseSchoolTermOptions(doc *xhtml.Node) []SchoolTermOption {

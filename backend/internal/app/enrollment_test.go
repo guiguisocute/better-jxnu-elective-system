@@ -1,10 +1,13 @@
 package app
 
 import (
+	"context"
 	"io"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -71,6 +74,39 @@ func TestFormalScheduleFingerprintIgnoresEnrollmentAndOrder(t *testing.T) {
 	}
 	if formalScheduleFingerprint(a) != formalScheduleFingerprint(b) {
 		t.Fatal("non-structural changes altered the fingerprint")
+	}
+}
+
+// hangingTransport 模拟「路由没了、包发出去没人应」：一直挂到请求自己的 ctx 到期。
+// 用 RoundTripper 而不是 httptest，是因为 kkapURL 写死在包里，测试没法改它的地址。
+type hangingTransport struct{}
+
+func (hangingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	<-request.Context().Done()
+	return nil, request.Context().Err()
+}
+
+// 打开表单页那一步必须有自己的短预算。2026-09-03 网口闪断时它跟着整份 9MB 课表
+// 用了 300 秒的 client.Timeout，5 秒一轮的采集因此 5 分钟没吭一声。
+func TestFetchPublicScheduleBoundsFormPageOpen(t *testing.T) {
+	original := publicScheduleOpenTimeout
+	publicScheduleOpenTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { publicScheduleOpenTimeout = original })
+
+	client := &http.Client{Transport: hangingTransport{}, Timeout: publicScheduleTimeout}
+	started := time.Now()
+	_, err := FetchPublicSchedule(context.Background(), client, "2026-09")
+	elapsed := time.Since(started)
+	if err == nil {
+		t.Fatal("hanging form page did not produce an error")
+	}
+	if !strings.Contains(err.Error(), "打开 Public_Kkap") {
+		t.Fatalf("error did not come from the form-page open: %v", err)
+	}
+	// 宽松到秒级即可：这里要守的是「没有退回 client.Timeout 的 300 秒」，
+	// 不是精确的 50ms，免得在忙碌的 CI 上变成随机失败。
+	if elapsed > 5*time.Second {
+		t.Fatalf("form-page open was not bounded by its own timeout: %v", elapsed)
 	}
 }
 
