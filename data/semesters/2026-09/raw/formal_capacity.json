@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-05 03:36:29",
+ "fetched_at": "2026-09-05 04:42:29",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -6729,9 +6729,9 @@
      "bjh": "005244Z2",
      "className": "教工杨正军#2班",
      "teacher": "杨正军",
-     "enrolled": 54,
-     "remaining": 1,
-     "full": false
+     "enrolled": 55,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "大学英语翻译Ⅰ"
@@ -6887,9 +6887,9 @@
      "bjh": "003618Z2",
      "className": "教工.周雪英#2班",
      "teacher": "周雪英",
-     "enrolled": 50,
-     "remaining": 0,
-     "full": true
+     "enrolled": 49,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "003618Z3",
@@ -21878,9 +21878,9 @@
      "bjh": "006049Z1",
      "className": "教工聂希贝#1班",
      "teacher": "聂希贝",
-     "enrolled": 58,
-     "remaining": 0,
-     "full": true
+     "enrolled": 57,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "美国史"
@@ -36190,8 +36190,8 @@
      "bjh": "20250092",
      "className": "25级软件工程（区块链开发与应用）班",
      "teacher": "熊小勇",
-     "enrolled": 51,
-     "remaining": 1,
+     "enrolled": 50,
+     "remaining": 2,
      "full": false
     },
     {
@@ -36222,8 +36222,8 @@
      "bjh": "20250096",
      "className": "25级软件工程（互联网软件开发）4班",
      "teacher": "熊小勇",
-     "enrolled": 36,
-     "remaining": 4,
+     "enrolled": 37,
+     "remaining": 3,
      "full": false
     },
     {
@@ -45290,8 +45290,8 @@
      "bjh": "002904Z2",
      "className": "龙永俊#2班",
      "teacher": "龙永俊",
-     "enrolled": 58,
-     "remaining": 2,
+     "enrolled": 59,
+     "remaining": 1,
      "full": false
     },
     {
