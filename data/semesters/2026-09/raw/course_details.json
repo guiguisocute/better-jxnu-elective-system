@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-03T08:27:20Z",
+ "fetchedAt": "2026-09-04T13:02:06Z",
  "courses": [
   {
    "courseId": "002166",
@@ -379,7 +379,7 @@
    "courseSiteId": "194921",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194921",
-   "fetchedAt": "2026-08-28T06:08:10Z"
+   "fetchedAt": "2026-09-04T13:01:34Z"
   },
   {
    "courseId": "252494",
@@ -446,6 +446,45 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195640",
    "fetchedAt": "2026-08-29T01:45:16Z"
+  },
+  {
+   "courseId": "254319",
+   "courseName": "环境艺术设计概论",
+   "courseNameIdentity": "环境艺术设计概论",
+   "englishName": "Essentials of Artistic Design of the Envirnment",
+   "credits": 2,
+   "description": "环境艺术专业是根据建筑及空间环境的使用性质、所处背景及相应标准，运用物质技术手段和美学艺术园林，创造功能合理、舒适优美要、满足人们物质及精神生活需要的室外空间环境，学科包含的内容非常广泛且丰富。《环境艺术概论》是环境艺术专业的基础课程，对环境艺术（包括室内和室外两部分）的相关知识作了全面系统的介绍，力图使学生在专业的层面上对本学科形成较为清晰的认识。",
+   "classId": "20260102",
+   "courseSiteId": "196737",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196737",
+   "fetchedAt": "2026-09-04T13:01:35Z"
+  },
+  {
+   "courseId": "254320",
+   "courseName": "人机工程学",
+   "courseNameIdentity": "人机工程学",
+   "englishName": "human Body and Dress",
+   "credits": 2,
+   "description": "所谓人机工程学，亦即是应用人体测量学、人体力学、劳动生理学、劳动心理学等学科的研究方法，对人体结构特征和机能特征进行研究，提供人体各部分的尺寸、重量、体表面积、比重、重心以及人体各部分在活动时的相互关系和可及范围等人体结构特征参数；还提供人体各部分的出力范围、以及动作时的习惯等人体机能特征参数，分析人的视觉、听觉、触觉以及肤觉等感觉器官的机能特性，并以此探讨在环境艺术设计中的功能与作用。",
+   "classId": "20250082",
+   "courseSiteId": "196738",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196738",
+   "fetchedAt": "2026-09-04T13:01:35Z"
+  },
+  {
+   "courseId": "254521",
+   "courseName": "设计思维",
+   "courseNameIdentity": "设计思维",
+   "englishName": "Design Thinking",
+   "credits": 2,
+   "description": "设计思维课程主要研究人脑思维的特点及设计的运筹过程，介绍创造性思维的基本形式和特征，创造性思维训练的有效途径；重点分析设计思维方法的操作过程、设计应用，旨在掌握设计的图式思考，为专业设计实践实施之必备课程。",
+   "classId": "20240058",
+   "courseSiteId": "196739",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196739",
+   "fetchedAt": "2026-09-04T13:01:36Z"
   },
   {
    "courseId": "255006",
@@ -903,7 +942,7 @@
    "courseSiteId": "194035",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194035",
-   "fetchedAt": "2026-08-28T06:08:11Z"
+   "fetchedAt": "2026-09-04T13:01:36Z"
   },
   {
    "courseId": "262379",
@@ -929,7 +968,7 @@
    "courseSiteId": "194036",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194036",
-   "fetchedAt": "2026-08-28T06:08:12Z"
+   "fetchedAt": "2026-09-04T13:01:40Z"
   },
   {
    "courseId": "262569",
@@ -993,6 +1032,19 @@
    "fetchedAt": "2026-08-29T01:48:07Z"
   },
   {
+   "courseId": "264248",
+   "courseName": "动漫概论",
+   "courseNameIdentity": "动漫概论",
+   "englishName": "Overview of anime",
+   "credits": 2,
+   "description": "《动漫概论》是美术学院动画专业开设的一门学科基础课程。本课程 是学生学习动画专业知识的入门课程，由浅入深地从动画的基本概念、 基 本原理和基本规律入手，从不同角度和不同层面，全面、系统地讲述动画 艺术的本体特性、思维方式、创作规律、实用功能和学科体系，使学生树 立正确的动画艺术基本观念。",
+   "classId": "20260100",
+   "courseSiteId": "196740",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196740",
+   "fetchedAt": "2026-09-04T13:01:42Z"
+  },
+  {
    "courseId": "264683",
    "courseName": "智能广告视觉设计",
    "courseNameIdentity": "智能广告视觉设计",
@@ -1002,6 +1054,79 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195619",
    "fetchedAt": "2026-08-29T01:48:08Z"
+  },
+  {
+   "courseId": "2650007",
+   "courseName": "设计心理学（2学分）",
+   "courseNameIdentity": "设计心理学（2学分）",
+   "credits": 2,
+   "classId": "20240055",
+   "courseSiteId": "196741",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196741",
+   "fetchedAt": "2026-09-04T13:01:43Z"
+  },
+  {
+   "courseId": "2650017",
+   "courseName": "文创产品设计",
+   "courseNameIdentity": "文创产品设计",
+   "englishName": "Cultural and creative product design",
+   "credits": 3,
+   "description": "《文创产品设计》（3学分）是产品设计专业的专业限选课程，课程主要从产品设计出发，系统地介绍文化创意产品设计的定义、发展，产品的文化创意理念构建，使学生理解并掌握文创创意产品的设计方法。课程分四个章节进行。 I.概念与原则 II.设计与实训 III.文创产业策略 IV.欣赏与分析",
+   "classId": "20240055",
+   "courseSiteId": "196742",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196742",
+   "fetchedAt": "2026-09-04T13:01:46Z"
+  },
+  {
+   "courseId": "2650019",
+   "courseName": "品牌策划与管理",
+   "courseNameIdentity": "品牌策划与管理",
+   "credits": 3,
+   "classId": "20240055",
+   "courseSiteId": "196743",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196743",
+   "fetchedAt": "2026-09-04T13:01:47Z"
+  },
+  {
+   "courseId": "2650043",
+   "courseName": "形式基础",
+   "courseNameIdentity": "形式基础",
+   "credits": 3,
+   "description": "《形式基础》是美术学院动画专业开设的学科基础课程。 本课程将会给你一个开启思维的参照系，告诉你将如何了解和熟悉设 计形态发展的演变过程。该课程在进行最基础的绘画技能训练之后，根据 动漫专业课程需要，重点强化动漫专业前期部分的专业理论、专业手绘技 能和前期设计能力，在基础课和专业课程之间起到有效衔接的作用。",
+   "classId": "20260100",
+   "courseSiteId": "196744",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196744",
+   "fetchedAt": "2026-09-04T13:01:49Z"
+  },
+  {
+   "courseId": "2650045",
+   "courseName": "设计美学（3学分）",
+   "courseNameIdentity": "设计美学（3学分）",
+   "englishName": "Design Aesthetics",
+   "credits": 3,
+   "description": "设计美学作为美学体系中的一个分支，既具有美学原理的普遍性，又具有设计学科的特殊性，是一门兼具理论性与实践性的应用型学科。本课程着眼于设计文脉的产生与发展，强调以点代面、史论结合，将美学原理的阐述与经典作品的分析结合起来，让学生在学习设计美学的同时，也能够掌握设计批评的方法，熟悉经典的设计作品，了解设计的流派及相关思潮的变迁，从而形成立体而又多元的知识体系框架。",
+   "classId": "20240055",
+   "courseSiteId": "196745",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196745",
+   "fetchedAt": "2026-09-04T13:01:51Z"
+  },
+  {
+   "courseId": "2650072",
+   "courseName": "创形设计（2分）",
+   "courseNameIdentity": "创形设计（2分）",
+   "englishName": "Creative design",
+   "credits": 2,
+   "description": "《创形设计》课程是现代高等教育艺术设计课程中一个重要的研究方 向。是由设计基础课向专业设计课过渡的重要环节。让学生掌握课程之间 的合理关系及相互作用， 把握各种表现技法在未来专业设计中的不同功用， 在构思与创意手法上进行不同方向和不同层次训练，并通过教与学的技术 支持以期达到一种有序渐进的整体效果。 市场经济对优秀创形设计的定义是：既富有较深的内涵，达到一定的 艺术水准， 又不乏商业实用效益。因此， 创造性地应用设计原理进行练习， 强调观念的新颖和表现手法的丰富，探索如何结合专业练习和市场沟通就成为本课程的主要任务。",
+   "classId": "20250081",
+   "courseSiteId": "196746",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196746",
+   "fetchedAt": "2026-09-04T13:01:53Z"
   },
   {
    "courseId": "2650090",
@@ -1017,6 +1142,95 @@
    "fetchedAt": "2026-07-23T09:50:18Z"
   },
   {
+   "courseId": "2650091",
+   "courseName": "专业软件Ⅰ（3分）",
+   "courseNameIdentity": "专业软件Ⅰ（3分）",
+   "englishName": "Professional software I",
+   "credits": 3,
+   "description": "《专业软件 I》是美术学院动画系为动画专业开设的一门专业主干课程。 作 为动画专业不可缺少的专业主干课，主要培养学生对专业软件的掌握，主 要包含图像绘制的方法和技巧、图像编辑工具的使用、路径的应用、图层 的应用、修图与调色，通道的功能及使用，文字的编辑使用等。",
+   "classId": "20250080",
+   "courseSiteId": "196747",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196747",
+   "fetchedAt": "2026-09-04T13:01:55Z"
+  },
+  {
+   "courseId": "2650093",
+   "courseName": "动漫角色设计（动画）",
+   "courseNameIdentity": "动漫角色设计（动画）",
+   "englishName": "Cartoon character design",
+   "credits": 3,
+   "description": "《动漫角色设计》是美术学院动画系为动画专业开设的一门专业主干课程。作为动画专业不可缺少的专业主干课，它要求学生掌握从角色形象、色彩、形式、风格要素多方面相结合的造型手段。 同时通过该课程的学习，学生应具有形象创造能力、细致的观察能力及审美的能力；具有较强的思考、归纳、总结、概括角色形象的能力；掌握动漫制作流程中角色设计的方法与特点。",
+   "classId": "20250080",
+   "courseSiteId": "196748",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196748",
+   "fetchedAt": "2026-09-04T13:01:56Z"
+  },
+  {
+   "courseId": "2650094",
+   "courseName": "动漫场景设计（动画）",
+   "courseNameIdentity": "动漫场景设计（动画）",
+   "englishName": "Animation scene design",
+   "credits": 3,
+   "description": "《动漫场景设计》作为动画专业不可缺少的专业主干课，动画角色、道具共同构成动画造型设计。而动画场景给予动画故事的发展提供时空依据，它给予视听语言的运用提供可行的空间及构成元素，动画片的整体美术风格也是由场景设计定位。本课程第一是理解动画场景的概念及特征，总结场景设计的功能、设计任务及美术风格划分；第二是设计方法研究，场景的创意设计及选择元素、设计构成、设计空间；如何与视听语言的表现特点进行准确的结合等；最后是对于不同的动画片种的设计制作方法进行实践。",
+   "classId": "20250080",
+   "courseSiteId": "196749",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196749",
+   "fetchedAt": "2026-09-04T13:01:58Z"
+  },
+  {
+   "courseId": "2650131",
+   "courseName": "模型制作Ⅰ（泡沫工艺）",
+   "courseNameIdentity": "模型制作Ⅰ（泡沫工艺）",
+   "englishName": "Model making I",
+   "credits": 2,
+   "description": "《模型制作I》是产品设计专业的专业限选课程，模型制作是产品设计的一个重要环节，是设计师设计思想和创意的体现，也是对设计方案的进一步推敲与完善，以使产品模型更适合于开模和生产。本课程主要介绍石膏模型制作常用的工具以及各种石膏模型的制作方法、技巧与注意事项等。",
+   "classId": "20250079",
+   "courseSiteId": "196750",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196750",
+   "fetchedAt": "2026-09-04T13:01:59Z"
+  },
+  {
+   "courseId": "2650139",
+   "courseName": "专业制图（3学分）",
+   "courseNameIdentity": "专业制图（3学分）",
+   "credits": 3,
+   "classId": "20260099",
+   "courseSiteId": "196751",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196751",
+   "fetchedAt": "2026-09-04T13:02:00Z"
+  },
+  {
+   "courseId": "2650143",
+   "courseName": "专业制图Ⅰ（2分）",
+   "courseNameIdentity": "专业制图Ⅰ（2分）",
+   "englishName": "Professional cartography",
+   "credits": 2,
+   "description": "《建筑制图》是环境艺术专业必修的一门主干技术基础课,为学生的绘图和读图能力打下良好的基础,并在后继课程,生产实习,课程设计,毕业设计,参加工程实践中继续培养和提高,使学生能获得在工程制图方面的工程师初步训练。",
+   "classId": "20260102",
+   "courseSiteId": "196752",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196752",
+   "fetchedAt": "2026-09-04T13:02:00Z"
+  },
+  {
+   "courseId": "2650161",
+   "courseName": "建筑空间设计（2学分）",
+   "courseNameIdentity": "建筑空间设计（2学分）",
+   "englishName": "Building space design",
+   "credits": 2,
+   "description": "环境设计专业自 1995 年升格为本科专业。《建筑空间设计》课程于 1995 年开始开设，属于专业 主干课程之一，专业必选。通过多年的教学，本课程教学已趋于完善，形成了一套比较完整的体系。主要学习建筑功能、结构、属性、风格与技术设备、材料饰面、经济投入以及建筑的艺术性、尺度体量 的关系。",
+   "classId": "20240058",
+   "courseSiteId": "196753",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196753",
+   "fetchedAt": "2026-09-04T13:02:01Z"
+  },
+  {
    "courseId": "2650175",
    "courseName": "品牌形象设计II（5分）",
    "courseNameIdentity": "品牌形象设计II（5分）",
@@ -1026,6 +1240,19 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195568",
    "fetchedAt": "2026-08-29T01:48:09Z"
+  },
+  {
+   "courseId": "2650201",
+   "courseName": "综合造型Ⅰ",
+   "courseNameIdentity": "综合造型Ⅰ（设计素描）",
+   "englishName": "Comprehensive modelling（Design sketch）",
+   "credits": 3,
+   "description": "综合造型系列课程是视觉传达设计专业的专业基础课程，是融合素描、色彩、构成、形态等学科知识为一体的综合基础训练。它以丰富灵活的训练方式，启发和引导学生创造性地理解艺术与设计的关系，掌握具象与抽象的造型语言表现规律，注重学生创新能力和思维方式的训练，注重知识和技能的融汇贯通，强调基础课与专业课程之间的相互联系。 《综合造型I设计素描》在基础知识和技能方面，认识素描的观念和美学原则、造型的诸形式要素和古今中外各种素描表现方法。通过素描的线条、肌理、明暗、空间结构的表现，不仅塑造了对象，而且通过形象的联想、夸张、变形和构图，选择画面主导形象和自由驾驭画面的能力。 在能力培养方面，能够快速、准确地模仿和再现自然形态和人工形态，还要以全新的思维方式研究、理解、认识静物并赋予联想。挖掘学生的艺术创新潜能，着重解决学生的形体观察和刻画能力，创造性表现意识和设计思维的形成。 在情感培育方面，要求学生忠实于自己的真实感觉，培养善于发现美的眼睛，符合“自然之笔”的真意，并愿意传播美，用美的形态服务他人。",
+   "classId": "20260099",
+   "courseSiteId": "196754",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196754",
+   "fetchedAt": "2026-09-04T13:02:01Z"
   },
   {
    "courseId": "2650202",
@@ -1039,6 +1266,106 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195576",
    "fetchedAt": "2026-08-29T01:48:11Z"
+  },
+  {
+   "courseId": "2650203",
+   "courseName": "计算机辅助设计",
+   "courseNameIdentity": "计算机辅助设计Ⅰ（CAD）",
+   "credits": 3,
+   "classId": "20260099",
+   "courseSiteId": "196755",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196755",
+   "fetchedAt": "2026-09-04T13:02:02Z"
+  },
+  {
+   "courseId": "2650204",
+   "courseName": "设计表达",
+   "courseNameIdentity": "设计表达Ⅰ（CAD+Revit）",
+   "englishName": "Design expressionⅠ（CAD＋Revit）",
+   "credits": 3,
+   "classId": "20260102",
+   "courseSiteId": "196756",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196756",
+   "fetchedAt": "2026-09-04T13:02:02Z"
+  },
+  {
+   "courseId": "2650205",
+   "courseName": "专业素描(4学分)",
+   "courseNameIdentity": "专业素描(4学分)",
+   "credits": 4,
+   "classId": "20250083",
+   "courseSiteId": "196757",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196757",
+   "fetchedAt": "2026-09-04T13:02:03Z"
+  },
+  {
+   "courseId": "2650258",
+   "courseName": "数码摄影技艺",
+   "courseNameIdentity": "数码摄影技艺",
+   "credits": 2,
+   "classId": "20250079",
+   "courseSiteId": "196758",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196758",
+   "fetchedAt": "2026-09-04T13:02:03Z"
+  },
+  {
+   "courseId": "2650259",
+   "courseName": "视听语言（4学分）",
+   "courseNameIdentity": "视听语言（4学分）",
+   "credits": 4,
+   "classId": "20250080",
+   "courseSiteId": "196759",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196759",
+   "fetchedAt": "2026-09-04T13:02:04Z"
+  },
+  {
+   "courseId": "2650260",
+   "courseName": "动漫传播设计（3学分）",
+   "courseNameIdentity": "动漫传播设计（3学分）",
+   "credits": 3,
+   "classId": "20240056",
+   "courseSiteId": "196760",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196760",
+   "fetchedAt": "2026-09-04T13:02:04Z"
+  },
+  {
+   "courseId": "2650262",
+   "courseName": "艺术论文写作概论（3学分）",
+   "courseNameIdentity": "艺术论文写作概论（3学分）",
+   "credits": 3,
+   "classId": "20230118",
+   "courseSiteId": "196761",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196761",
+   "fetchedAt": "2026-09-04T13:02:05Z"
+  },
+  {
+   "courseId": "2650264",
+   "courseName": "短视频创作",
+   "courseNameIdentity": "短视频创作",
+   "credits": 2,
+   "classId": "20240056",
+   "courseSiteId": "196762",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196762",
+   "fetchedAt": "2026-09-04T13:02:05Z"
+  },
+  {
+   "courseId": "2650277",
+   "courseName": "综合造型Ⅲ（形式构成）",
+   "courseNameIdentity": "综合造型Ⅲ（形式构成）",
+   "credits": 3,
+   "classId": "20250079",
+   "courseSiteId": "196763",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196763",
+   "fetchedAt": "2026-09-04T13:02:06Z"
   },
   {
    "courseId": "265040",
