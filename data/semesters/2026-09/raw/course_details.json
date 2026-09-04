@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-04T13:02:06Z",
+ "fetchedAt": "2026-09-04T14:06:41Z",
  "courses": [
   {
    "courseId": "002166",
@@ -1368,6 +1368,193 @@
    "fetchedAt": "2026-09-04T13:02:06Z"
   },
   {
+   "courseId": "2650293",
+   "courseName": "建筑设计基础(2学分)",
+   "courseNameIdentity": "建筑设计基础(2学分)",
+   "credits": 2,
+   "classId": "20250082",
+   "courseSiteId": "196764",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196764",
+   "fetchedAt": "2026-09-04T14:06:29Z"
+  },
+  {
+   "courseId": "2650294",
+   "courseName": "中国建筑艺术史",
+   "courseNameIdentity": "中国建筑艺术史",
+   "credits": 2,
+   "classId": "20250082",
+   "courseSiteId": "196765",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196765",
+   "fetchedAt": "2026-09-04T14:06:29Z"
+  },
+  {
+   "courseId": "2650296",
+   "courseName": "园林景观设计Ⅰ",
+   "courseNameIdentity": "园林景观设计Ⅰ",
+   "credits": 3,
+   "classId": "20240058",
+   "courseSiteId": "196766",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196766",
+   "fetchedAt": "2026-09-04T14:06:30Z"
+  },
+  {
+   "courseId": "2650297",
+   "courseName": "建筑装饰材料学（2学分）",
+   "courseNameIdentity": "建筑装饰材料学（2学分）",
+   "credits": 2,
+   "classId": "20240058",
+   "courseSiteId": "196767",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196767",
+   "fetchedAt": "2026-09-04T14:06:30Z"
+  },
+  {
+   "courseId": "2650299",
+   "courseName": "环境心理学（2学分）",
+   "courseNameIdentity": "环境心理学（2学分）",
+   "credits": 2,
+   "classId": "20240058",
+   "courseSiteId": "196768",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196768",
+   "fetchedAt": "2026-09-04T14:06:31Z"
+  },
+  {
+   "courseId": "2650304",
+   "courseName": "工程预（决）算（2学分）",
+   "courseNameIdentity": "工程预（决）算（2学分）",
+   "credits": 2,
+   "classId": "20230114",
+   "courseSiteId": "196769",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196769",
+   "fetchedAt": "2026-09-04T14:06:31Z"
+  },
+  {
+   "courseId": "2650305",
+   "courseName": "景观小品设计（2学分）",
+   "courseNameIdentity": "景观小品设计（2学分）",
+   "credits": 2,
+   "classId": "20230114",
+   "courseSiteId": "196770",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196770",
+   "fetchedAt": "2026-09-04T14:06:32Z"
+  },
+  {
+   "courseId": "2650306",
+   "courseName": "室内设计Ⅱ（2学分）",
+   "courseNameIdentity": "室内设计Ⅱ（2学分）",
+   "credits": 2,
+   "classId": "20230114",
+   "courseSiteId": "196771",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196771",
+   "fetchedAt": "2026-09-04T14:06:32Z"
+  },
+  {
+   "courseId": "2650309",
+   "courseName": "产品系统与服务设计",
+   "courseNameIdentity": "产品系统与服务设计",
+   "credits": 3,
+   "classId": "20250079",
+   "courseSiteId": "196772",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196772",
+   "fetchedAt": "2026-09-04T14:06:33Z"
+  },
+  {
+   "courseId": "2650310",
+   "courseName": "产品改良设计与实践",
+   "courseNameIdentity": "产品改良设计与实践",
+   "credits": 2,
+   "classId": "20240055",
+   "courseSiteId": "196773",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196773",
+   "fetchedAt": "2026-09-04T14:06:34Z"
+  },
+  {
+   "courseId": "2650329",
+   "courseName": "硬笔书法（粉笔+毛笔）",
+   "courseNameIdentity": "硬笔书法（粉笔+毛笔）",
+   "credits": 3,
+   "classId": "20260103",
+   "courseSiteId": "196774",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196774",
+   "fetchedAt": "2026-09-04T14:06:34Z"
+  },
+  {
+   "courseId": "2650334",
+   "courseName": "产品展示设计",
+   "courseNameIdentity": "产品展示设计（2分）",
+   "credits": 2,
+   "classId": "20230112",
+   "courseSiteId": "196775",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196775",
+   "fetchedAt": "2026-09-04T14:06:35Z"
+  },
+  {
+   "courseId": "2650344",
+   "courseName": "结构选型",
+   "courseNameIdentity": "结构选型 （3分）",
+   "credits": 3,
+   "classId": "20240058",
+   "courseSiteId": "196776",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196776",
+   "fetchedAt": "2026-09-04T14:06:35Z"
+  },
+  {
+   "courseId": "2650351",
+   "courseName": "商业插画",
+   "courseNameIdentity": "商业插画（3分）",
+   "credits": 3,
+   "classId": "20240057",
+   "courseSiteId": "196777",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196777",
+   "fetchedAt": "2026-09-04T14:06:36Z"
+  },
+  {
+   "courseId": "2650355",
+   "courseName": "实验动画",
+   "courseNameIdentity": "实验动画（3分）",
+   "credits": 3,
+   "classId": "20240056",
+   "courseSiteId": "196778",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196778",
+   "fetchedAt": "2026-09-04T14:06:36Z"
+  },
+  {
+   "courseId": "2650356",
+   "courseName": "手办制作",
+   "courseNameIdentity": "手办制作（3分）",
+   "credits": 3,
+   "classId": "20240056",
+   "courseSiteId": "196779",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196779",
+   "fetchedAt": "2026-09-04T14:06:37Z"
+  },
+  {
+   "courseId": "2650374",
+   "courseName": "中国画·花鸟",
+   "courseNameIdentity": "中国画·花鸟（2分）",
+   "credits": 2,
+   "classId": "20250083",
+   "courseSiteId": "196780",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196780",
+   "fetchedAt": "2026-09-04T14:06:37Z"
+  },
+  {
    "courseId": "265040",
    "courseName": "中国美术史",
    "courseNameIdentity": "中国美术史",
@@ -1418,6 +1605,45 @@
    "fetchedAt": "2026-07-23T10:55:15Z"
   },
   {
+   "courseId": "265363",
+   "courseName": "造型基础",
+   "courseNameIdentity": "造型基础Ⅰ（2分）",
+   "englishName": "Modeling foundation I",
+   "credits": 2,
+   "description": "《造型基础 I》是美术学院动画专业开设的学科基础课程。 本课程要求学生熟练掌握平面造型(场景)设计原理，掌握光影、透 视、结构的绘制技巧。通过该课程的学习， 学生应具扎实的造型绘制能力、 细致的观察、概括能力及审美的能力。",
+   "classId": "20260100",
+   "courseSiteId": "196781",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196781",
+   "fetchedAt": "2026-09-04T14:06:38Z"
+  },
+  {
+   "courseId": "265364",
+   "courseName": "色彩",
+   "courseNameIdentity": "色彩Ⅰ（2分）",
+   "englishName": "Color I",
+   "credits": 2,
+   "description": "《色彩 I》作为美术学院动画专业开设的学科基础课程。 本课程通过色彩理论讲解和实际应用训练，整合了色彩的历史、色彩 的表示方法、色彩文化等知识点。课程旨在提高学生对色彩的观察能力、 审美能力、想象能力及构成能力的基础上，还力求使学生在色彩理论上能 理解透彻，在实践上能随心所欲地根据目的性的需要应用色彩，使理性与感性、理论与实践能够有机结合、融会贯通，为以后在设计应用打下坚实 的色彩基础。",
+   "classId": "20260100",
+   "courseSiteId": "196782",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196782",
+   "fetchedAt": "2026-09-04T14:06:38Z"
+  },
+  {
+   "courseId": "265509",
+   "courseName": "设计表达",
+   "courseNameIdentity": "设计表达Ⅲ（3DMAX）",
+   "englishName": "Express design",
+   "credits": 3,
+   "description": "《设计表达Ⅲ》是环境设计专业的专业主干课程，旨在让学生掌握如何利用3DSMAX和VRAY进行建筑室内设计建模、制作材质灯光、图片渲染，并教给学生绘制建筑室内效果图的步骤和方法，为后续的设计课程提供技能支撑。",
+   "classId": "20250082",
+   "courseSiteId": "196783",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196783",
+   "fetchedAt": "2026-09-04T14:06:39Z"
+  },
+  {
    "courseId": "265561",
    "courseName": "文字设计（3学分）",
    "courseNameIdentity": "文字设计（3学分）",
@@ -1455,6 +1681,56 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195616",
    "fetchedAt": "2026-08-29T01:48:17Z"
+  },
+  {
+   "courseId": "265778",
+   "courseName": "户外写生",
+   "courseNameIdentity": "户外写生（2学分）",
+   "englishName": "Outdoor sketching",
+   "credits": 2,
+   "description": "《户外写生》是环境设计专业学习中必不可少的一门课程。通过外出户外写生，使学生获取中国传统造型（民居、风土人物、自然风景）的直观感受与第一手资料，提高学生写生的能力和表现力，提升美学修养；锻炼学生的意志力、培养协作精神，通过外出户外采风，加深学生对中国传统文化的理解和热爱，从而更好的应用到艺术设计中。",
+   "classId": "20250079",
+   "courseSiteId": "196784",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196784",
+   "fetchedAt": "2026-09-04T14:06:39Z"
+  },
+  {
+   "courseId": "265912",
+   "courseName": "设计概论",
+   "courseNameIdentity": "设计概论（2分）",
+   "englishName": "An introduction to the design",
+   "credits": 2,
+   "description": "《设计概论》是产品设计专业的专业限选课程，它是一门综合性的，多学科相互交叉，艺术，科学与技术相互融合，具有整体的科学表现特征的课程。主要讲述设计的基本概念、特征、方法，并系统设计与其它相关学科的关系。旨在帮助学生了解专业，树立正确的专业思想，培养正确的设计思维方式，了解设计领域所涉及的基础理论。",
+   "classId": "20260099",
+   "courseSiteId": "196785",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196785",
+   "fetchedAt": "2026-09-04T14:06:40Z"
+  },
+  {
+   "courseId": "265925",
+   "courseName": "室内设计程序与方法",
+   "courseNameIdentity": "室内设计程序与方法",
+   "englishName": "Interior design program and methods",
+   "credits": 3,
+   "description": "《室内设计程序与方法》是室内设计的专业基础课程，主要讲解室内设计的内容、原则、思考方法、学习方法以及程序步骤，结合一些设计案例的讲解及实践让学生认识到现代室内设计所包含的内容和传统的室内装饰相比，涉及更广，相关因素更多，内容更为深入，面对如此丰富的设计内容，在设计时应当注意遵循适当的原则，按照一定的方法程序来进行，还要注意学习方法的科学性，这样才能达到理想的效果。",
+   "classId": "20240055",
+   "courseSiteId": "196786",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196786",
+   "fetchedAt": "2026-09-04T14:06:40Z"
+  },
+  {
+   "courseId": "265936",
+   "courseName": "钢笔字",
+   "courseNameIdentity": "钢笔字",
+   "credits": 1,
+   "classId": "20250083",
+   "courseSiteId": "196787",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196787",
+   "fetchedAt": "2026-09-04T14:06:41Z"
   },
   {
    "courseId": "266095",
