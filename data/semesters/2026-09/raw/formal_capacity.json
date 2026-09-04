@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-05 01:24:29",
+ "fetched_at": "2026-09-05 02:30:33",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -10493,8 +10493,8 @@
      "bjh": "002758H1",
      "className": "合班王华平.1班",
      "teacher": "王华平",
-     "enrolled": 6,
-     "remaining": 2,
+     "enrolled": 7,
+     "remaining": 1,
      "full": false
     },
     {
@@ -10533,9 +10533,9 @@
      "bjh": "003726H1",
      "className": "合班桂国祥.1班",
      "teacher": "桂国祥",
-     "enrolled": 5,
-     "remaining": 0,
-     "full": true
+     "enrolled": 4,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "003734H1",
@@ -13884,8 +13884,8 @@
      "bjh": "003601Z1",
      "className": "何彤宇#1班",
      "teacher": "何彤宇",
-     "enrolled": 108,
-     "remaining": 2,
+     "enrolled": 107,
+     "remaining": 3,
      "full": false
     },
     {
@@ -20468,9 +20468,9 @@
      "bjh": "005021Z3",
      "className": "教工黄雪萍#3班",
      "teacher": "黄雪萍",
-     "enrolled": 59,
-     "remaining": 1,
-     "full": false
+     "enrolled": 60,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "005178Z1",
@@ -31198,8 +31198,8 @@
      "bjh": "005265Z1",
      "className": "教工彭锋#1班",
      "teacher": "彭锋",
-     "enrolled": 36,
-     "remaining": 14,
+     "enrolled": 37,
+     "remaining": 13,
      "full": false
     }
    ],
