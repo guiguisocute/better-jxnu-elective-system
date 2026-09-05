@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-06 02:35:29",
+ "fetched_at": "2026-09-06 03:41:30",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -9201,8 +9201,8 @@
      "bjh": "005032Z1",
      "className": "教工刘佳#1班",
      "teacher": "刘佳",
-     "enrolled": 25,
-     "remaining": 35,
+     "enrolled": 24,
+     "remaining": 36,
      "full": false
     },
     {
