@@ -70,6 +70,10 @@ function shapeResponse(record: Record<string, unknown>, row: {
     planningSemester: record.planningSemester ?? null,
     noSchedule: record.noSchedule ?? false,
     readingPlanTerm: record.readingPlanTerm ?? null,
+    // 已修学分算到哪一学期为止（后端按「已结束学期」配置给出）。前端不看上面的 totalEarned，
+    // 它拿 detailCourses 自己再算一遍，少了这一条就会把已经出成绩的那一学期整个扣住。
+    // 这个函数是把 record 重新拼成固定契约的，不透传，加字段两边都要改。
+    earnedThroughTerm: record.earnedThroughTerm ?? null,
     requiredCidsUpToReading: record.requiredCidsUpToReading ?? [],
     scheduleItems: record.scheduleItems ?? [],
     detailCourses: record.detailCourses ?? [],
