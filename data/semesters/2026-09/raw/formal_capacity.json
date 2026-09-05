@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-05 07:57:30",
+ "fetched_at": "2026-09-05 09:03:29",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -1969,8 +1969,8 @@
      "bjh": "20250036",
      "className": "25级商务英语（国际会计）3班",
      "teacher": "戴烽",
-     "enrolled": 16,
-     "remaining": 18,
+     "enrolled": 15,
+     "remaining": 19,
      "full": false
     },
     {
@@ -2169,8 +2169,8 @@
      "bjh": "20250103",
      "className": "25级生物科学2班",
      "teacher": "黄燕",
-     "enrolled": 39,
-     "remaining": 3,
+     "enrolled": 40,
+     "remaining": 2,
      "full": false
     },
     {
@@ -8987,9 +8987,9 @@
      "bjh": "004339Z1",
      "className": "教工陈海艳#.1班",
      "teacher": "陈海艳",
-     "enrolled": 70,
-     "remaining": 0,
-     "full": true
+     "enrolled": 69,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "005148Z1",
@@ -13235,8 +13235,8 @@
      "bjh": "005899Z1",
      "className": "教工徐俊丽#1班",
      "teacher": "徐俊丽",
-     "enrolled": 40,
-     "remaining": 20,
+     "enrolled": 41,
+     "remaining": 19,
      "full": false
     }
    ],
@@ -18417,8 +18417,8 @@
      "bjh": "005579Z1",
      "className": "教工罗雪#1班",
      "teacher": "罗雪",
-     "enrolled": 24,
-     "remaining": 36,
+     "enrolled": 23,
+     "remaining": 37,
      "full": false
     }
    ],
@@ -20554,8 +20554,8 @@
      "bjh": "005870Z1",
      "className": "教工甘文聪#1班",
      "teacher": "甘文聪",
-     "enrolled": 28,
-     "remaining": 22,
+     "enrolled": 27,
+     "remaining": 23,
      "full": false
     }
    ],
@@ -21878,9 +21878,9 @@
      "bjh": "006049Z1",
      "className": "教工聂希贝#1班",
      "teacher": "聂希贝",
-     "enrolled": 57,
-     "remaining": 1,
-     "full": false
+     "enrolled": 58,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "美国史"
@@ -23892,9 +23892,9 @@
      "bjh": "002444Z2",
      "className": "孟鹰#2班",
      "teacher": "孟鹰",
-     "enrolled": 100,
-     "remaining": 0,
-     "full": true
+     "enrolled": 99,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "002444Z3",
@@ -30292,8 +30292,8 @@
      "bjh": "005356Z1",
      "className": "教工张业振#1班",
      "teacher": "张业振",
-     "enrolled": 48,
-     "remaining": 32,
+     "enrolled": 49,
+     "remaining": 31,
      "full": false
     }
    ],
@@ -33120,8 +33120,8 @@
      "bjh": "005922Z1",
      "className": "教工王文德#1班",
      "teacher": "王文德",
-     "enrolled": 50,
-     "remaining": 10,
+     "enrolled": 49,
+     "remaining": 11,
      "full": false
     }
    ],
@@ -33603,16 +33603,16 @@
      "bjh": "005018Z1",
      "className": "教工李小山#1班",
      "teacher": "李小山",
-     "enrolled": 47,
-     "remaining": 13,
+     "enrolled": 48,
+     "remaining": 12,
      "full": false
     },
     {
      "bjh": "20240131",
      "className": "24级心理学班",
      "teacher": "李小山",
-     "enrolled": 35,
-     "remaining": 2,
+     "enrolled": 34,
+     "remaining": 3,
      "full": false
     },
     {
@@ -45244,8 +45244,8 @@
      "bjh": "20240053",
      "className": "24级思想政治教育2班",
      "teacher": "高红娟",
-     "enrolled": 84,
-     "remaining": 3,
+     "enrolled": 83,
+     "remaining": 4,
      "full": false
     }
    ],
