@@ -153,11 +153,12 @@ export function RatingsPage() {
       deriveQuickReviewSections({
         plan: currentPlan,
         term: credit.term,
+        readingSettled: credit.stored.readingSettled,
         importedDetailCourses: credit.stored.importedDetailCourses,
         formalSections: formal.sections,
         allSemesters: formal.allSemesters,
       }),
-    [currentPlan, credit.term, credit.stored.importedDetailCourses, formal.sections, formal.allSemesters],
+    [currentPlan, credit.term, credit.stored.readingSettled, credit.stored.importedDetailCourses, formal.sections, formal.allSemesters],
   );
 
   const view: ViewMode = params.get("view") === "course" ? "course" : "teacher";

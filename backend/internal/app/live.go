@@ -96,7 +96,9 @@ func (s *LiveStudentService) GetRecord(ctx context.Context, sid string) (map[str
 		return nil, fmt.Errorf("学号格式不正确")
 	}
 	cfg := s.config.Get()
-	key := sid + "\x00" + cfg.StudentScheduleTerm
+	// 缓存键带上两个会改变结果的配置项：查的是哪一学期的课表，以及已修学分算到哪为止。
+	// 少了后者，面板上把「已结束学期」往前推之后，缓存里的旧学分还会再服务 10 分钟。
+	key := sid + "\x00" + cfg.StudentScheduleTerm + "\x00" + cfg.FinalizedTerm
 	now := time.Now()
 	s.mu.RLock()
 	hit, ok := s.cache[key]

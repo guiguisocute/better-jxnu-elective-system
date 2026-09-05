@@ -61,6 +61,40 @@ func TestBuildStudentRecordFinalizedTermCountsFinishedSemester(t *testing.T) {
 	if got := BuildStudentRecord("999999999999", agg, ctx, "垃圾数据").Row["total_earned"]; got != float64(3) {
 		t.Fatalf("an unparseable finalized term must fall back to the old rule, got %v", got)
 	}
+	// 口径本身也要发给前端：导入预览/学分环是拿 detailCourses 自己重算的，
+	// 只改 total_earned 的话后台是 7、页面还是 3。
+	if got := BuildStudentRecord("999999999999", agg, ctx, "25-26第2学期").Record["earnedThroughTerm"]; got != 2 {
+		t.Fatalf("earnedThroughTerm with 25-26第2学期 finalized = %v, want 2", got)
+	}
+	if got := BuildStudentRecord("999999999999", agg, ctx, "").Record["earnedThroughTerm"]; got != 1 {
+		t.Fatalf("earnedThroughTerm without a finalized term = %v, want 1 (reading term - 1)", got)
+	}
+}
+
+// 班级名解析不出年级时整个学期模型是未知态：后端把所有课都算已修，
+// 所以也不能给前端发一条截断线，否则前端反而会比后端少算。
+func TestBuildStudentRecordUnknownTermEmitsNoCutoff(t *testing.T) {
+	ctx := &MasterContext{
+		CreditOf:          map[string]any{"T1": json.Number("3")},
+		EnglishFeatureIDs: map[string]bool{},
+		ValidPlanKeys:     map[string]bool{},
+		PlanCourses:       map[string][]planCourse{},
+	}
+	agg := StudentAggregate{
+		ClassName:    "旁听生",
+		PlanningTerm: "26-27第1学期",
+		Courses:      []DetailCourse{{CourseNo: "T1", CourseName: "学期一", Semester: "25-26第1学期"}},
+	}
+	built := BuildStudentRecord("999999999999", agg, ctx, "25-26第2学期")
+	if built.Record["readingPlanTerm"] != nil {
+		t.Fatalf("readingPlanTerm = %v, want nil", built.Record["readingPlanTerm"])
+	}
+	if built.Record["earnedThroughTerm"] != nil {
+		t.Fatalf("earnedThroughTerm = %v, want nil", built.Record["earnedThroughTerm"])
+	}
+	if built.Row["total_earned"] != float64(3) {
+		t.Fatalf("earned = %v, want 3 (unknown term counts everything)", built.Row["total_earned"])
+	}
 }
 
 func TestParseChangeClass(t *testing.T) {

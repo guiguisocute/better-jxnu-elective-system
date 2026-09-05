@@ -31,12 +31,16 @@ export interface QuickReviewDerived {
 export function deriveQuickReviewSections(args: {
   plan: string;
   term: number;
+  /** 第 term 学期成绩是否已出。已出时「上学期」就是它本身，而不是它的前一个。 */
+  readingSettled?: boolean;
   importedDetailCourses: StudentDetailCourse[] | undefined;
   formalSections: FormalSection[];
   allSemesters: string[];
 }): QuickReviewDerived {
-  const { plan, term, importedDetailCourses, formalSections, allSemesters } = args;
-  const lastTerm = term - 1;
+  const { plan, term, readingSettled, importedDetailCourses, formalSections, allSemesters } = args;
+  // 刚读完、成绩已出的那一学期才是学生想评价的「上学期」。教务把当前学期切到下一个之后，
+  // term 停在刚结束的那一学期上，此时再减 1 会退回到一年前的课。
+  const lastTerm = readingSettled ? term : term - 1;
   const semester =
     plan && lastTerm >= 1
       ? (() => {

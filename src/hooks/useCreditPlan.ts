@@ -14,6 +14,11 @@ export interface StoredInputs {
   electiveThisSem: number;
   /** null = 跟随自动推算；数字 = 用户手改后的第N学期。 */
   term: number | null;
+  /**
+   * 第 term 学期成绩是否已出（学分已含在 totalEarned 里）。仅学号导入按后端「已结束学期」
+   * 配置写入；用户手改在读学期即失效（那是他自己声明的在读学期，成绩当然还没出）。
+   */
+  readingSettled: boolean;
   takenMajorElectives: string[];
   excludedRequired: string[];
   /** 转专业学生：前两学期在原专业修读。 */
@@ -44,6 +49,7 @@ const EMPTY: StoredInputs = {
   totalEarned: 0,
   electiveThisSem: 0,
   term: null,
+  readingSettled: false,
   takenMajorElectives: [],
   excludedRequired: [],
   transferMode: false,
@@ -126,7 +132,8 @@ export function useCreditPlan(
 
   const setTotalEarned = useCallback((v: number) => mutate((p) => ({ ...p, totalEarned: Math.max(0, v) })), [mutate]);
   const setElectiveThisSem = useCallback((v: number) => mutate((p) => ({ ...p, electiveThisSem: Math.max(0, v) })), [mutate]);
-  const setTerm = useCallback((v: number | null) => mutate((p) => ({ ...p, term: v })), [mutate]);
+  // 用户手改在读学期 → 「该学期成绩已出」的前提随之作废（导入时的口径只对导入的那个学期成立）。
+  const setTerm = useCallback((v: number | null) => mutate((p) => ({ ...p, term: v, readingSettled: false })), [mutate]);
   const toggleMajorElective = useCallback(
     (cid: string) =>
       mutate((p) => {
@@ -248,6 +255,7 @@ export function useCreditPlan(
       totalEarned: stored.totalEarned,
       electiveThisSem: stored.electiveThisSem,
       term,
+      readingSettled: stored.readingSettled,
       takenMajorElectives: new Set(stored.takenMajorElectives),
       excludedRequired: new Set(stored.excludedRequired),
       transferMode: transferActive,
@@ -284,8 +292,9 @@ export function useCreditPlan(
         if (excluded.has(cid)) continue;
         set.add(cid);
       }
-      // 在读学期必修补齐（档案里没成绩）。
-      for (const pc of planCourses) {
+      // 在读学期必修补齐（档案里没成绩）。成绩已出的学期不补：那一学期的课已经真实
+      // 落在 importedTakenCids 里，再按方案补一遍会把「没上的课」也当成已修隐藏掉。
+      for (const pc of stored.readingSettled ? [] : planCourses) {
         if (!REQUIRED_NATURES.includes(pc.nature)) continue;
         const ti = effectiveTermIndex(pc.cid, pc.semester);
         if (ti !== term) continue;
@@ -309,7 +318,7 @@ export function useCreditPlan(
     for (const cid of stored.takenMajorElectives) set.add(cid);
     for (const cid of transferEarlyCids) set.add(cid);
     return set;
-  }, [planCourses, term, stored.excludedRequired, stored.takenMajorElectives, stored.transferOffsetCids, stored.importedTakenCids, transferActive, transferEarlyCids]);
+  }, [planCourses, term, stored.excludedRequired, stored.takenMajorElectives, stored.transferOffsetCids, stored.importedTakenCids, stored.readingSettled, transferActive, transferEarlyCids]);
 
   return {
     view,

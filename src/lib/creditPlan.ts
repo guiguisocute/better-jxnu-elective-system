@@ -12,6 +12,9 @@ import { termIndexOf, effectiveTermIndex, isDeferredSettlement, enrollYear, term
 //   - 下学期必修(nextReq, ti == planTerm)：本次选课要排的课，红色「理论投影」+ 周课表落格。
 //   - 教务总分(totalEarned) 完全不含在读本学期（连本学期必修也不含）。
 //   - 选修已修 = (totalEarned − 非本学期必修) + 本学期(在读)选修。
+//   - 例外 readingSettled：在读那一学期的成绩也已经出完（学籍预警更新后由学号导入带进来）。
+//     此时 totalEarned 已经含了它，本学期一段整体并进 prevReq，readReq 为空 —— 不这么做
+//     那一学期的必修会既在 totalEarned 里、又被当成浅蓝理论画一遍（重复计分）。
 
 // 必修性质（已归一化：公共必修→公共必修课）。师范专业的「教师教育必修」也算强制必修。
 export const REQUIRED_NATURES = ["公共必修课", "专业主干", "专业类基础", "教师教育必修"];
@@ -69,6 +72,11 @@ export interface CreditInputs {
   electiveThisSem: number;
   /** 当前**在读**是培养方案第几学期（1-based，自动推算 + 可手改）。 */
   term: number;
+  /**
+   * 第 term 学期的成绩是否已经出完（学分已并入 totalEarned）。
+   * 由学号导入按后端「已结束学期」配置带入；手填的用户永远是 false（在读 = 还没考）。
+   */
+  readingSettled: boolean;
   /** 已修的专业限选课 cid。 */
   takenMajorElectives: Set<string>;
   /** 排除的必修 cid（统一承载：非本学期重修/未修 + 在读预计不过 + 下学期取消选课）。 */
@@ -141,6 +149,11 @@ export interface CreditPlanView {
    */
   readingSemKey: string;
   nextSemKey: string;
+  /**
+   * 在读学期的成绩是否已经出完（其学分已并入 totalEarned，readingSemRequired 因此为空）。
+   * 文案层据此把「不含本学期」改成「含本学期」，别再让用户去补填本学期选修。
+   */
+  readingSettled: boolean;
 }
 
 // 子类着色色板。
@@ -224,9 +237,11 @@ export function buildCreditPlan(
   selectedPlan: string,
   inputs: CreditInputs,
 ): CreditPlanView {
-  const { totalEarned, electiveThisSem, term, takenMajorElectives, excludedRequired, transferMode, transferEarlyCids, transferOffsetCids, showFutureRequired, moocOffset, competitionOffset } = inputs;
+  const { totalEarned, electiveThisSem, term, readingSettled, takenMajorElectives, excludedRequired, transferMode, transferEarlyCids, transferOffsetCids, showFutureRequired, moocOffset, competitionOffset } = inputs;
   const planTerm = term + 1;
   const readingSemName = termToCalLabel(enrollYear(selectedPlan), term) || "本学期";
+  // 成绩已出的最后一个学期（含）—— 它及更早的必修都算「已通过、已在 totalEarned 里」。
+  const settledThrough = readingSettled ? term : term - 1;
 
   // 必修 / 限选 应修（byNature.sumXf + minMajorElective 权威）。
   const requiredTotal = requirement
@@ -253,7 +268,7 @@ export function buildCreditPlan(
     //   不再按 ti+2 窗口自动排进下学期课表（无开课学期限制；要上自行加入待选）。
     const transferGapCounts =
       !transferMode || ti > TRANSFER_BOUNDARY || matched || transferOffsetCids.has(pc.cid);
-    if (ti <= term - 1) {
+    if (ti <= settledThrough) {
       // 未计入的「原专业已修学分」通过 totalEarned 余量自动落入选修绿色段（公式 totalEarned − prevReq）。
       if (!excluded && transferGapCounts) {
         prevReqCredits += pc.credits;
@@ -364,7 +379,13 @@ export function buildCreditPlan(
     [
       // 段名带上具体学期号：这些名字会出现在环图 tooltip 和进度条里，
       // 而「本学期」到底指哪一学期在寒暑假期间并不显然。
-      { key: "prevReq", label: `非${readingSemName}必修`, value: effectivePrevReq, color: SEG_COLOR.prevReq },
+      // readingSettled 时这一段已经把该学期本身也包进来了，名字不能再说「非」。
+      {
+        key: "prevReq",
+        label: readingSettled ? `${readingSemName}及以前必修` : `非${readingSemName}必修`,
+        value: effectivePrevReq,
+        color: SEG_COLOR.prevReq,
+      },
       { key: "readReq", label: `${readingSemName}必修`, value: readReqCredits, color: SEG_COLOR.readReq },
       // 未来必修也算进必修块，让条/数值随勾选同步增长（封顶在剩余缺口，避免画过界）。
       ...(futureReqShown > 0 ? [{ key: "futureReq", label: "未来必修", value: futureReqShown, color: SEG_COLOR.futureReq }] : []),
@@ -415,5 +436,6 @@ export function buildCreditPlan(
     futureReqShown,
     readingSemKey: termToCalLabel(enrollYear(selectedPlan), term),
     nextSemKey: termToCalLabel(enrollYear(selectedPlan), planTerm),
+    readingSettled,
   };
 }

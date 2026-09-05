@@ -738,7 +738,7 @@ export function SimPanel({
                 ) : (
                   <>
                     <CreditRing view={view} size={120} stroke={12} />
-                    <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} readingSemKey={view.readingSemKey} nextSemKey={view.nextSemKey} />
+                    <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} readingSemKey={view.readingSemKey} nextSemKey={view.nextSemKey} readingSettled={view.readingSettled} />
                     <FutureRequiredToggle
                       checked={showFutureRequired}
                       onChange={setShowFutureRequired}

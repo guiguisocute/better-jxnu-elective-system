@@ -6,6 +6,14 @@
   - tools/jwc_schedule.py + ~/apps/jxnu-live 实时抓取（教务 Xfz_Kcb 全学期 → 同形状 JSON）
 
 不含任何抓取/IO/SQL 逻辑；build_record 是纯函数。改这里 = 两侧口径同步变。
+
+**线上实时链路已经不是这里了**：VPS 常驻的是 Go 的 jxnu-backend
+（`backend/internal/app/records.go: BuildStudentRecord`），学号查询和固化学期都走它。
+本文件只剩离线构建 studentjson 快照这一条路。两边有一处**已知不对齐**：Go 侧多了
+面板配置「已结束学期」派生的 `earnedThroughTerm`（成绩已出的学期整体计入已修，并随
+record 发给前端），这里没有配置来源，所以仍是「整个在读学期不计」的旧口径。用本文件
+重灌 D1 会把那批快照打回旧口径 —— 但实时链路每次查询都会重算并覆盖回写，所以影响
+只在教务/VPS 不可用的兜底那一刻。
 """
 
 import json

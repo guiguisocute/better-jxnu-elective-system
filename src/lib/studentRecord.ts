@@ -61,6 +61,12 @@ export interface StudentRecord {
   noSchedule?: boolean;
   /** 在读是培养方案第几学期（build 算好；缺 = 无法推算）。 */
   readingPlanTerm?: number;
+  /**
+   * 成绩已出、计入已修学分的最后一个方案学期（含）。后端按「已结束学期」配置给出。
+   * 缺省 = readingPlanTerm - 1（旧口径：整个在读学期都不计）；
+   * == readingPlanTerm 表示在读学期的成绩也已经出完（学籍预警已更新），那一学期整体计入已修。
+   */
+  earnedThroughTerm?: number;
   /** 培养方案 ti<=在读 的必修 cid 全集（build 算好；核对必修自动排除用）。 */
   requiredCidsUpToReading?: string[];
   scheduleItems: StudentScheduleItem[];
@@ -145,6 +151,8 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
     planningSemester: str(obj.planningSemester) || undefined,
     noSchedule: obj.noSchedule === true,
     readingPlanTerm: obj.readingPlanTerm != null ? num(obj.readingPlanTerm) || undefined : undefined,
+    // 0 是合法值（大一上，此前没有任何已修学期），不能用 `|| undefined` 抹掉。
+    earnedThroughTerm: obj.earnedThroughTerm != null ? num(obj.earnedThroughTerm) : undefined,
     requiredCidsUpToReading: Array.isArray(rawRequired)
       ? rawRequired.filter((x): x is string => typeof x === "string")
       : undefined,
@@ -154,13 +162,40 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
   };
 }
 
+/**
+ * 档案里的学期分界线（导入侧唯一口径，deriveInputsFromRecord / computeImportExclusions 共用）。
+ *
+ * 教务一开放选课就把当前学期切到下一个，所以「教务当前学期的前一个」= 在读学期（reading）
+ * 这条推断，在成绩出完之后仍然会把已经读完的那一学期扣住不算。后端的「已结束学期」配置
+ * 给出 settledThrough，前端必须用同一条线，否则后端算 118、页面还是 88。
+ *
+ * - settledThrough：成绩已出、计入已修的最后一个学期（含）
+ * - reading：在读学期；readingSettled 时它已经结算完，不再有「在读」这一段
+ * - horizon：已修/在读的最远边界，超过它的是规划学期的预排课，一律不算
+ */
+function termBounds(record: StudentRecord) {
+  const reading = record.readingPlanTerm != null && record.readingPlanTerm > 0 ? record.readingPlanTerm : 0;
+  const settledThrough = record.earnedThroughTerm ?? reading - 1;
+  return {
+    reading,
+    settledThrough,
+    horizon: Math.max(reading, settledThrough),
+    readingSettled: reading > 0 && settledThrough >= reading,
+  };
+}
+
+/** 该门课属于「规划学期预排」（尚未修读）→ 已修、特色课抵扣、隐藏已修都不能算它。 */
+function isBeyondHorizon(pti: number, horizon: number): boolean {
+  return horizon > 0 && pti > horizon;
+}
+
 /** 学号导入后可一次性回填引导各步的建议值。 */
 export interface ImportSuggestion {
   /** 在读培养方案第几学期（缺 = 无法推算，引导沿用自动推算）。 */
   term?: number;
-  /** 已修总学分（不含本学期；往期所有课，含必修+选修）。 */
+  /** 已修总学分（成绩已出的所有学期，含必修+选修）。在读学期成绩未出时不含它。 */
   totalEarned: number;
-  /** 本学期（在读）已选选修学分（含专业限选，不含必修）。 */
+  /** 本学期（在读、成绩未出）已选选修学分（含专业限选，不含必修）。readingSettled 时为 0。 */
   electiveThisSem: number;
   /** 已修专业限选 cid（往期 + 本期）。 */
   takenMajorElectiveCids: string[];
@@ -170,6 +205,8 @@ export interface ImportSuggestion {
   takenCount: number;
   /** 本学期总学分（必修+选修，仅供展示）。 */
   readingCredits: number;
+  /** 在读学期的成绩也已出完（学分已并入 totalEarned，不再有「在读」这一段）。 */
+  readingSettled: boolean;
 }
 
 /**
@@ -179,20 +216,20 @@ export interface ImportSuggestion {
  */
 export function deriveInputsFromRecord(record: StudentRecord, planCourses?: PlanCourse[]): ImportSuggestion {
   const term = record.readingPlanTerm;
+  const { settledThrough, horizon, readingSettled } = termBounds(record);
   const taken = new Set<string>();
   let pastCount = 0;
   let curCount = 0;
   for (const c of record.detailCourses) {
     if (!isPassed(c)) continue;
     const pti = c.planTermIndex ?? 0;
-    // 最新 studentjson 可含规划学期课程；它们尚未修读，不能进已修、特色课抵扣或隐藏已修。
-    if (term != null && term > 0 && pti > term) continue;
+    // 教务课表含规划学期课程；它们尚未修读，不能进已修、特色课抵扣或隐藏已修。
+    if (isBeyondHorizon(pti, horizon)) continue;
     if (c.courseId) taken.add(c.courseId);
-    if (c.nature === "大学英语特色课") {
-      if (term != null && term > 0 && pti > 0) {
-        if (pti < term) pastCount += 1;
-        else if (pti === term) curCount += 1;
-      }
+    if (c.nature === "大学英语特色课" && pti > 0 && horizon > 0) {
+      // 已结算的算「往期」（学分已在 totalEarned 里），只有真正在读的那一学期算「本学期」。
+      if (pti <= settledThrough) pastCount += 1;
+      else curCount += 1;
     }
   }
 
@@ -235,8 +272,9 @@ export function deriveInputsFromRecord(record: StudentRecord, planCourses?: Plan
   for (const c of record.detailCourses) {
     if (!isPassed(c)) continue;
     const pti = c.planTermIndex ?? 0;
-    if (term != null && term > 0 && pti > term) continue;
-    const isReading = term != null && term > 0 && pti === term;
+    if (isBeyondHorizon(pti, horizon)) continue;
+    // 成绩已出的学期整体进 totalEarned；只有还在读、没出成绩的那一学期单列。
+    const isReading = horizon > 0 && pti > settledThrough;
     if (c.nature === "专业限选" && c.courseId) takenMajorElectiveCids.push(c.courseId);
     if (isReading) {
       readingCredits += c.credits;
@@ -255,6 +293,7 @@ export function deriveInputsFromRecord(record: StudentRecord, planCourses?: Plan
     excludedRequiredCids,
     takenCount: taken.size,
     readingCredits,
+    readingSettled,
   };
 }
 
@@ -262,24 +301,22 @@ export function deriveInputsFromRecord(record: StudentRecord, planCourses?: Plan
  * 学号导入「核对必修」的自动取消勾选集：培养方案 ti≤在读 的必修全集中、
  * 档案里没修过的 cid → 标缺口（取消勾选）。三条修正：
  *   1) 跳过延迟结算课（形势与政策等不进课表的必修），避免误判成缺口。
- *   2) 往期特色课（pti < term）按序号抵任何大英缺口（已在 totalEarned，prevReq 安全）。
- *   3) 本学期特色课（pti = term）可抵任何大英缺口（抵 ti<term 时学分改入 electiveThisSem 对消）。
+ *   2) 已结算学期的特色课（pti ≤ settledThrough）按序号抵任何大英缺口（已在 totalEarned，prevReq 安全）。
+ *   3) 在读学期的特色课可抵任何大英缺口（抵更早的大英时学分改入 electiveThisSem 对消）。
  */
 export function computeImportExclusions(record: StudentRecord, planCourses: PlanCourse[]): string[] {
-  const term = record.readingPlanTerm;
+  const { settledThrough, horizon } = termBounds(record);
   const taken = new Set<string>();
   let pastCount = 0;
   let curCount = 0;
   for (const c of record.detailCourses) {
     if (!isPassed(c)) continue;
     const pti = c.planTermIndex ?? 0;
-    if (term != null && term > 0 && pti > term) continue;
+    if (isBeyondHorizon(pti, horizon)) continue;
     if (c.courseId) taken.add(c.courseId);
-    if (c.nature === "大学英语特色课") {
-      if (term != null && term > 0 && pti > 0) {
-        if (pti < term) pastCount += 1;
-        else if (pti === term) curCount += 1;
-      }
+    if (c.nature === "大学英语特色课" && pti > 0 && horizon > 0) {
+      if (pti <= settledThrough) pastCount += 1;
+      else curCount += 1;
     }
   }
 

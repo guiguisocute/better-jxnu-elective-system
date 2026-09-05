@@ -126,13 +126,22 @@ func BuildStudentRecord(sid string, aggregate StudentAggregate, ctx *MasterConte
 			earnedThroughTerm = final
 		}
 	}
+	// 前端不吃 total_earned，它拿 detailCourses 自己再算一遍（导入预览、学分环、
+	// 「本学期选修」都用那份）。所以口径必须一起发过去，否则后台算 118、页面还是 88。
+	// readingPlanTerm 推不出来时（班级名/学期串异常）整个模型是未知态，两边都退回
+	// 「全部计入」，此时发一个数字反而会让前端凭空多一条截断线。
+	coverageTerm := max(readingPlanTerm, earnedThroughTerm)
+	var earnedThroughValue any
+	if readingPlanTerm > 0 {
+		earnedThroughValue = earnedThroughTerm
+	}
 	planCourses := ctx.PlanCourses[planKey]
 	natureOf := map[string]string{}
 	var requiredUpToReading []string
 	for _, course := range planCourses {
 		natureOf[course.CID] = course.Nature
 		if readingPlanTerm > 0 && requiredNatures[course.Nature] {
-			if term := chineseTermIndex(course.Semester); term > 0 && term <= readingPlanTerm {
+			if term := chineseTermIndex(course.Semester); term > 0 && term <= coverageTerm {
 				requiredUpToReading = append(requiredUpToReading, course.CID)
 			}
 		}
@@ -169,7 +178,7 @@ func BuildStudentRecord(sid string, aggregate StudentAggregate, ctx *MasterConte
 				continue
 			}
 			term := chineseTermIndex(course.Semester)
-			if term <= 0 || term > readingPlanTerm {
+			if term <= 0 || term > coverageTerm {
 				continue
 			}
 			credits, ok := ctx.CreditOf[course.CID]
@@ -198,7 +207,8 @@ func BuildStudentRecord(sid string, aggregate StudentAggregate, ctx *MasterConte
 	record := map[string]any{
 		"studentId": sid, "className": nullableString(aggregate.ClassName), "termLabel": nullableString(aggregate.PlanningTerm),
 		"planningSemester": nullableString(planningSemester), "noSchedule": aggregate.NoSchedule,
-		"readingPlanTerm": nullableInt(readingPlanTerm), "requiredCidsUpToReading": requiredUpToReading,
+		"readingPlanTerm": nullableInt(readingPlanTerm), "earnedThroughTerm": earnedThroughValue,
+		"requiredCidsUpToReading": requiredUpToReading,
 		"scheduleItems": schedule, "detailCourses": details,
 	}
 	planValue := any(nil)

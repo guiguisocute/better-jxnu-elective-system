@@ -172,12 +172,13 @@ type LegendItem = { label: string; color: string; striped?: boolean };
 
 // 图例文案带上具体学期号：「本学期 / 下学期」在寒暑假之间指向哪一学期并不显然，
 // 而环图的蓝色块和红色斜纹分别对应在读学期与规划学期，写死相对说法最容易被误读。
-function legendItems(readingSemKey?: string, nextSemKey?: string): LegendItem[] {
+function legendItems(readingSemKey?: string, nextSemKey?: string, readingSettled = false): LegendItem[] {
   const reading = readingSemKey || "本学期";
   const next = nextSemKey || "下学期";
   return [
-    { label: `非${reading}必修`, color: "#2563EB" },
-    { label: `${reading}必修`, color: "#93C5FD" },
+    // 在读学期成绩已出时，深蓝那块已经把它包进去了，也就没有浅蓝「在读」这一段可标。
+    { label: readingSettled ? `${reading}及以前必修` : `非${reading}必修`, color: "#2563EB" },
+    ...(readingSettled ? [] : [{ label: `${reading}必修`, color: "#93C5FD" }]),
     { label: "选修", color: "#10B981" },
     { label: "专业限选", color: "#8B5CF6" },
     { label: `斜纹 = ${next}理论`, color: "#9CA3AF", striped: true },
@@ -187,9 +188,11 @@ const FUTURE_LEGEND: LegendItem = { label: "未来必修", color: "#E0F2FE" };
 
 /** 环图图例（主色说明），供面板 / 引导复用。斜纹项表示「下学期理论」用所属块色。
  *  showFuture=true 时追加「未来必修」浅蓝项（与开关联动）。 */
-export function CreditRingLegend({ className = "", showFuture = false, readingSemKey, nextSemKey }: { className?: string; showFuture?: boolean; readingSemKey?: string; nextSemKey?: string }) {
-  const base = legendItems(readingSemKey, nextSemKey);
-  const items = showFuture ? [...base.slice(0, 2), FUTURE_LEGEND, ...base.slice(2)] : base;
+export function CreditRingLegend({ className = "", showFuture = false, readingSemKey, nextSemKey, readingSettled = false }: { className?: string; showFuture?: boolean; readingSemKey?: string; nextSemKey?: string; readingSettled?: boolean }) {
+  const base = legendItems(readingSemKey, nextSemKey, readingSettled);
+  // 「未来必修」插在必修各段之后：成绩已出时前面只剩一段深蓝，否则是深蓝+浅蓝两段。
+  const blueCount = readingSettled ? 1 : 2;
+  const items = showFuture ? [...base.slice(0, blueCount), FUTURE_LEGEND, ...base.slice(blueCount)] : base;
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">

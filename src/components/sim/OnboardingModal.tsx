@@ -217,6 +217,9 @@ export function OnboardingModal({
         totalEarned: edit?.totalEarned ?? sug.totalEarned,
         electiveThisSem: edit?.electiveThisSem ?? sug.electiveThisSem,
         term: sug.term ?? null,
+        // 后端「已结束学期」说这一学期成绩已出 → 它的学分已经在 totalEarned 里，
+        // 学分核算不能再把它当成在读的浅蓝理论重复算一遍。
+        readingSettled: sug.readingSettled,
         takenMajorElectives: sug.takenMajorElectiveCids,
         transferMode: editTransfer,
         originalPlan: editTransfer ? editOriginalPlan : "",
@@ -316,6 +319,14 @@ export function OnboardingModal({
     [view.nextSemRequired, cartCourses, formalSections, planLabel, chosen, selectedPlan, importedSchedule],
   );
   const previewSems = useMemo(() => previewSemsOf(placed, planLabel), [placed, planLabel]);
+
+  // 导入预览里的「在读学期」学期号：按查到的那份档案算，不能借用当前 view
+  // （用户此刻选中的方案/学期可能完全是另一个人的）。取不到就退回相对说法。
+  const previewReadingSemKey = useMemo(() => {
+    if (!preview?.sug.term) return "";
+    const key = preview.rec.planKey || selectedPlan;
+    return termToCalLabel(enrollYear(key), preview.sug.term);
+  }, [preview, selectedPlan]);
 
   // 专业限选课（plan_courses 已按 cid 去重）。
   const majorElectiveCourses = useMemo(
@@ -575,7 +586,11 @@ export function OnboardingModal({
           {step === 2 && (
             <div className="min-h-[320px] space-y-4">
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">当前所修学分总数（不含 {view.readingSemKey || "本"}学期）</label>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                  {view.readingSettled
+                    ? `当前所修学分总数（含 ${view.readingSemKey || "本"}学期）`
+                    : `当前所修学分总数（不含 ${view.readingSemKey || "本"}学期）`}
+                </label>
                 <input
                   type="number" min={0}
                   value={totalEarned || ""}
@@ -587,17 +602,25 @@ export function OnboardingModal({
                     到 <a href={JWC_URL} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline">学籍预警</a> 查看<strong className="text-gray-500">“当前所修学分总数”</strong>后填写。
                 </p>
               </div>
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">{view.readingSemKey || "本学期"}（在读）已选选修学分（可留空）</label>
-                <input
-                  type="number" min={0}
-                  value={electiveThisSem || ""}
-                  onChange={(e) => setElectiveThisSem(Number(e.target.value) || 0)}
-                  placeholder="0"
-                  className="w-40 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium outline-none focus:bg-white focus:border-red-300"
-                />
+              {/* 成绩已出的学期不再有「在读选修」可填 —— 那些学分已经在上面的总分里了，
+                  这时候再填一遍就是重复计分。 */}
+              {view.readingSettled ? (
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  {view.readingSemKey || "本学期"}的成绩已经出完，该学期学分已并入上方总分，无需再单独填写在读选修。
+                </p>
+              ) : (
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">{view.readingSemKey || "本学期"}（在读）已选选修学分（可留空）</label>
+                  <input
+                    type="number" min={0}
+                    value={electiveThisSem || ""}
+                    onChange={(e) => setElectiveThisSem(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-40 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium outline-none focus:bg-white focus:border-red-300"
+                  />
                   <p className="mt-1.5 text-[11px] text-gray-400">请手算<strong className="text-gray-500">{view.readingSemKey || "本学期"}在读的选修课学分</strong>填写到此框。</p>
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -689,7 +712,7 @@ export function OnboardingModal({
             <div className="min-h-[320px] grid sm:grid-cols-[180px_1fr] gap-5">
               <div className="flex flex-col items-center">
                 <CreditRing view={view} size={130} stroke={13} />
-                <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} readingSemKey={view.readingSemKey} nextSemKey={view.nextSemKey} />
+                <CreditRingLegend className="mt-2.5" showFuture={showFutureRequired} readingSemKey={view.readingSemKey} nextSemKey={view.nextSemKey} readingSettled={view.readingSettled} />
                 <div className="mt-3 w-full space-y-1.5 text-[12px]">
                   {view.blocks.map((b) => (
                     <div key={b.key}>
@@ -762,7 +785,8 @@ export function OnboardingModal({
                   ) : (
                     autoRequiredCourses.map((c) => {
                       const ti = effectiveTermIndex(c.cid, c.semester);
-                      const isReading = ti === term;
+                      // 成绩已出的学期不再是「在读·仅理论」，它和更早的学期一样是实打实的已修。
+                      const isReading = ti === term && !view.readingSettled;
                       // 转专业前两学期必修：
                       //   matched (transferEarlySet.has)   → 原专业同 cid 自动已抵，正常已修(蓝) + 「已抵」徽章。
                       //   unmatched (未检测到)             → 默认缺口·不计学分；勾「已抵」(transferOffsetCids) 才计入。
@@ -1114,8 +1138,15 @@ export function OnboardingModal({
                         </div>
                       )}
                       <div className="text-gray-500">在读学期</div>
-                      <div className="font-semibold text-gray-800">{preview.sug.term ? `第 ${preview.sug.term} 学期` : "无法推算"}</div>
-                      <div className="text-gray-500">已修学分（不含 {view.readingSemKey || "本"}学期）</div>
+                      <div className="font-semibold text-gray-800">
+                        {preview.sug.term ? `第 ${preview.sug.term} 学期` : "无法推算"}
+                        {preview.sug.readingSettled && (
+                          <span className="ml-1.5 text-[11px] font-normal text-gray-400">成绩已出，已计入已修</span>
+                        )}
+                      </div>
+                      <div className="text-gray-500">
+                        已修学分（{preview.sug.readingSettled ? "含" : "不含"} {previewReadingSemKey || view.readingSemKey || "本"}学期）
+                      </div>
                       <div className="flex items-center gap-1.5 font-semibold text-gray-800">
                         <input
                           type="number" min={0}
@@ -1125,16 +1156,21 @@ export function OnboardingModal({
                         />
                         <span className="text-gray-400 font-normal">分 · {preview.sug.takenCount} 门</span>
                       </div>
-                      <div className="text-gray-500">{view.readingSemKey || "本学期"}已选选修</div>
-                      <div className="flex items-center gap-1.5 font-semibold text-gray-800">
-                        <input
-                          type="number" min={0}
-                          value={edit?.electiveThisSem ?? preview.sug.electiveThisSem}
-                          onChange={(e) => setEdit((p) => ({ totalEarned: p?.totalEarned ?? preview.sug.totalEarned, electiveThisSem: Math.max(0, Number(e.target.value) || 0) }))}
-                          className="w-20 px-2 py-1 rounded-md border border-gray-200 bg-white text-sm outline-none focus:border-indigo-300"
-                        />
-                        <span className="text-gray-400 font-normal">分</span>
-                      </div>
+                      {/* 该学期成绩已出时它的学分已经在上面的总分里，再列一个「在读选修」输入框只会被填成重复计分。 */}
+                      {!preview.sug.readingSettled && (
+                        <>
+                          <div className="text-gray-500">{previewReadingSemKey || view.readingSemKey || "本学期"}已选选修</div>
+                          <div className="flex items-center gap-1.5 font-semibold text-gray-800">
+                            <input
+                              type="number" min={0}
+                              value={edit?.electiveThisSem ?? preview.sug.electiveThisSem}
+                              onChange={(e) => setEdit((p) => ({ totalEarned: p?.totalEarned ?? preview.sug.totalEarned, electiveThisSem: Math.max(0, Number(e.target.value) || 0) }))}
+                              className="w-20 px-2 py-1 rounded-md border border-gray-200 bg-white text-sm outline-none focus:border-indigo-300"
+                            />
+                            <span className="text-gray-400 font-normal">分</span>
+                          </div>
+                        </>
+                      )}
                       <div className="text-gray-500">已修专业限选</div>
                       <div className="font-semibold text-gray-800">{preview.sug.takenMajorElectiveCids.length} 门</div>
                     </div>
