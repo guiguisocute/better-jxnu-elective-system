@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-06 01:29:31",
+ "fetched_at": "2026-09-06 02:35:29",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -6468,9 +6468,9 @@
      "bjh": "002356Z2",
      "className": "教工.陈海员#2班",
      "teacher": "陈海员",
-     "enrolled": 49,
-     "remaining": 1,
-     "full": false
+     "enrolled": 50,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "002739Z1",
@@ -6508,8 +6508,8 @@
      "bjh": "003662Z2",
      "className": "教工.袁华#2班",
      "teacher": "袁华",
-     "enrolled": 25,
-     "remaining": 25,
+     "enrolled": 24,
+     "remaining": 26,
      "full": false
     },
     {
@@ -7208,8 +7208,8 @@
      "bjh": "002760Z1",
      "className": "李昌新#1班",
      "teacher": "李昌新",
-     "enrolled": 64,
-     "remaining": 3,
+     "enrolled": 63,
+     "remaining": 4,
      "full": false
     }
    ],
@@ -20476,9 +20476,9 @@
      "bjh": "005178Z1",
      "className": "教工.邵煜#1班",
      "teacher": "邵煜",
-     "enrolled": 60,
-     "remaining": 0,
-     "full": true
+     "enrolled": 59,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "005178Z2",
@@ -41069,9 +41069,9 @@
      "bjh": "005255Z2",
      "className": "教工.胡小兰#2班",
      "teacher": "胡小兰",
-     "enrolled": 60,
-     "remaining": 0,
-     "full": true
+     "enrolled": 59,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "影视文学"
@@ -43572,9 +43572,9 @@
      "bjh": "004386Z1",
      "className": "教工文迎霞#.1班",
      "teacher": "文迎霞",
-     "enrolled": 30,
-     "remaining": 0,
-     "full": true
+     "enrolled": 29,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "中国古代文学专题"
@@ -44957,8 +44957,8 @@
      "bjh": "003601Z3",
      "className": "教工.何彤宇#3班",
      "teacher": "何彤宇",
-     "enrolled": 168,
-     "remaining": 2,
+     "enrolled": 169,
+     "remaining": 1,
      "full": false
     }
    ],
