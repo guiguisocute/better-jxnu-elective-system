@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-06 05:50:30",
+ "fetched_at": "2026-09-06 06:54:29",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -8072,9 +8072,9 @@
      "bjh": "005806Z1",
      "className": "教工朱伟#1班",
      "teacher": "朱伟",
-     "enrolled": 49,
-     "remaining": 1,
-     "full": false
+     "enrolled": 50,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "电影导演的创作法则与风格赏析"
@@ -13485,8 +13485,8 @@
      "bjh": "005405Z1",
      "className": "教工郑丽端#1班",
      "teacher": "郑丽端",
-     "enrolled": 95,
-     "remaining": 25,
+     "enrolled": 96,
+     "remaining": 24,
      "full": false
     }
    ],
@@ -23884,9 +23884,9 @@
      "bjh": "002444Z1",
      "className": "孟鹰#1班",
      "teacher": "孟鹰",
-     "enrolled": 100,
-     "remaining": 0,
-     "full": true
+     "enrolled": 99,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "002444Z2",
@@ -24970,8 +24970,8 @@
      "bjh": "003802Z1",
      "className": "陈洁#1班",
      "teacher": "陈洁",
-     "enrolled": 77,
-     "remaining": 3,
+     "enrolled": 76,
+     "remaining": 4,
      "full": false
     }
    ],
