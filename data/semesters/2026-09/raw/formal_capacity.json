@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-06 06:54:29",
+ "fetched_at": "2026-09-06 08:00:30",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -431,8 +431,8 @@
      "bjh": "005888Z1",
      "className": "教工张鹏#1班",
      "teacher": "张鹏",
-     "enrolled": 47,
-     "remaining": 13,
+     "enrolled": 48,
+     "remaining": 12,
      "full": false
     }
    ],
@@ -461,8 +461,8 @@
      "bjh": "002340Z1",
      "className": "李建军#1班",
      "teacher": "李建军",
-     "enrolled": 61,
-     "remaining": 9,
+     "enrolled": 62,
+     "remaining": 8,
      "full": false
     },
     {
@@ -11578,8 +11578,8 @@
      "bjh": "003126Z2",
      "className": "教工王丽芳#.2班",
      "teacher": "王丽芳",
-     "enrolled": 59,
-     "remaining": 1,
+     "enrolled": 58,
+     "remaining": 2,
      "full": false
     }
    ],
@@ -17365,8 +17365,8 @@
      "bjh": "005345Z1",
      "className": "教工王成军#1班",
      "teacher": "王成军",
-     "enrolled": 77,
-     "remaining": 3,
+     "enrolled": 76,
+     "remaining": 4,
      "full": false
     }
    ],
@@ -20476,9 +20476,9 @@
      "bjh": "005178Z1",
      "className": "教工.邵煜#1班",
      "teacher": "邵煜",
-     "enrolled": 59,
-     "remaining": 1,
-     "full": false
+     "enrolled": 60,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "005178Z2",
@@ -23291,9 +23291,9 @@
      "bjh": "004782Z4",
      "className": "教工.耿烨#4班",
      "teacher": "耿烨",
-     "enrolled": 22,
-     "remaining": 0,
-     "full": true
+     "enrolled": 21,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "090239Z1",
@@ -23884,8 +23884,8 @@
      "bjh": "002444Z1",
      "className": "孟鹰#1班",
      "teacher": "孟鹰",
-     "enrolled": 99,
-     "remaining": 1,
+     "enrolled": 98,
+     "remaining": 2,
      "full": false
     },
     {
@@ -32255,9 +32255,9 @@
      "bjh": "005393Z1",
      "className": "教工汤林玲#1班",
      "teacher": "汤林玲",
-     "enrolled": 49,
-     "remaining": 1,
-     "full": false
+     "enrolled": 50,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "透过地图看世界"
@@ -34598,9 +34598,9 @@
      "bjh": "005693Z1",
      "className": "教工和聪贤#1班",
      "teacher": "和聪贤",
-     "enrolled": 129,
-     "remaining": 1,
-     "full": false
+     "enrolled": 130,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "习近平经济思想"
@@ -40969,9 +40969,9 @@
      "bjh": "004722Z1",
      "className": "教工陈水亮#1班",
      "teacher": "陈水亮",
-     "enrolled": 49,
-     "remaining": 1,
-     "full": false
+     "enrolled": 50,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "影视动漫中的化学奥秘"
