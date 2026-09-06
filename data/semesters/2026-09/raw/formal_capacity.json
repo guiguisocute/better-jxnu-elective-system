@@ -1,6 +1,6 @@
 {
  "semester": "2026-09",
- "fetched_at": "2026-09-07 00:34:30",
+ "fetched_at": "2026-09-07 01:40:31",
  "sourceUrl": "https://xk.jxnu.edu.cn/Step4/ChangeClass.aspx?kch={courseId}\u0026action=change",
  "config": {
   "excerpt": "系统配置信息 配置名称： 补退选阶段 系统开放时间： 2026-09-02 10:00:00 至 2026-09-07 23:00:00 选课阶段： 补退选 选课学期： 26-27第1学期 是否要求评教： 否 是否启用批次登录： 否 欠费是否可登录： 是 选课校区： 青山湖校区 瑶湖校区",
@@ -385,8 +385,8 @@
      "bjh": "003550Z1",
      "className": "王渊#1班",
      "teacher": "王渊",
-     "enrolled": 33,
-     "remaining": 12,
+     "enrolled": 34,
+     "remaining": 11,
      "full": false
     }
    ],
@@ -469,8 +469,8 @@
      "bjh": "002340Z2",
      "className": "李建军#2班",
      "teacher": "李建军",
-     "enrolled": 68,
-     "remaining": 2,
+     "enrolled": 67,
+     "remaining": 3,
      "full": false
     }
    ],
@@ -4446,8 +4446,8 @@
      "bjh": "090339Z1",
      "className": "教工吴宇昂#1班",
      "teacher": "吴宇昂",
-     "enrolled": 32,
-     "remaining": 3,
+     "enrolled": 31,
+     "remaining": 4,
      "full": false
     },
     {
@@ -4486,8 +4486,8 @@
      "bjh": "090339Z6",
      "className": "教工吴宇昂#6班",
      "teacher": "吴宇昂",
-     "enrolled": 33,
-     "remaining": 2,
+     "enrolled": 34,
+     "remaining": 1,
      "full": false
     },
     {
@@ -7231,9 +7231,9 @@
      "bjh": "002760Z2",
      "className": "李昌新#2班",
      "teacher": "李昌新",
-     "enrolled": 61,
-     "remaining": 0,
-     "full": true
+     "enrolled": 60,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "当代世界史"
@@ -8792,8 +8792,8 @@
      "bjh": "003858Z1",
      "className": "教工雷晓彤#.1班",
      "teacher": "雷晓彤",
-     "enrolled": 73,
-     "remaining": 7,
+     "enrolled": 74,
+     "remaining": 6,
      "full": false
     }
    ],
@@ -8852,8 +8852,8 @@
      "bjh": "005349Z1",
      "className": "教工程婧#1班",
      "teacher": "程婧",
-     "enrolled": 18,
-     "remaining": 12,
+     "enrolled": 19,
+     "remaining": 11,
      "full": false
     }
    ],
@@ -12234,8 +12234,8 @@
      "bjh": "006036Z1",
      "className": "教工李卉#1班",
      "teacher": "李卉",
-     "enrolled": 28,
-     "remaining": 2,
+     "enrolled": 27,
+     "remaining": 3,
      "full": false
     }
    ],
@@ -13659,9 +13659,9 @@
      "bjh": "003865Z1",
      "className": "教工朱咏梅#1班",
      "teacher": "朱咏梅",
-     "enrolled": 49,
-     "remaining": 1,
-     "full": false
+     "enrolled": 50,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "004950Z1",
@@ -14678,8 +14678,8 @@
      "bjh": "20260033",
      "className": "26级商务英语（国际会计）1班",
      "teacher": "胡才泓",
-     "enrolled": 2,
-     "remaining": 1,
+     "enrolled": 1,
+     "remaining": 2,
      "full": false
     },
     {
@@ -20637,9 +20637,9 @@
      "bjh": "005822Z1",
      "className": "教工韦俊峰#1班",
      "teacher": "韦俊峰",
-     "enrolled": 50,
-     "remaining": 0,
-     "full": true
+     "enrolled": 48,
+     "remaining": 2,
+     "full": false
     },
     {
      "bjh": "005822Z2",
@@ -31482,9 +31482,9 @@
      "bjh": "002710Z1",
      "className": "教工.龚志刚#1班",
      "teacher": "龚志刚",
-     "enrolled": 61,
-     "remaining": 0,
-     "full": true
+     "enrolled": 60,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "体育测量与评价"
@@ -32316,9 +32316,9 @@
      "bjh": "005486Z1",
      "className": "教工张路正#1班",
      "teacher": "张路正",
-     "enrolled": 100,
-     "remaining": 1,
-     "full": false
+     "enrolled": 101,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "图像处理软件photoshop"
@@ -32660,9 +32660,9 @@
      "bjh": "005197Z1",
      "className": "教工荣四华#1班",
      "teacher": "荣四华",
-     "enrolled": 65,
-     "remaining": 0,
-     "full": true
+     "enrolled": 64,
+     "remaining": 1,
+     "full": false
     },
     {
      "bjh": "005574Z1",
@@ -34996,8 +34996,8 @@
      "bjh": "006208H2",
      "className": "合班任杰2班",
      "teacher": "任杰",
-     "enrolled": 53,
-     "remaining": 30,
+     "enrolled": 54,
+     "remaining": 29,
      "full": false
     },
     {
@@ -36024,8 +36024,8 @@
      "bjh": "002341H1",
      "className": "合班张红新.1班",
      "teacher": "张红新",
-     "enrolled": 85,
-     "remaining": -34,
+     "enrolled": 84,
+     "remaining": -33,
      "full": true
     },
     {
@@ -36080,9 +36080,9 @@
      "bjh": "004763H1",
      "className": "合班吴亚东.1班",
      "teacher": "吴亚东",
-     "enrolled": 103,
-     "remaining": 1,
-     "full": false
+     "enrolled": 104,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "004926H1",
@@ -39771,9 +39771,9 @@
      "bjh": "003573Z1",
      "className": "教工胡媛#1班",
      "teacher": "胡媛",
-     "enrolled": 46,
-     "remaining": 1,
-     "full": false
+     "enrolled": 47,
+     "remaining": 0,
+     "full": true
     },
     {
      "bjh": "003573Z2",
@@ -40011,8 +40011,8 @@
      "bjh": "005147Z3",
      "className": "教工李树春#3班",
      "teacher": "李树春",
-     "enrolled": 48,
-     "remaining": 2,
+     "enrolled": 49,
+     "remaining": 1,
      "full": false
     }
    ],
@@ -42602,9 +42602,9 @@
      "bjh": "002612Z1",
      "className": "聂晶#1班",
      "teacher": "聂晶",
-     "enrolled": 66,
-     "remaining": 1,
-     "full": false
+     "enrolled": 67,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "运动营养学"
@@ -43281,9 +43281,9 @@
      "bjh": "005920Z1",
      "className": "教工赖炽敏#1班",
      "teacher": "赖炽敏",
-     "enrolled": 89,
-     "remaining": 1,
-     "full": false
+     "enrolled": 90,
+     "remaining": 0,
+     "full": true
     }
    ],
    "name": "中国地理（公选）"
@@ -44812,8 +44812,8 @@
      "bjh": "004494Z1",
      "className": "朴彦#1班",
      "teacher": "朴彦",
-     "enrolled": 23,
-     "remaining": 7,
+     "enrolled": 24,
+     "remaining": 6,
      "full": false
     }
    ],
@@ -44957,9 +44957,9 @@
      "bjh": "003601Z3",
      "className": "教工.何彤宇#3班",
      "teacher": "何彤宇",
-     "enrolled": 170,
-     "remaining": 0,
-     "full": true
+     "enrolled": 169,
+     "remaining": 1,
+     "full": false
     }
    ],
    "name": "中外经典动画赏析"
