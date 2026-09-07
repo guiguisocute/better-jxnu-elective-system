@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-07T12:23:30Z",
+ "fetchedAt": "2026-09-07T15:43:31Z",
  "courses": [
   {
    "courseId": "002166",
@@ -1102,6 +1102,17 @@
    "fetchedAt": "2026-09-04T13:01:47Z"
   },
   {
+   "courseId": "2650037",
+   "courseName": "艺术考察（4学分）",
+   "courseNameIdentity": "艺术考察（4学分）",
+   "credits": 4,
+   "classId": "20230118",
+   "courseSiteId": "196794",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196794",
+   "fetchedAt": "2026-09-07T15:43:29Z"
+  },
+  {
    "courseId": "2650043",
    "courseName": "形式基础",
    "courseNameIdentity": "形式基础",
@@ -1533,6 +1544,17 @@
    "fetchedAt": "2026-09-04T14:06:36Z"
   },
   {
+   "courseId": "2650353",
+   "courseName": "设计表达Ⅲ（3DMAX）",
+   "courseNameIdentity": "设计表达Ⅲ （3DMAX）",
+   "credits": 3,
+   "classId": "20250082",
+   "courseSiteId": "196795",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196795",
+   "fetchedAt": "2026-09-07T15:43:30Z"
+  },
+  {
    "courseId": "2650355",
    "courseName": "实验动画",
    "courseNameIdentity": "实验动画（3分）",
@@ -1564,6 +1586,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196780",
    "fetchedAt": "2026-09-04T14:06:37Z"
+  },
+  {
+   "courseId": "2650389",
+   "courseName": "综合造型Ⅲ（形式构成）",
+   "courseNameIdentity": "综合造型Ⅲ （形式构成）",
+   "credits": 3,
+   "classId": "20250079",
+   "courseSiteId": "196796",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196796",
+   "fetchedAt": "2026-09-07T15:43:30Z"
   },
   {
    "courseId": "265040",
@@ -1742,6 +1775,19 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196787",
    "fetchedAt": "2026-09-04T14:06:41Z"
+  },
+  {
+   "courseId": "265957",
+   "courseName": "建筑设计基础",
+   "courseNameIdentity": "建筑设计基础（2分）",
+   "englishName": "Basis of architectural design",
+   "credits": 2,
+   "description": "《建筑设计基础》是环境艺术设计专业的重要基础课程，通过对照建筑中外历史，了解建筑三要素，并通过具体的实践初步掌握楼梯、厕所等建筑基本元素，进而在理论上初步认识空间、结构、美学等重要建筑概念。",
+   "classId": "20250082",
+   "courseSiteId": "196797",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196797",
+   "fetchedAt": "2026-09-07T15:43:31Z"
   },
   {
    "courseId": "266095",
