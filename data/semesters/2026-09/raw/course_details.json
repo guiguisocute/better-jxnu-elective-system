@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-07T10:11:34Z",
+ "fetchedAt": "2026-09-07T12:23:30Z",
  "courses": [
   {
    "courseId": "002166",
@@ -47,7 +47,7 @@
    "courseSiteId": "195673",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195673",
-   "fetchedAt": "2026-08-31T12:05:45Z"
+   "fetchedAt": "2026-09-07T12:23:30Z"
   },
   {
    "courseId": "052036",
