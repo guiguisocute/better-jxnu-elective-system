@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-06T04:27:30Z",
+ "fetchedAt": "2026-09-07T10:11:34Z",
  "courses": [
   {
    "courseId": "002166",
@@ -26,6 +26,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194588",
    "fetchedAt": "2026-07-23T07:46:07Z"
+  },
+  {
+   "courseId": "024017",
+   "courseName": "国家安全教育",
+   "courseNameIdentity": "国家安全教育（1分）",
+   "credits": 1,
+   "classId": "20260029",
+   "courseSiteId": "196792",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196792",
+   "fetchedAt": "2026-09-07T10:11:33Z"
   },
   {
    "courseId": "028043",
@@ -183,7 +194,7 @@
    "courseSiteId": "194743",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194743",
-   "fetchedAt": "2026-08-31T06:36:36Z"
+   "fetchedAt": "2026-09-07T10:11:34Z"
   },
   {
    "courseId": "251018",
@@ -979,7 +990,7 @@
    "courseSiteId": "192270",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192270",
-   "fetchedAt": "2026-08-31T09:55:50Z"
+   "fetchedAt": "2026-09-07T10:11:34Z"
   },
   {
    "courseId": "262572",
