@@ -38,7 +38,9 @@ export function LiveEnrollmentIndicator({ status, compact = false }: { status: L
     // 后端到点该刷新了、或前端正在取数 → 「正在更新…」。
     if (status.refreshing || now >= target) return { progress: 96, label: "正在更新…", tone: "updating" as const };
     if (!status.fetchedAt) return { progress, label: "正在连接人数服务", tone: "updating" as const };
-    return { progress, label: `${seconds}s 后刷新`, tone: "idle" as const };
+    // 周期是分钟级（选课结束后 15 分钟）时，「899s 后刷新」既难读又像在报错。
+    const countdown = seconds >= 90 ? `${Math.round(seconds / 60)} 分钟后刷新` : `${seconds}s 后刷新`;
+    return { progress, label: countdown, tone: "idle" as const };
   }, [now, status]);
 
   if (!status.enabled) return null;

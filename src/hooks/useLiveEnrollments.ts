@@ -16,10 +16,13 @@ import type { LiveEnrollmentSnapshot, LiveEnrollmentStatus } from "../lib/liveEn
 // 这条不变量必须守住：2026-09-02 实测采集机时钟比真实时间快 5~9 秒（边缘 nginx 的
 // Date 头准、快照 body 里的 fetchedAt 超前），跟着后端时间戳排程一定会翻车。
 //
-// 间隔本身从 30s 降到 10s：补退选期间席位以秒计变化，后端已经每 5 秒出一份新快照，
-// 30s 意味着用户看到的数字最多滞后 30 秒、且后端每 6 轮抓取只有 1 轮被消费。
-// 代价是每用户每分钟 6 次 × 约 58KB gz 的边缘出流量，改这个值前先算这笔账。
-const CLIENT_POLL_INTERVAL_MS = 10_000;
+// 间隔历经 30s → 10s（2026-09 补退选，席位以秒计变化）→ **15 分钟**（2026-09-08，
+// 选课已结束，后端 KKAP 抓取同步改成 900s）。这个值必须和后端
+// `enrollmentRefreshSeconds` 手动对齐：拉得比后端勤，每份快照会被重复取回来
+// （每次约 58KB gz 的边缘出流量，10s×900s 后端 = 一份快照被拉 90 次）；拉得比后端
+// 懒，用户看到的数字白白多滞后一个周期。**对齐指的是照抄这个常量，不是去读
+// `serverIntervalMs` 排程**——跟着后端时间戳走正是上面那条不变量禁止的事。
+const CLIENT_POLL_INTERVAL_MS = 900_000;
 // 原 30 秒后端节奏下的延迟阈值为 90 秒，即允许连续三轮没有新快照。
 // 继续沿用这个比例，避免后端按较长间隔抓取时被前端过早误报为延迟。
 const STALE_INTERVALS = 3;
@@ -35,7 +38,10 @@ const REQUEST_TIMEOUT_MS = 12_000;
 // 切回前台时：离上次真正发起请求太近就不重复拉，只需恢复固定节奏的下一次调度，
 // 避免反复切换标签页时把请求越攒越密。取轮询周期的一半——比周期本身大就等于
 // 「切回来必然重新拉」，失去了防抖意义；太小则频繁切标签页会把请求攒密。
-const VISIBILITY_REFRESH_MIN_GAP_MS = CLIENT_POLL_INTERVAL_MS / 2;
+// 但周期变成 15 分钟后，「一半」就是 7.5 分钟不刷新：用户切回来盯着的可能是一份
+// 十几分钟前的人数。所以再压一道 60s 上限——每个标签页每分钟最多多发一次请求，
+// 防抖的初衷还在，切回前台又能立刻看到当前快照。
+const VISIBILITY_REFRESH_MIN_GAP_MS = Math.min(CLIENT_POLL_INTERVAL_MS / 2, 60_000);
 
 export function useLiveEnrollments(
   sections: FormalSection[],
