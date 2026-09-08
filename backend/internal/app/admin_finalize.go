@@ -34,12 +34,21 @@ func (a *AdminServer) finalizeCard(session adminSession, cfg RuntimeConfig, term
 		// right before whatever 教务 currently calls the planning term.
 		target = cfg.FinalizedTerm
 	}
+	// 「按快照新旧」是当前学期的正确口径，「只补缺」是已结束学期的。默认跟着目标学期
+	// 走，省得每次都要想一遍——选错不会报错，只会白跑或一个人都选不出来。
+	scope := state.Scope
+	if scope == "" {
+		scope = finalizeScopeMissing
+		if target == academicTermLabel(cfg.SelectionSemester) {
+			scope = finalizeScopeStale
+		}
+	}
 
 	var b strings.Builder
 	b.WriteString(`<section class="card"><h2>固化学期（全量刷新学号快照）</h2>`)
 	b.WriteString(`<p><span class="` + meta.Class + `">` + meta.Label + `</span> ` +
 		template.HTMLEscapeString(state.Message) + `</p>`)
-	b.WriteString(`<p class="hint">把全校学生的课表快照刷成「某个已结束学期为止」的最终版，每学期<b>补退选结束、成绩出完后</b>做一次即可。注意：学号查询本身走实时链路，<b>学分数字不依赖这个任务</b>；它保的是教务/VPS 不可用时前台读的那份兜底快照。</p>`)
+	b.WriteString(`<p class="hint">把全校学生的课表快照批量刷进 D1。两种用法：<b>①</b> 学期结束、成绩出完后固化那一学期（选「只补缺」并勾下面的「已结束学期」）；<b>②</b> 本学期选课刚结束、课表定下来了，把全校课表缓存成当前版本（选「按快照新旧」，<b>不要</b>勾「已结束学期」）。注意：学号查询本身走实时链路，<b>学分数字不依赖这个任务</b>；它保的是教务/VPS 不可用时前台读的那份兜底快照。</p>`)
 
 	if state.Total > 0 || state.Processed > 0 {
 		percent := 0
@@ -55,8 +64,13 @@ func (a *AdminServer) finalizeCard(session adminSession, cfg RuntimeConfig, term
 		if state.Cursor != "" {
 			details = append(details, "断点 "+truncateRunes(state.Cursor, 4)+"****")
 		}
+		if state.Scope != "" {
+			details = append(details, "范围 "+finalizeScopeLabel(state.Scope))
+		}
 		if state.SmokeTest {
 			details = append(details, "本次为冒烟测试，不会改动「已结束学期」设置")
+		} else if state.AdvanceFinalizedTerm {
+			details = append(details, "跑完会把「已结束学期」设为该学期")
 		}
 		if len(details) > 0 {
 			b.WriteString(`<p class="hint">` + template.HTMLEscapeString(strings.Join(details, " · ")) + `</p>`)
@@ -77,12 +91,18 @@ func (a *AdminServer) finalizeCard(session adminSession, cfg RuntimeConfig, term
 	resumable := state.Cursor != "" && (state.State == "paused" || state.State == "cancelled" || state.State == "failed")
 	b.WriteString(`<form method="post" action="/action/finalize-start" class="stack">` + csrf(session))
 	b.WriteString(`<div class="grid three">`)
-	b.WriteString(`<div class="field"><label>要固化到哪个学期</label><input name="targetTerm" list="term-options" value="` +
-		template.HTMLEscapeString(target) + `" placeholder="例如 25-26第2学期" required><p class="hint">必须是<b>已经结束、成绩已出</b>的学期。</p></div>`)
+	b.WriteString(`<div class="field"><label>要固化哪个学期</label><input name="targetTerm" list="term-options" value="` +
+		template.HTMLEscapeString(target) + `" placeholder="例如 25-26第2学期" required><p class="hint">已结束的学期，或选课已结束的<b>在读</b>学期。</p></div>`)
 	b.WriteString(`<div class="field"><label>冒烟测试人数（0 = 全量）</label><input type="number" name="limit" value="10" min="0" max="30000"><p class="hint">先用 10 人验证整条链路，再改成 0 跑全量。</p></div>`)
 	b.WriteString(`<div class="field"><label>每人间隔（毫秒）</label><input type="number" name="delayMs" value="` +
 		strconv.Itoa(defaultFinalizeDelayMs(state.DelayMs)) + `" min="200" max="60000"><p class="hint">保护教务服务器。单人本身约 1.5s，28818 人全量约 12~16 小时。</p></div>`)
 	b.WriteString(`</div>`)
+	b.WriteString(`<div class="choices">` +
+		radio("scope", finalizeScopeMissing, "只补缺（已结束学期）", "快照里没有该学期课程的人才抓。天然增量，第二次跑几乎没人要处理。", scope) +
+		radio("scope", finalizeScopeStale, "按快照新旧（在读学期）", "本次开始时刻之前写入的快照全部重抓。在读学期必须用这个：每份快照本来就带着当前学期，「只补缺」会筛出 0 人。", scope) +
+		`</div>`)
+	b.WriteString(`<label class="inline"><input type="checkbox" name="advanceFinalizedTerm" ` + checked(state.AdvanceFinalizedTerm) +
+		`>跑完把「已结束学期」设为该学期（<b>只有成绩已经出完才勾</b>——勾了这一学期的学分立刻计入已修）</label>`)
 	if resumable {
 		b.WriteString(`<label class="inline"><input type="checkbox" name="resume" checked>从断点继续（不勾选则从头开始）</label>`)
 	}
@@ -90,6 +110,13 @@ func (a *AdminServer) finalizeCard(session adminSession, cfg RuntimeConfig, term
 	b.WriteString(`<datalist id="term-options">` + options(terms, target) + `</datalist>`)
 	b.WriteString(`</section>`)
 	return b.String()
+}
+
+func finalizeScopeLabel(scope string) string {
+	if scope == finalizeScopeStale {
+		return "按快照新旧"
+	}
+	return "只补缺"
 }
 
 func defaultFinalizeDelayMs(stored int) int {
@@ -114,20 +141,26 @@ func (a *AdminServer) startFinalize(w http.ResponseWriter, r *http.Request, sess
 		a.result(w, "启动失败", "冒烟测试人数不能为负", false, &session)
 		return
 	}
-	resume := r.Form.Get("resume") == "on"
-	if err := a.finalize.Start(targetTerm, limit, delayMs, resume); err != nil {
+	opts := FinalizeOptions{
+		TargetTerm: targetTerm, Limit: limit, DelayMs: delayMs,
+		Resume:               r.Form.Get("resume") == "on",
+		Scope:                strings.TrimSpace(r.Form.Get("scope")),
+		AdvanceFinalizedTerm: r.Form.Get("advanceFinalizedTerm") == "on",
+	}
+	if err := a.finalize.Start(opts); err != nil {
 		a.result(w, "启动失败", err.Error(), false, &session)
 		return
 	}
-	scope := "全量"
+	size := "全量"
 	if limit > 0 {
-		scope = fmt.Sprintf("冒烟测试 %d 人", limit)
+		size = fmt.Sprintf("冒烟测试 %d 人", limit)
 	}
 	a.audit(r.Context(), r, auditEntry{
 		Action: auditFinalize, Target: targetTerm,
-		Detail: fmt.Sprintf("启动固化学期 %s（%s，间隔 %dms，断点续跑=%v）。", targetTerm, scope, delayMs, resume),
+		Detail: fmt.Sprintf("启动固化学期 %s（%s，范围=%s，间隔 %dms，断点续跑=%v，跑完设已结束学期=%v）。",
+			targetTerm, size, finalizeScopeLabel(opts.Scope), delayMs, opts.Resume, opts.AdvanceFinalizedTerm),
 	})
-	a.result(w, "固化已启动", scope+"已在后台运行，可回总览页查看进度；期间可以暂停或取消，进度会保留。", true, &session)
+	a.result(w, "固化已启动", size+"已在后台运行（范围："+finalizeScopeLabel(opts.Scope)+"），可回总览页查看进度；期间可以暂停或取消，进度会保留。", true, &session)
 }
 
 func (a *AdminServer) pauseFinalize(w http.ResponseWriter, r *http.Request, session adminSession) {
