@@ -1,9 +1,9 @@
 """
 学生档案联表核心 —— 「per 学生聚合数据 → record_json」的纯映射逻辑。
 
-从 build_student_records.py 抽出，供两处复用、保证口径一致：
+从 build_student_records.py 抽出，只剩一个使用者：
   - build_student_records.py  离线全校批量（studentjson 8 份快照 union → D1 SQL）
-  - tools/jwc_schedule.py + ~/apps/jxnu-live 实时抓取（教务 Xfz_Kcb 全学期 → 同形状 JSON）
+（早先的 tools/jwc_schedule.py 实时抓取那条路已删，实时链路见下。）
 
 不含任何抓取/IO/SQL 逻辑；build_record 是纯函数。改这里 = 两侧口径同步变。
 

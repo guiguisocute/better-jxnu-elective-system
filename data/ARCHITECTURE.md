@@ -42,9 +42,14 @@ better-jxnu-elective-system/
 │   ├── master_raw/                        ← 跨学期 raw（仅培养方案）
 │   │   └── training_plan.json             ← 一份累积大文件，年级×专业 全集
 │   │
+│   ├── build_config.json                  ← 构建期配置（后台 Go 面板唯一写入点）
+│   │                                        testSemesters / mirrorSemesters /
+│   │                                        liveEnrollmentSemester / featureFlags
+│   │
 │   ├── master/                            ← build 产物，跨学期持久化（committed）
 │   │   ├── courses.json                   ← cid → 课程定义（不含 teachers）
 │   │   ├── teachers.json                  ← teacherId → 教师档案（跨学期累积）
+│   │   ├── plan_courses.json              ← planKey → 该方案全部课程
 │   │   └── major_requirements.json        ← 各 (年级×专业) 毕业学分要求
 │   │
 │   ├── semesters/                         ← 每学期一份目录（目录名 = 学期 key = YYYY-MM）
@@ -55,17 +60,19 @@ better-jxnu-elective-system/
 │   │   │       ├── formal_schedule.json   ← 正选/补退选共用课表（section 级：班级/教师/教室/时间）
 │   │   │       ├── formal_capacity.json   ← 正选/补退选共用 xk 容量快照
 │   │   │       ├── course_details.json    ← CAS 后 CourseInfor 课程级补充信息（Go 后端限速核查）
+│   │   │       ├── openclass_status.json  ← 选课开班状态；没有 formal_schedule 时作 sections 兜底
 │   │   │       ├── addDrop_schedule.json  ← 仅兼容历史输入；新数据不再生成
 │   │   │       └── xk_capacity.json       ← 旧容量文件兼容输入；新数据不再生成
-│   │   └── 2026-03/
+│   │   └── 2026-09/                       ← 当前 isCurrent
 │   │       └── ...
-│   │
-│   └── archive/                           ← 弃用数据（不进 build）
-│       └── v5_legacy/training_plan.json   ← 当前还在这
+│   │                                        （早先的 archive/v5_legacy/ 旧培养方案已删，
+│   │                                          需要时去 git 历史里翻）
 │
 └── public/                                ← 前端 fetch 产物（committed）
     ├── courses.json                       ← 当前学期预选视图（catalog only）
     ├── formal_sections.json               ← 全部已抓 sections（前端按 semester 过滤）
+    ├── plan_courses.json                  ← master/plan_courses.json 的拷贝（sim 模式懒加载）
+    ├── app_config.json                    ← build_config.json 的运行期投影（测试学期/功能开关等）
     └── major_requirements.json            ← master/major_requirements.json 的拷贝
 ```
 
@@ -212,6 +219,11 @@ master/major_requirements.json 的副本（前端可 fetch）。
 ---
 
 ## 7. 每学期入库 SOP
+
+> **常态是自动的**：线上 `jxnu-sync.timer` 每 15 分钟触发 `jxnu-backend sync --scheduled`，
+> 由 Go 后端抓 KKAP 开课安排 + xk 实时容量、过安全闸、跑 `build_data.py`、只在有变化时
+> commit+push（目标学期在后台面板「日常设置」里改）。下面这套手动流程用于新学期首次落地、
+> 预选目录采集（Go 后端不碰 `preselect_catalog.json`），以及自动链路出问题时的兜底。
 
 ```bash
 # 1. 抓取（油猴/爬虫，本仓库外）

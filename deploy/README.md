@@ -8,7 +8,7 @@ VPS 后端已经收敛为一个 Go 二进制 `jxnu-backend`。它同时负责：
 - `jxnu-backend sync --scheduled`：timer 每 15 分钟检查一次面板配置；到达实际间隔后只运行“默认展示阶段”对应的采集管线，再执行安全闸、构建、提交和推送。
 - `jxnu-backend build`：不访问教务采集页面，只使用仓库现有 raw 执行构建、校验和发布，保留油猴/手工采集兼容能力。
 
-常驻层不再运行 `kkap_service.py`、`live_service.py` 或 `admin_service.py`。Python 只保留为构建期数据流水线；`build_data.py` 的字段优先级和幂等规则不在这次迁移中改变。
+常驻层已经没有 Python 服务（早先的 `kkap_service.py` / `live_service.py` / `admin_service.py` 及 `deploy/sync-schedule.sh` 都由这个二进制取代，已从仓库删除，需要时去 git 历史里翻）。Python 只保留为构建期数据流水线：`build_data.py`、`build_student_records.py`，以及 `tools/` 下仍在用的预选目录采集脚本。
 
 ## Fork 自部署清单
 
