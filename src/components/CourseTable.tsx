@@ -423,12 +423,13 @@ const FormalSectionRow = memo(function FormalSectionRow({ s, indented, selectedP
       <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50">
         <span className="block truncate" title={s.dept}>{s.dept || "—"}</span>
       </td>
-      <td className="px-3 py-3 border-b border-gray-50 align-top">
+      {/* 标签列：这一格 px-2（其余列 px-3，表头同步）—— 净宽多出的 8px 刚好让「专业类基础」
+          「人文与社会」这类 5 字标签在笔记本小屏上整块放下，不至于只为一个字吃省略号。
+          徽章自带 max-w-full + 内部省略号，再窄也只会缩字、不会被切掉边框。 */}
+      <td className="px-2 py-3 border-b border-gray-50 align-top">
         <div className="flex flex-col gap-1 items-start min-w-0 overflow-hidden">
           {tags.slice(0, 2).map((t) => (
-            <span key={t} className="max-w-full truncate" title={t}>
-              <TagBadge tag={t} />
-            </span>
+            <TagBadge key={t} tag={t} compact />
           ))}
           {tags.length > 2 && <span className="text-[11px] text-gray-400">+{tags.length - 2}</span>}
         </div>
@@ -506,10 +507,11 @@ const FormalGroupHeaderRow = memo(function FormalGroupHeaderRow({ group, expande
       <td className="px-3 py-3 text-xs text-gray-500 border-b border-gray-50">
         <span className="block truncate" title={head.dept}>{head.dept || "—"}</span>
       </td>
-      <td className="px-3 py-3 border-b border-gray-50 align-top">
+      {/* 标签列 px-2：同 FormalSectionRow，组头与子行必须一致，否则两种行的徽章会错开 */}
+      <td className="px-2 py-3 border-b border-gray-50 align-top">
         <div className="flex flex-col gap-1 items-start min-w-0 overflow-hidden">
           {tags.slice(0, 2).map((t) => (
-            <span key={t} className="max-w-full truncate" title={t}><TagBadge tag={t} /></span>
+            <TagBadge key={t} tag={t} compact />
           ))}
           {tags.length > 2 && <span className="text-[11px] text-gray-400">+{tags.length - 2}</span>}
         </div>
@@ -953,9 +955,10 @@ export function CourseTable({
                     return (
                       // truncate（含 overflow-hidden）：窄窗口下表头文字也会超出定宽列，
                       // 不裁的话「任课教师」「上课时间」两个表头会叠在一起（低分辨率实测）。
+                      // 标签列 px-2：与该列单元格保持同一内边距（见 FormalSectionRow 注释）。
                       <th
                         key={h}
-                        className="px-3 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider truncate bg-gray-50 border-b border-gray-100"
+                        className={`${h === "标签" ? "px-2" : "px-3"} py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider truncate bg-gray-50 border-b border-gray-100`}
                       >
                         {h}
                       </th>
@@ -1074,7 +1077,8 @@ export function CourseTable({
                   <span className={`mt-1 block h-0.5 w-5 rounded-full transition-colors ${sortAsc !== null ? "bg-red-400" : "bg-transparent"}`} />
                 </th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">开课学院</th>
-                <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">标签</th>
+                {/* 标签列 px-4（其余 px-5）：省下的 8px 净宽让 5 字标签在小屏上整块放下 */}
+                <th className="px-4 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">标签</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100">教师</th>
                 <th className="px-5 py-3.5 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-100" title="同课程号最近一个学期正选班级容量区间">往期容量</th>
                 {simMode && <th className="w-12 bg-gray-50 border-b border-gray-100" aria-label="加入待选清单" />}
@@ -1123,10 +1127,12 @@ export function CourseTable({
                       </span>
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-500 max-w-[160px] truncate border-b border-gray-50">{c.dept}</td>
-                    <td className="px-5 py-4 border-b border-gray-50">
-                      <div className="flex flex-wrap gap-1">
+                    {/* flex-wrap：两个短标签能并排就并排，放不下才换行；单个超宽标签由徽章自己
+                        （max-w-full + 内部省略号）收进列宽，不会溢到「教师」列上去 */}
+                    <td className="px-4 py-4 border-b border-gray-50">
+                      <div className="flex flex-wrap gap-1 min-w-0">
                         {tags.slice(0, 2).map((t) => (
-                          <TagBadge key={t} tag={t} />
+                          <TagBadge key={t} tag={t} compact />
                         ))}
                         {tags.length > 2 && (
                           <span className="text-[11px] text-gray-400">+{tags.length - 2}</span>
