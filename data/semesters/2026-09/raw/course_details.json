@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-07T15:43:31Z",
+ "fetchedAt": "2026-09-09T07:20:37Z",
  "courses": [
   {
    "courseId": "002166",
@@ -93,7 +93,7 @@
    "courseSiteId": "195676",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195676",
-   "fetchedAt": "2026-09-02T03:10:39Z"
+   "fetchedAt": "2026-09-09T07:20:30Z"
   },
   {
    "courseId": "246106",
@@ -104,7 +104,7 @@
    "courseSiteId": "195677",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195677",
-   "fetchedAt": "2026-09-02T03:10:39Z"
+   "fetchedAt": "2026-09-09T07:20:30Z"
   },
   {
    "courseId": "248276",
@@ -457,6 +457,100 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195640",
    "fetchedAt": "2026-09-05T02:09:40Z"
+  },
+  {
+   "courseId": "2530017",
+   "courseName": "公共口语传播",
+   "courseNameIdentity": "公共口语传播",
+   "credits": 3,
+   "classId": "003453$1",
+   "courseSiteId": "196802",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196802",
+   "fetchedAt": "2026-09-09T07:20:31Z"
+  },
+  {
+   "courseId": "2530118",
+   "courseName": "影视表演创作（3分）",
+   "courseNameIdentity": "影视表演创作（3分）",
+   "credits": 3,
+   "classId": "090245$2",
+   "courseSiteId": "196803",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196803",
+   "fetchedAt": "2026-09-09T07:20:32Z"
+  },
+  {
+   "courseId": "2530119",
+   "courseName": "剧目创作",
+   "courseNameIdentity": "剧目创作",
+   "credits": 8,
+   "classId": "090245$2",
+   "courseSiteId": "196804",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196804",
+   "fetchedAt": "2026-09-09T07:20:32Z"
+  },
+  {
+   "courseId": "2531017",
+   "courseName": "舞台剧演唱（1）",
+   "courseNameIdentity": "舞台剧演唱（1）",
+   "credits": 1,
+   "classId": "090337$2",
+   "courseSiteId": "196805",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196805",
+   "fetchedAt": "2026-09-09T07:20:33Z"
+  },
+  {
+   "courseId": "253313",
+   "courseName": "视唱练耳",
+   "courseNameIdentity": "视唱练耳（3）",
+   "englishName": "Solfege",
+   "credits": 2,
+   "description": "《视唱练耳》是我国高等院校为音乐专业学生开设的一门基础必修课，也是江西省音乐联考的必考科目之一。我校音乐学院针对大学一、二年级学生，开设了两学年（共四学期）的课程，设八个学分。每学期16个教学周，每周3个学时，每学期共计48学时。",
+   "classId": "003768$1",
+   "courseSiteId": "196806",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196806",
+   "fetchedAt": "2026-09-09T07:20:33Z"
+  },
+  {
+   "courseId": "253647",
+   "courseName": "钢琴演奏基础与伴奏（1）",
+   "courseNameIdentity": "钢琴演奏基础与伴奏（1）",
+   "englishName": "The performance and art instruction of piano（1）",
+   "credits": 1,
+   "description": "《钢琴演奏基础与伴奏》是音乐本科专业重要的必修基础课程，也是我院的专业主干课程之一。本课程将钢琴基础训练与歌曲自配伴奏二个内容的学习合二为一，它集音乐理论性、知识性、技术性及应用性为一体，是学习相关音乐课程的基础，对提高学生的综合音乐素质起着重要的作用。",
+   "classId": "003346$1",
+   "courseSiteId": "196807",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196807",
+   "fetchedAt": "2026-09-09T07:20:34Z"
+  },
+  {
+   "courseId": "253687",
+   "courseName": "播音主持创作实践",
+   "courseNameIdentity": "播音主持创作实践（1）",
+   "englishName": "Practice of Announcing and Anchoring in TV Programs",
+   "credits": 3,
+   "description": "本课程为播音主持专业学生的专业实践课，主要进行新闻节目的播音主持实践练习。包括现场报道、新闻播音、新闻评论等内容",
+   "classId": "003561$1",
+   "courseSiteId": "196808",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196808",
+   "fetchedAt": "2026-09-09T07:20:34Z"
+  },
+  {
+   "courseId": "253793",
+   "courseName": "播音主持创作基础Ⅰ",
+   "courseNameIdentity": "播音主持创作基础Ⅰ",
+   "credits": 3,
+   "classId": "003453$1",
+   "courseSiteId": "196809",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196809",
+   "fetchedAt": "2026-09-09T07:20:35Z"
   },
   {
    "courseId": "254319",
@@ -1054,6 +1148,52 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196740",
    "fetchedAt": "2026-09-04T13:01:42Z"
+  },
+  {
+   "courseId": "264440",
+   "courseName": "表演技巧",
+   "courseNameIdentity": "表演技巧（1）",
+   "englishName": "Acting Skill",
+   "credits": 2,
+   "description": "该课程主要是进行基础的表演技巧训练，帮助学生更快的适应舞台状态。",
+   "classId": "003453$1",
+   "courseSiteId": "196810",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196810",
+   "fetchedAt": "2026-09-09T07:20:35Z"
+  },
+  {
+   "courseId": "264470",
+   "courseName": "视唱练耳（1）3学分",
+   "courseNameIdentity": "视唱练耳（1）3学分",
+   "credits": 3,
+   "classId": "003770$1",
+   "courseSiteId": "196811",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196811",
+   "fetchedAt": "2026-09-09T07:20:36Z"
+  },
+  {
+   "courseId": "264495",
+   "courseName": "视唱练耳（3）3学分",
+   "courseNameIdentity": "视唱练耳（3）3学分",
+   "credits": 3,
+   "classId": "003766$1",
+   "courseSiteId": "196812",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196812",
+   "fetchedAt": "2026-09-09T07:20:36Z"
+  },
+  {
+   "courseId": "264511",
+   "courseName": "思维训练与口语表达（1）",
+   "courseNameIdentity": "思维训练与口语表达（1）",
+   "credits": 3,
+   "classId": "005789$1",
+   "courseSiteId": "196813",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196813",
+   "fetchedAt": "2026-09-09T07:20:37Z"
   },
   {
    "courseId": "264683",
