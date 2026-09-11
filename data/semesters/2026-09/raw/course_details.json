@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-09T14:57:30Z",
+ "fetchedAt": "2026-09-11T04:25:28Z",
  "courses": [
   {
    "courseId": "002166",
@@ -1022,6 +1022,19 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192318",
    "fetchedAt": "2026-07-23T09:50:12Z"
+  },
+  {
+   "courseId": "261127",
+   "courseName": "波谱解析",
+   "courseNameIdentity": "波谱解析",
+   "englishName": "Spectra Analysis",
+   "credits": 2,
+   "description": "《波谱解析》是化学专业学生在掌握《有机化学》、《分析化学》等课程知识后开设的一门专业主干课，该课程内容主要包括：有机质谱、核磁共振氢谱、核磁共振碳谱、红外和拉曼光谱、紫外和荧光光谱的基本原理、仪器简介与实验技术、基本规律与影响因素、谱图解析的基本程序与应用，以及谱图的综合解析。通过本课程的学习使学生了解波谱分析法的概念、作用以及各波谱之间的互相联系；掌握各分析法的基本原理和谱图特征；掌握应用四大波谱进行结构解析的基本程序；了解有关的实验技术；培养并提高学生的识谱能力、综合运用所学波谱知识解决有机化合物结构表征问题的能力，为学生后续课程学习、毕业论文（设计）和研发工作奠定良好的理论基础。",
+   "classId": "006037$1",
+   "courseSiteId": "191574",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=191574",
+   "fetchedAt": "2026-09-11T04:25:28Z"
   },
   {
    "courseId": "262004",
