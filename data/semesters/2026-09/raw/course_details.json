@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-12T04:03:41Z",
+ "fetchedAt": "2026-09-12T07:14:29Z",
  "courses": [
   {
    "courseId": "002166",
@@ -243,7 +243,7 @@
    "courseSiteId": "195292",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195292",
-   "fetchedAt": "2026-09-05T06:32:29Z"
+   "fetchedAt": "2026-09-12T07:14:22Z"
   },
   {
    "courseId": "251271",
@@ -2034,7 +2034,7 @@
    "courseSiteId": "195638",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195638",
-   "fetchedAt": "2026-09-05T06:32:30Z"
+   "fetchedAt": "2026-09-12T07:14:23Z"
   },
   {
    "courseId": "268371",
@@ -2045,7 +2045,7 @@
    "courseSiteId": "195577",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195577",
-   "fetchedAt": "2026-09-05T06:32:30Z"
+   "fetchedAt": "2026-09-12T07:14:23Z"
   },
   {
    "courseId": "269196",
@@ -2056,7 +2056,7 @@
    "courseSiteId": "195221",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195221",
-   "fetchedAt": "2026-09-05T06:32:31Z"
+   "fetchedAt": "2026-09-12T07:14:24Z"
   },
   {
    "courseId": "269327",
@@ -2069,7 +2069,7 @@
    "courseSiteId": "192741",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192741",
-   "fetchedAt": "2026-09-05T06:32:31Z"
+   "fetchedAt": "2026-09-12T07:14:24Z"
   },
   {
    "courseId": "269553",
@@ -2080,7 +2080,7 @@
    "courseSiteId": "195578",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195578",
-   "fetchedAt": "2026-09-05T06:32:31Z"
+   "fetchedAt": "2026-09-12T07:14:25Z"
   },
   {
    "courseId": "269557",
@@ -2091,7 +2091,7 @@
    "courseSiteId": "195611",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195611",
-   "fetchedAt": "2026-09-05T06:32:32Z"
+   "fetchedAt": "2026-09-12T07:14:25Z"
   },
   {
    "courseId": "269558",
@@ -2102,7 +2102,7 @@
    "courseSiteId": "195583",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195583",
-   "fetchedAt": "2026-09-05T06:32:32Z"
+   "fetchedAt": "2026-09-12T07:14:26Z"
   },
   {
    "courseId": "269559",
@@ -2115,7 +2115,7 @@
    "courseSiteId": "195553",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195553",
-   "fetchedAt": "2026-09-05T06:32:33Z"
+   "fetchedAt": "2026-09-12T07:14:26Z"
   },
   {
    "courseId": "269562",
@@ -2126,7 +2126,7 @@
    "courseSiteId": "195637",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195637",
-   "fetchedAt": "2026-09-05T06:32:33Z"
+   "fetchedAt": "2026-09-12T07:14:27Z"
   },
   {
    "courseId": "269565",
@@ -2137,7 +2137,7 @@
    "courseSiteId": "195596",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195596",
-   "fetchedAt": "2026-09-05T06:32:34Z"
+   "fetchedAt": "2026-09-12T07:14:27Z"
   },
   {
    "courseId": "269566",
@@ -2159,7 +2159,7 @@
    "courseSiteId": "195571",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195571",
-   "fetchedAt": "2026-09-05T06:32:35Z"
+   "fetchedAt": "2026-09-12T07:14:28Z"
   },
   {
    "courseId": "269628",
@@ -2194,7 +2194,7 @@
    "courseSiteId": "193937",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193937",
-   "fetchedAt": "2026-09-05T06:32:36Z"
+   "fetchedAt": "2026-09-12T07:14:28Z"
   },
   {
    "courseId": "292024",
@@ -2205,7 +2205,7 @@
    "courseSiteId": "195658",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195658",
-   "fetchedAt": "2026-09-05T06:32:36Z"
+   "fetchedAt": "2026-09-12T07:14:29Z"
   }
  ]
 }
