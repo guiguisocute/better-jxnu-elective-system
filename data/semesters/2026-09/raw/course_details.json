@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-10-25T14:57:49Z",
+ "fetchedAt": "2026-10-25T16:03:49Z",
  "courses": [
   {
    "courseId": "001025",
@@ -3185,7 +3185,7 @@
    "courseSiteId": "196784",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196784",
-   "fetchedAt": "2026-09-11T14:09:41Z"
+   "fetchedAt": "2026-10-25T16:03:35Z"
   },
   {
    "courseId": "265912",
@@ -3198,7 +3198,7 @@
    "courseSiteId": "196785",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196785",
-   "fetchedAt": "2026-09-11T14:09:42Z"
+   "fetchedAt": "2026-10-25T16:03:36Z"
   },
   {
    "courseId": "265925",
@@ -3211,7 +3211,7 @@
    "courseSiteId": "196786",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196786",
-   "fetchedAt": "2026-09-11T14:09:42Z"
+   "fetchedAt": "2026-10-25T16:03:36Z"
   },
   {
    "courseId": "265936",
@@ -3222,7 +3222,7 @@
    "courseSiteId": "196787",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196787",
-   "fetchedAt": "2026-09-11T14:09:43Z"
+   "fetchedAt": "2026-10-25T16:03:37Z"
   },
   {
    "courseId": "265957",
@@ -3235,7 +3235,7 @@
    "courseSiteId": "196797",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196797",
-   "fetchedAt": "2026-09-14T16:48:30Z"
+   "fetchedAt": "2026-10-25T16:03:37Z"
   },
   {
    "courseId": "266095",
@@ -3248,7 +3248,7 @@
    "courseSiteId": "193940",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193940",
-   "fetchedAt": "2026-09-12T04:03:39Z"
+   "fetchedAt": "2026-10-25T16:03:38Z"
   },
   {
    "courseId": "266172",
@@ -3274,7 +3274,7 @@
    "courseSiteId": "191321",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=191321",
-   "fetchedAt": "2026-09-12T04:03:40Z"
+   "fetchedAt": "2026-10-25T16:03:39Z"
   },
   {
    "courseId": "266336",
@@ -3288,6 +3288,30 @@
    "fetchedAt": "2026-07-23T07:46:05Z"
   },
   {
+   "courseId": "267294",
+   "courseName": "软件需求工程与实践",
+   "courseNameIdentity": "软件需求工程方法与实践",
+   "credits": 3,
+   "classId": "20260076",
+   "courseSiteId": "197349",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197349",
+   "fetchedAt": "2026-10-25T16:03:39Z"
+  },
+  {
+   "courseId": "268190",
+   "courseName": "明辨性思维",
+   "courseNameIdentity": "明辨性思维（EI）",
+   "englishName": "Critical Thinking",
+   "credits": 3,
+   "description": "This course teaches the basics of systematic reasoning and its use as a tool for critical thinking. With practice, these tools can be used in every aspect of your daily life to make you a more carefu",
+   "classId": "20260005",
+   "courseSiteId": "193504",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193504",
+   "fetchedAt": "2026-10-25T16:03:40Z"
+  },
+  {
    "courseId": "268364",
    "courseName": "基础会计学",
    "courseNameIdentity": "基础会计学（双专）",
@@ -3296,7 +3320,7 @@
    "courseSiteId": "195558",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195558",
-   "fetchedAt": "2026-09-12T04:03:40Z"
+   "fetchedAt": "2026-10-25T16:03:40Z"
   },
   {
    "courseId": "268365",
@@ -3307,7 +3331,7 @@
    "courseSiteId": "195556",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195556",
-   "fetchedAt": "2026-09-12T04:03:41Z"
+   "fetchedAt": "2026-10-25T16:03:41Z"
   },
   {
    "courseId": "268368",
@@ -3318,7 +3342,7 @@
    "courseSiteId": "195547",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195547",
-   "fetchedAt": "2026-09-12T04:03:41Z"
+   "fetchedAt": "2026-10-25T16:03:41Z"
   },
   {
    "courseId": "268369",
@@ -3329,7 +3353,7 @@
    "courseSiteId": "195638",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195638",
-   "fetchedAt": "2026-09-12T07:14:23Z"
+   "fetchedAt": "2026-10-25T16:03:42Z"
   },
   {
    "courseId": "268371",
@@ -3340,7 +3364,7 @@
    "courseSiteId": "195577",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195577",
-   "fetchedAt": "2026-09-12T07:14:23Z"
+   "fetchedAt": "2026-10-25T16:03:42Z"
   },
   {
    "courseId": "269196",
@@ -3351,7 +3375,7 @@
    "courseSiteId": "195221",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195221",
-   "fetchedAt": "2026-09-12T07:14:24Z"
+   "fetchedAt": "2026-10-25T16:03:43Z"
   },
   {
    "courseId": "269327",
@@ -3364,7 +3388,7 @@
    "courseSiteId": "192741",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192741",
-   "fetchedAt": "2026-09-12T07:14:24Z"
+   "fetchedAt": "2026-10-25T16:03:43Z"
   },
   {
    "courseId": "269553",
@@ -3375,7 +3399,7 @@
    "courseSiteId": "195578",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195578",
-   "fetchedAt": "2026-09-12T07:14:25Z"
+   "fetchedAt": "2026-10-25T16:03:44Z"
   },
   {
    "courseId": "269557",
@@ -3386,7 +3410,7 @@
    "courseSiteId": "195611",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195611",
-   "fetchedAt": "2026-09-12T07:14:25Z"
+   "fetchedAt": "2026-10-25T16:03:44Z"
   },
   {
    "courseId": "269558",
@@ -3397,7 +3421,7 @@
    "courseSiteId": "195583",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195583",
-   "fetchedAt": "2026-09-12T07:14:26Z"
+   "fetchedAt": "2026-10-25T16:03:44Z"
   },
   {
    "courseId": "269559",
@@ -3410,7 +3434,7 @@
    "courseSiteId": "195553",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195553",
-   "fetchedAt": "2026-09-12T07:14:26Z"
+   "fetchedAt": "2026-10-25T16:03:45Z"
   },
   {
    "courseId": "269562",
@@ -3421,7 +3445,7 @@
    "courseSiteId": "195637",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195637",
-   "fetchedAt": "2026-09-12T07:14:27Z"
+   "fetchedAt": "2026-10-25T16:03:45Z"
   },
   {
    "courseId": "269565",
@@ -3432,7 +3456,7 @@
    "courseSiteId": "195596",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195596",
-   "fetchedAt": "2026-09-12T07:14:27Z"
+   "fetchedAt": "2026-10-25T16:03:46Z"
   },
   {
    "courseId": "269566",
@@ -3454,7 +3478,7 @@
    "courseSiteId": "195571",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195571",
-   "fetchedAt": "2026-09-12T07:14:28Z"
+   "fetchedAt": "2026-10-25T16:03:46Z"
   },
   {
    "courseId": "269628",
@@ -3467,7 +3491,7 @@
    "courseSiteId": "192756",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192756",
-   "fetchedAt": "2026-09-13T04:33:30Z"
+   "fetchedAt": "2026-10-25T16:03:47Z"
   },
   {
    "courseId": "269729",
@@ -3478,7 +3502,18 @@
    "courseSiteId": "195614",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195614",
-   "fetchedAt": "2026-09-05T06:32:35Z"
+   "fetchedAt": "2026-10-25T16:03:47Z"
+  },
+  {
+   "courseId": "290018",
+   "courseName": "程序思维实训",
+   "courseNameIdentity": "程序思维实训",
+   "credits": 2,
+   "classId": "20260075",
+   "courseSiteId": "197224",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197224",
+   "fetchedAt": "2026-10-25T16:03:48Z"
   },
   {
    "courseId": "292002",
@@ -3489,7 +3524,7 @@
    "courseSiteId": "193937",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193937",
-   "fetchedAt": "2026-09-12T07:14:28Z"
+   "fetchedAt": "2026-10-25T16:03:48Z"
   },
   {
    "courseId": "292024",
@@ -3500,7 +3535,7 @@
    "courseSiteId": "195658",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195658",
-   "fetchedAt": "2026-09-12T07:14:29Z"
+   "fetchedAt": "2026-10-25T16:03:49Z"
   }
  ]
 }
