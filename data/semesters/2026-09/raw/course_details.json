@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-10-25T11:39:50Z",
+ "fetchedAt": "2026-10-25T12:46:49Z",
  "courses": [
   {
    "courseId": "001025",
@@ -2037,6 +2037,69 @@
    "fetchedAt": "2026-10-25T11:39:50Z"
   },
   {
+   "courseId": "262191",
+   "courseName": "高级语言程序设计（理论）",
+   "courseNameIdentity": "高级语言程序设计（理论）",
+   "englishName": "Advanced Language Programming",
+   "credits": 4,
+   "description": "本课程是为计算机信息工程学院所有专业学生开设的一门程序设计语言的必修专业基础课程，讲述C语言程序设计及基础算法设计。课程的教学目的在于培养学生学会分析问题的方法和基本问题的解决能力，初步了解程序设计的技巧和方法、掌握C语言的基本内容及程序设计的基本方法与编程技巧，培养学生掌握用计算机处理问题的思维方法，为进一步学习和应用计算机语言打下坚实的基础。并能够运用Visual C++ 6.0 Code::Blocks集成开发工具编写一些小程序，为后续开发程序和后继课程的学习打下一个坚实的基础。",
+   "classId": "20260075",
+   "courseSiteId": "197260",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197260",
+   "fetchedAt": "2026-10-25T12:46:35Z"
+  },
+  {
+   "courseId": "262192",
+   "courseName": "高级语言程序设计（实验）",
+   "courseNameIdentity": "高级语言程序设计（实验）",
+   "englishName": "Advanced Language Programming（Experiment）",
+   "credits": 1,
+   "description": "本课程是为计算机信息工程学院所有专业学生开设的一门程序设计语言的必修专业基础课程，讲述C语言程序设计及基础算法设计。课程的教学目的在于培养学生学会分析问题的方法和基本问题的解决能力，初步了解程序设计的技巧和方法、掌握C语言的基本内容及程序设计的基本方法与编程技巧，培养学生掌握用计算机处理问题的思维方法，为进一步学习和应用计算机语言打下坚实的基础。并能够运用CodeBlocks集成开发工具编写一些小程序，为后续开发程序和后继课程的学习打下一个坚实的基础。本课程是《高级语言程序设计》课程配套实验课程。",
+   "classId": "20260075",
+   "courseSiteId": "197327",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197327",
+   "fetchedAt": "2026-10-25T12:46:36Z"
+  },
+  {
+   "courseId": "262194",
+   "courseName": "面向对象程序设计（理论）",
+   "courseNameIdentity": "面向对象程序设计（理论）",
+   "englishName": "Oriented-Object Programming",
+   "credits": 4,
+   "description": "主要涉及四部分内容：1、从C过渡到Java；2、结构化程序设计方法和面向对象程序设计方法；3、Java对面向对象方法的支撑；4、面向对象应用框架，包括多线程、异常处理、I/O流、GUI编程、网络编程等。",
+   "classId": "20250113",
+   "courseSiteId": "197262",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197262",
+   "fetchedAt": "2026-10-25T12:46:36Z"
+  },
+  {
+   "courseId": "262195",
+   "courseName": "面向对象程序设计（实验）",
+   "courseNameIdentity": "面向对象程序设计（实验）",
+   "englishName": "Oriented-Object Programming (experiment)",
+   "credits": 1,
+   "description": "主要涉及四部分内容：1、从C过渡到Java；2、结构化程序设计方法和面向对象程序设计方法；3、Java对面向对象方法的支撑；4、面向对象应用框架，包括多线程、异常处理、I/O流、GUI编程、网络编程等。",
+   "classId": "20250113",
+   "courseSiteId": "197328",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197328",
+   "fetchedAt": "2026-10-25T12:46:37Z"
+  },
+  {
+   "courseId": "262357",
+   "courseName": "区块链技术",
+   "courseNameIdentity": "区块链技术",
+   "credits": 3,
+   "classId": "20250117",
+   "courseSiteId": "197329",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197329",
+   "fetchedAt": "2026-10-25T12:46:37Z"
+  },
+  {
    "courseId": "262362",
    "courseName": "数据科学导论（理论）",
    "courseNameIdentity": "数据科学导论（理论）",
@@ -2047,7 +2110,29 @@
    "courseSiteId": "194035",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194035",
-   "fetchedAt": "2026-09-11T13:05:09Z"
+   "fetchedAt": "2026-10-25T12:46:38Z"
+  },
+  {
+   "courseId": "262364",
+   "courseName": "Python程序设计（理论）",
+   "courseNameIdentity": "Python程序设计（理论）",
+   "credits": 2,
+   "classId": "002734H1",
+   "courseSiteId": "197330",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197330",
+   "fetchedAt": "2026-10-25T12:46:38Z"
+  },
+  {
+   "courseId": "262365",
+   "courseName": "Python程序设计（实验）",
+   "courseNameIdentity": "Python程序设计（实验）",
+   "credits": 1,
+   "classId": "002734H2",
+   "courseSiteId": "197331",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197331",
+   "fetchedAt": "2026-10-25T12:46:39Z"
   },
   {
    "courseId": "262379",
@@ -2060,7 +2145,84 @@
    "courseSiteId": "195544",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195544",
-   "fetchedAt": "2026-09-12T04:03:33Z"
+   "fetchedAt": "2026-10-25T12:46:39Z"
+  },
+  {
+   "courseId": "262462",
+   "courseName": "信息科学与技术（实验）",
+   "courseNameIdentity": "信息科学与技术（实验）",
+   "credits": 1,
+   "classId": "20250113",
+   "courseSiteId": "197332",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197332",
+   "fetchedAt": "2026-10-25T12:46:39Z"
+  },
+  {
+   "courseId": "262478",
+   "courseName": "算法设计与分析（理论）",
+   "courseNameIdentity": "算法设计与分析（理论）",
+   "credits": 2,
+   "classId": "20240094",
+   "courseSiteId": "197333",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197333",
+   "fetchedAt": "2026-10-25T12:46:40Z"
+  },
+  {
+   "courseId": "262479",
+   "courseName": "算法设计与分析（实验）",
+   "courseNameIdentity": "算法设计与分析（实验）",
+   "credits": 1,
+   "classId": "20240094",
+   "courseSiteId": "197334",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197334",
+   "fetchedAt": "2026-10-25T12:46:40Z"
+  },
+  {
+   "courseId": "262484",
+   "courseName": "区块链原理与技术",
+   "courseNameIdentity": "区块链原理与技术",
+   "credits": 3,
+   "classId": "20240092",
+   "courseSiteId": "197335",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197335",
+   "fetchedAt": "2026-10-25T12:46:41Z"
+  },
+  {
+   "courseId": "262500",
+   "courseName": "人工神经网络（3分）",
+   "courseNameIdentity": "人工神经网络（3分）",
+   "credits": 3,
+   "classId": "20240093",
+   "courseSiteId": "197336",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197336",
+   "fetchedAt": "2026-10-25T12:46:41Z"
+  },
+  {
+   "courseId": "262512",
+   "courseName": "高级语言程序设计（C语言）",
+   "courseNameIdentity": "高级语言程序设计（C语言）",
+   "credits": 3,
+   "classId": "20240093",
+   "courseSiteId": "197337",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197337",
+   "fetchedAt": "2026-10-25T12:46:42Z"
+  },
+  {
+   "courseId": "262513",
+   "courseName": "数据库系统设计",
+   "courseNameIdentity": "数据库系统设计",
+   "credits": 3,
+   "classId": "20240093",
+   "courseSiteId": "197338",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197338",
+   "fetchedAt": "2026-10-25T12:46:42Z"
   },
   {
    "courseId": "262519",
@@ -2073,7 +2235,7 @@
    "courseSiteId": "194036",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194036",
-   "fetchedAt": "2026-09-11T13:05:09Z"
+   "fetchedAt": "2026-10-25T12:46:43Z"
   },
   {
    "courseId": "262569",
@@ -2084,7 +2246,7 @@
    "courseSiteId": "192270",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192270",
-   "fetchedAt": "2026-09-14T10:15:30Z"
+   "fetchedAt": "2026-10-25T12:46:43Z"
   },
   {
    "courseId": "262572",
@@ -2095,7 +2257,29 @@
    "courseSiteId": "195550",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195550",
-   "fetchedAt": "2026-09-12T04:03:34Z"
+   "fetchedAt": "2026-10-25T12:46:44Z"
+  },
+  {
+   "courseId": "262573",
+   "courseName": "网络与数据安全实战",
+   "courseNameIdentity": "网络与数据安全实战",
+   "credits": 3,
+   "classId": "003550$1",
+   "courseSiteId": "197339",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197339",
+   "fetchedAt": "2026-10-25T12:46:44Z"
+  },
+  {
+   "courseId": "262574",
+   "courseName": "数据分析应用实战",
+   "courseNameIdentity": "数据分析应用实战",
+   "credits": 3,
+   "classId": "002261$1",
+   "courseSiteId": "197340",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197340",
+   "fetchedAt": "2026-10-25T12:46:45Z"
   },
   {
    "courseId": "263246",
@@ -2108,7 +2292,7 @@
    "courseSiteId": "192966",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192966",
-   "fetchedAt": "2026-09-12T04:03:34Z"
+   "fetchedAt": "2026-10-25T12:46:45Z"
   },
   {
    "courseId": "263376",
@@ -2124,6 +2308,18 @@
    "fetchedAt": "2026-07-23T09:50:16Z"
   },
   {
+   "courseId": "263409",
+   "courseName": "空间规划GIS与大数据应用",
+   "courseNameIdentity": "空间规划GIS与大数据应用",
+   "englishName": "GIS and Big Data Application in Spatial Planning",
+   "credits": 3,
+   "classId": "004920$1",
+   "courseSiteId": "193267",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193267",
+   "fetchedAt": "2026-10-25T12:46:46Z"
+  },
+  {
    "courseId": "264127",
    "courseName": "新媒体概论",
    "courseNameIdentity": "新媒体概论",
@@ -2134,7 +2330,20 @@
    "courseSiteId": "195636",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195636",
-   "fetchedAt": "2026-09-12T04:03:35Z"
+   "fetchedAt": "2026-10-25T12:46:46Z"
+  },
+  {
+   "courseId": "264207",
+   "courseName": "摄影",
+   "courseNameIdentity": "摄影",
+   "englishName": "Photography",
+   "credits": 3,
+   "description": "本课程以数字化单镜头反光相机的认知、调试及基本操作为基础，以数码摄影构图技法为主要内容，重点在取景和构图，并介绍静物、风光、人像和新闻摄影等多个常见类别的创作原则。",
+   "classId": "005241$1",
+   "courseSiteId": "197341",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197341",
+   "fetchedAt": "2026-10-25T12:46:47Z"
   },
   {
    "courseId": "264248",
@@ -2147,7 +2356,7 @@
    "courseSiteId": "196740",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196740",
-   "fetchedAt": "2026-09-11T13:05:10Z"
+   "fetchedAt": "2026-10-25T12:46:47Z"
   },
   {
    "courseId": "264440",
@@ -2160,18 +2369,40 @@
    "courseSiteId": "196810",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196810",
-   "fetchedAt": "2026-09-16T07:25:34Z"
+   "fetchedAt": "2026-10-25T12:46:48Z"
   },
   {
    "courseId": "264470",
    "courseName": "视唱练耳（1）3学分",
    "courseNameIdentity": "视唱练耳（1）3学分",
    "credits": 3,
-   "classId": "003770$1",
-   "courseSiteId": "196811",
+   "classId": "003766$1",
+   "courseSiteId": "197342",
    "semester": "2026/9/1 0:00:00",
-   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196811",
-   "fetchedAt": "2026-09-16T07:25:35Z"
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197342",
+   "fetchedAt": "2026-10-25T12:46:48Z"
+  },
+  {
+   "courseId": "264478",
+   "courseName": "播音主持语音与发声（1）",
+   "courseNameIdentity": "播音主持语音与发声（1）",
+   "credits": 3,
+   "classId": "20260159",
+   "courseSiteId": "197343",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197343",
+   "fetchedAt": "2026-10-25T12:46:49Z"
+  },
+  {
+   "courseId": "264479",
+   "courseName": "播音主持导论",
+   "courseNameIdentity": "播音主持导论",
+   "credits": 2,
+   "classId": "20260159",
+   "courseSiteId": "197344",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197344",
+   "fetchedAt": "2026-10-25T12:46:49Z"
   },
   {
    "courseId": "264495",
