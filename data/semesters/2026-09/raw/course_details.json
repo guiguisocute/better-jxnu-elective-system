@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-10-25T08:18:51Z",
+ "fetchedAt": "2026-10-25T09:26:49Z",
  "courses": [
   {
    "courseId": "001025",
@@ -804,6 +804,182 @@
    "fetchedAt": "2026-10-25T08:18:51Z"
   },
   {
+   "courseId": "2530065",
+   "courseName": "中国舞蹈史",
+   "courseNameIdentity": "中国舞蹈史",
+   "credits": 2,
+   "classId": "20240141",
+   "courseSiteId": "197280",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197280",
+   "fetchedAt": "2026-10-25T09:26:34Z"
+  },
+  {
+   "courseId": "2530066",
+   "courseName": "舞蹈经典作品鉴赏",
+   "courseNameIdentity": "舞蹈经典作品鉴赏",
+   "credits": 2,
+   "classId": "20240141",
+   "courseSiteId": "197281",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197281",
+   "fetchedAt": "2026-10-25T09:26:34Z"
+  },
+  {
+   "courseId": "2530072",
+   "courseName": "毕业作品实践",
+   "courseNameIdentity": "毕业作品实践",
+   "credits": 2,
+   "classId": "003461$1",
+   "courseSiteId": "197282",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197282",
+   "fetchedAt": "2026-10-25T09:26:35Z"
+  },
+  {
+   "courseId": "2530078",
+   "courseName": "综合实践课Ⅲ",
+   "courseNameIdentity": "综合实践课Ⅲ",
+   "credits": 1,
+   "classId": "20250165",
+   "courseSiteId": "197283",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197283",
+   "fetchedAt": "2026-10-25T09:26:35Z"
+  },
+  {
+   "courseId": "2530080",
+   "courseName": "综合实践课Ⅴ",
+   "courseNameIdentity": "综合实践课Ⅴ",
+   "credits": 1,
+   "classId": "20240139",
+   "courseSiteId": "197284",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197284",
+   "fetchedAt": "2026-10-25T09:26:36Z"
+  },
+  {
+   "courseId": "2530083",
+   "courseName": "音乐综合素养Ⅰ",
+   "courseNameIdentity": "音乐综合素养Ⅰ",
+   "credits": 2,
+   "classId": "20250167",
+   "courseSiteId": "197285",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197285",
+   "fetchedAt": "2026-10-25T09:26:36Z"
+  },
+  {
+   "courseId": "2530101",
+   "courseName": "表演艺术理论Ⅰ",
+   "courseNameIdentity": "表演艺术理论Ⅰ",
+   "credits": 2,
+   "classId": "20260158",
+   "courseSiteId": "197286",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197286",
+   "fetchedAt": "2026-10-25T09:26:37Z"
+  },
+  {
+   "courseId": "2530102",
+   "courseName": "表演肢体塑造Ⅰ（3分）",
+   "courseNameIdentity": "表演肢体塑造Ⅰ（3分）",
+   "credits": 3,
+   "classId": "20260158",
+   "courseSiteId": "197287",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197287",
+   "fetchedAt": "2026-10-25T09:26:37Z"
+  },
+  {
+   "courseId": "2530103",
+   "courseName": "声乐基础Ⅰ",
+   "courseNameIdentity": "声乐基础Ⅰ",
+   "credits": 2,
+   "classId": "20260158",
+   "courseSiteId": "197115",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197115",
+   "fetchedAt": "2026-10-25T09:26:38Z"
+  },
+  {
+   "courseId": "2530104",
+   "courseName": "舞台语言基础Ⅰ（3分）",
+   "courseNameIdentity": "舞台语言基础Ⅰ（3分）",
+   "credits": 3,
+   "classId": "20260158",
+   "courseSiteId": "197288",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197288",
+   "fetchedAt": "2026-10-25T09:26:38Z"
+  },
+  {
+   "courseId": "2530105",
+   "courseName": "戏剧艺术史Ⅰ（2分）",
+   "courseNameIdentity": "戏剧艺术史Ⅰ（2分）",
+   "credits": 2,
+   "classId": "20260158",
+   "courseSiteId": "197289",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197289",
+   "fetchedAt": "2026-10-25T09:26:39Z"
+  },
+  {
+   "courseId": "2530107",
+   "courseName": "表演基础Ⅰ7分",
+   "courseNameIdentity": "表演基础Ⅰ7分",
+   "credits": 7,
+   "classId": "20260158",
+   "courseSiteId": "197248",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197248",
+   "fetchedAt": "2026-10-25T09:26:39Z"
+  },
+  {
+   "courseId": "2530109",
+   "courseName": "表演创作Ⅰ（7分）",
+   "courseNameIdentity": "表演创作Ⅰ（7分）",
+   "credits": 7,
+   "classId": "20250165",
+   "courseSiteId": "197290",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197290",
+   "fetchedAt": "2026-10-25T09:26:40Z"
+  },
+  {
+   "courseId": "2530110",
+   "courseName": "台词Ⅰ（3分）",
+   "courseNameIdentity": "台词Ⅰ（3分）",
+   "credits": 3,
+   "classId": "20250165",
+   "courseSiteId": "197291",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197291",
+   "fetchedAt": "2026-10-25T09:26:40Z"
+  },
+  {
+   "courseId": "2530115",
+   "courseName": "表演创作Ⅲ（7分）",
+   "courseNameIdentity": "表演创作Ⅲ（7分）",
+   "credits": 7,
+   "classId": "20240139",
+   "courseSiteId": "197292",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197292",
+   "fetchedAt": "2026-10-25T09:26:41Z"
+  },
+  {
+   "courseId": "2530117",
+   "courseName": "表演教学实践Ⅰ",
+   "courseNameIdentity": "表演教学实践Ⅰ",
+   "credits": 3,
+   "classId": "20240139",
+   "courseSiteId": "197293",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197293",
+   "fetchedAt": "2026-10-25T09:26:42Z"
+  },
+  {
    "courseId": "2530118",
    "courseName": "影视表演创作（3分）",
    "courseNameIdentity": "影视表演创作（3分）",
@@ -812,7 +988,7 @@
    "courseSiteId": "196803",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196803",
-   "fetchedAt": "2026-09-16T07:25:31Z"
+   "fetchedAt": "2026-10-25T09:26:42Z"
   },
   {
    "courseId": "2530119",
@@ -823,7 +999,79 @@
    "courseSiteId": "196804",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196804",
-   "fetchedAt": "2026-09-16T07:25:31Z"
+   "fetchedAt": "2026-10-25T09:26:43Z"
+  },
+  {
+   "courseId": "2530158",
+   "courseName": "基础和声（2）",
+   "courseNameIdentity": "基础和声（2）",
+   "credits": 2,
+   "classId": "20250168",
+   "courseSiteId": "197294",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197294",
+   "fetchedAt": "2026-10-25T09:26:43Z"
+  },
+  {
+   "courseId": "253025",
+   "courseName": "舞蹈创编",
+   "courseNameIdentity": "舞蹈创编（1）",
+   "englishName": "Choreography of dance",
+   "credits": 2,
+   "description": "——积极研究当代舞蹈艺术的发展趋势，积极吸收各种舞蹈创作的先进经验，探索舞蹈艺术的开放性、实验性与当代审美文化及社会生活之间的联系，提高学生对当代生活的认知和现代舞蹈的创造性审美精神的理解，努力培养先进的舞蹈创作人才。 ——为培养符合当代文化市场需求的多功能复合型舞蹈艺术高级专业人才，在理论同实践紧密结合的原则指导下，将舞蹈编导的基础理论、基本技巧技法训练结合起来，融会贯通，提高学生专业素质，使",
+   "classId": "003607$1",
+   "courseSiteId": "197295",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197295",
+   "fetchedAt": "2026-10-25T09:26:44Z"
+  },
+  {
+   "courseId": "253074",
+   "courseName": "舞蹈创编",
+   "courseNameIdentity": "舞蹈创编",
+   "englishName": "Dance Choreography",
+   "credits": 2,
+   "description": "普通高校舞蹈教育主要以培养舞蹈素质全面的舞蹈教育人才为目的，所谓舞蹈素质全面，指的是既要有过硬的基本功和表演才能，又要有编舞、编剧及评论作品、研究舞蹈理论的能力，要求各方面能力比较突出，具有超出一般的才能。尤其在师范类院校培养的舞蹈教育工作者，毕业后进入学校工作，必然会面对中小学舞蹈的创作，因此对加强对教师创编能力和高度的培养，显得尤为重要。",
+   "classId": "003607$1",
+   "courseSiteId": "197296",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197296",
+   "fetchedAt": "2026-10-25T09:26:44Z"
+  },
+  {
+   "courseId": "2531000",
+   "courseName": "论文写作",
+   "courseNameIdentity": "论文写作",
+   "credits": 2,
+   "classId": "20230156",
+   "courseSiteId": "197297",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197297",
+   "fetchedAt": "2026-10-25T09:26:45Z"
+  },
+  {
+   "courseId": "253101",
+   "courseName": "艺术概论",
+   "courseNameIdentity": "艺术概论",
+   "englishName": "General Introduction to Arts",
+   "credits": 2,
+   "description": "本课程以艺术基本理论为主要内容，系统地讲述艺术理论的主要方面。通过对艺术理论的系统学习，同学们可以提升艺术基本理论素养，强化知识背景，促进理论联系艺术实践的运用能力。",
+   "classId": "20240141",
+   "courseSiteId": "197298",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197298",
+   "fetchedAt": "2026-10-25T09:26:45Z"
+  },
+  {
+   "courseId": "2531011",
+   "courseName": "江西传统音乐",
+   "courseNameIdentity": "江西传统音乐",
+   "credits": 2,
+   "classId": "20240142",
+   "courseSiteId": "197299",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197299",
+   "fetchedAt": "2026-10-25T09:26:46Z"
   },
   {
    "courseId": "2531017",
@@ -834,7 +1082,70 @@
    "courseSiteId": "196805",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196805",
-   "fetchedAt": "2026-09-16T07:25:32Z"
+   "fetchedAt": "2026-10-25T09:26:46Z"
+  },
+  {
+   "courseId": "2531028",
+   "courseName": "作品解析与改编（1）",
+   "courseNameIdentity": "作品解析与改编（1）",
+   "credits": 2,
+   "classId": "20250165",
+   "courseSiteId": "197300",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197300",
+   "fetchedAt": "2026-10-25T09:26:47Z"
+  },
+  {
+   "courseId": "253112",
+   "courseName": "综合实践课",
+   "courseNameIdentity": "综合实践课（1）",
+   "englishName": "College of music art practice",
+   "credits": 2,
+   "description": "学院高度重视学生艺术实践能力的培养与提升，不仅将实践类课程纳入学分管理，还开设了诸如乐队合奏课、室内乐重奏课、重唱课、民族室内乐训练、乐队排练，合唱团训练、瓷乐排练等课程，还连续多年积极参与国家教育部-财政部组织的江西高雅艺术进校园活动、与地方教育部门建立长期合作关系，为学生提供高水平的艺术实践平台。我院的各实践团体与国内外知名音乐院校和团体进行广泛交流，拓展学生的国内、国际视野。",
+   "classId": "20260158",
+   "courseSiteId": "197301",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197301",
+   "fetchedAt": "2026-10-25T09:26:47Z"
+  },
+  {
+   "courseId": "253114",
+   "courseName": "综合实践课",
+   "courseNameIdentity": "综合实践课（3）",
+   "englishName": "College of music art practice3",
+   "credits": 2,
+   "description": "学院高度重视学生艺术实践能力的培养与提升，不仅将实践类课程纳入学分管理，还开设了诸如乐队合奏课、室内乐重奏课、重唱课、民族室内乐训练、乐队排练，合唱团训练、瓷乐排练等课程，还连续多年积极参与国家教育部-财政部组织的江西高雅艺术进校园活动、与地方教育部门建立长期合作关系，为学生提供高水平的艺术实践平台。我院的各实践团体与国内外知名音乐院校和团体进行广泛交流，拓展学生的国内国际视野。",
+   "classId": "20250166",
+   "courseSiteId": "197302",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197302",
+   "fetchedAt": "2026-10-25T09:26:48Z"
+  },
+  {
+   "courseId": "253120",
+   "courseName": "新闻学概论",
+   "courseNameIdentity": "新闻学概论（2分）",
+   "englishName": "Journalism Conspectus",
+   "credits": 2,
+   "description": "本课程为播音与主持专业的专业基础理论课程。结合该专业所需的知识方向，主要讲授新闻学的基本知识和基础理论，揭示新闻及新闻传播活动的的基本规律；阐述新闻事业的基本功能，论述新闻工作的原则和业务基准等。",
+   "classId": "20250166",
+   "courseSiteId": "197303",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197303",
+   "fetchedAt": "2026-10-25T09:26:48Z"
+  },
+  {
+   "courseId": "253133",
+   "courseName": "综合实践课Ⅴ",
+   "courseNameIdentity": "综合实践课（5）",
+   "englishName": "College of music art practice5",
+   "credits": 2,
+   "description": "学院高度重视学生艺术实践能力的培养与提升，不仅将实践类课程纳入学分管理，还开设了诸如乐队合奏课、室内乐重奏课、重唱课、民族室内乐训练、乐队排练，合唱团训练、瓷乐排练等课程，还连续多年积极参与国家教育部-财政部组织的江西高雅艺术进校园活动、与地方教育部门建立长期合作关系，为学生提供高水平的艺术实践平台。我院的各实践团体与国内外知名音乐院校和团体进行广泛交流，拓展学生的国内、国际视野。",
+   "classId": "20240141",
+   "courseSiteId": "197304",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197304",
+   "fetchedAt": "2026-10-25T09:26:49Z"
   },
   {
    "courseId": "253313",
