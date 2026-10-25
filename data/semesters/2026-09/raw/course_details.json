@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-10-25T09:26:49Z",
+ "fetchedAt": "2026-10-25T10:32:51Z",
  "courses": [
   {
    "courseId": "001025",
@@ -1148,6 +1148,123 @@
    "fetchedAt": "2026-10-25T09:26:49Z"
   },
   {
+   "courseId": "253138",
+   "courseName": "综合实践课Ⅶ",
+   "courseNameIdentity": "综合实践课（7）",
+   "englishName": "College of music art practice7",
+   "credits": 2,
+   "description": "学院高度重视学生艺术实践能力的培养与提升，不仅将实践类课程纳入学分管理，还开设了诸如乐队合奏课、室内乐重奏课、重唱课、民族室内乐训练、乐队排练，合唱团训练、瓷乐排练等课程，还连续多年积极参与国家教育部-财政部组织的江西高雅艺术进校园活动、与地方教育部门建立长期合作关系，为学生提供高水平的艺术实践平台。我院的各实践团体与国内外知名音乐院校和团体进行广泛交流，拓展学生的国内、国际视野。",
+   "classId": "20230154",
+   "courseSiteId": "197305",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197305",
+   "fetchedAt": "2026-10-25T10:32:36Z"
+  },
+  {
+   "courseId": "253140",
+   "courseName": "基本乐理",
+   "courseNameIdentity": "基本乐理（1）",
+   "englishName": "JIBEN YUELI SHIYONG JIAOCHENG",
+   "credits": 2,
+   "description": "基本乐理作为学习音乐专业的一门课程，是学习音乐理论甚至整个音乐专业的基础，因为音乐是由多种不同要素组成的复杂体，所以这门课程就是解决和研究各种要素的基础知识的科目。 所谓音乐要素包括：乐音列、节奏、节拍、速度、力度、音程、和弦、调式、调性、曲调知识等，同时包括读写乐谱知识等。",
+   "classId": "20260161",
+   "courseSiteId": "197306",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197306",
+   "fetchedAt": "2026-10-25T10:32:36Z"
+  },
+  {
+   "courseId": "253166",
+   "courseName": "剧目排练",
+   "courseNameIdentity": "剧目排练（3）",
+   "englishName": "choreographic work rehearsal",
+   "credits": 2,
+   "description": "本课程是为进一步提高学生应用各门课程知识的能力，通过学习各舞种一些具有代表性的节目，获得舞台表演的基本知识，强化教学与实践的有机结合，培养学生的舞蹈表演能力。",
+   "classId": "003461$1",
+   "courseSiteId": "197307",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197307",
+   "fetchedAt": "2026-10-25T10:32:37Z"
+  },
+  {
+   "courseId": "253209",
+   "courseName": "中国音乐史及名作欣赏",
+   "courseNameIdentity": "中国音乐史及名作欣赏（1）",
+   "englishName": "China Music History and Appreciation（1）",
+   "credits": 2,
+   "description": "《中国音乐史及名作欣赏》是音乐学（音乐教育）的专业基础课程，它是普通高等学校音乐学本科专业的一门必修课，是为音乐类学生实施培养目标过程中的重要组成部分，也是音乐类毕业生必须具备的基本素养和整体要求。它是在原音乐教师教育课程体系中《中国音乐史》和《音乐欣赏》（中国音乐部分）两门课有机整合的基础上发展而成的新课程。其特点是将中国音乐作品的欣赏置于中国音乐历史文化的背景中进行，同时使中国音乐史的教学更直观形象，促进学生的知识结构、感知能力与思辨能力得到均衡发展。本课程在拓宽学生的音乐视野、提高音乐审美能力和分析能力、完善知识结构、树立辩证唯物史观、适应基础音乐教育的需要等方面，具有独特的价值。 《中国音乐史及名作欣赏（1）》首先讨论了关于音乐的起源问题，然后按照朝代的更迭对中国音乐在声、律、谱、器等诸方面进行了系统的介绍。涉及包括音乐文献、音乐考古、音乐文学、音乐教育、音乐美学、古谱学、乐律学等诸多分支学科的主要知识。",
+   "classId": "20250168",
+   "courseSiteId": "197308",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197308",
+   "fetchedAt": "2026-10-25T10:32:37Z"
+  },
+  {
+   "courseId": "253211",
+   "courseName": "外国音乐史及名作欣赏",
+   "courseNameIdentity": "外国音乐史及名作欣赏（1）",
+   "englishName": "Appreciation of foreign music history and masterpieces",
+   "credits": 2,
+   "description": "通过本课程的学习，使学生基本了解、掌握外国音乐发展的基本脉络、主要流派及代表人物的艺术特征。大致理解各时期的代表人物的主要艺术思想以及在外国音乐发展过程中的贡献包括主要内容、方式、方法等，结合当今的音乐发展现状，引导学生掌握前人的技术、方法，培养学生在音乐学术研究中的思维和分析能力。",
+   "classId": "20240142",
+   "courseSiteId": "197309",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197309",
+   "fetchedAt": "2026-10-25T10:32:38Z"
+  },
+  {
+   "courseId": "253263",
+   "courseName": "音乐美学",
+   "courseNameIdentity": "音乐美学",
+   "englishName": "Aesthetics",
+   "credits": 2,
+   "description": "该课程主要研究音乐构成材料，音乐组织结构，音乐表现形式等美学特征，并且全面分析音乐表现内容，音乐表演创作，音乐欣赏接收过程中呈现出的美学规律与社会文化性艺术特征。",
+   "classId": "20240144",
+   "courseSiteId": "197155",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197155",
+   "fetchedAt": "2026-10-25T10:32:38Z"
+  },
+  {
+   "courseId": "253298",
+   "courseName": "合唱与指挥",
+   "courseNameIdentity": "合唱与指挥（2）",
+   "englishName": "Chorus and Conducting",
+   "credits": 2,
+   "description": "高等师范院校合唱指挥课程是高等师范教育音乐教育专业必须要学习的课程，在高等师范的音乐教育专业的课程之中占有十分重要的地位，对于合唱指挥课程的学习，可以提高我国未来中小学音乐教师合唱与指挥知识的理论水平与实践能力，为以后中小学开展合唱与指挥课程提供优秀的人才。",
+   "classId": "090336H1",
+   "courseSiteId": "197310",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197310",
+   "fetchedAt": "2026-10-25T10:32:39Z"
+  },
+  {
+   "courseId": "253300",
+   "courseName": "合唱与指挥",
+   "courseNameIdentity": "合唱与指挥（4）",
+   "englishName": "Chorus and Conducting",
+   "credits": 2,
+   "description": "高等师范院校合唱指挥课程是高等师范教育音乐教育专业必须要学习的课程，在高等师范的音乐教育专业的课程之中占有十分重要的地位，对于合唱指挥课程的学习，可以提高我国未来中小学音乐教师合唱与指挥知识的理论水平与实践能力，为以后中小学开展合唱与指挥课程提供优秀的人才。",
+   "classId": "24982005",
+   "courseSiteId": "197311",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197311",
+   "fetchedAt": "2026-10-25T10:32:39Z"
+  },
+  {
+   "courseId": "253305",
+   "courseName": "艺术概论",
+   "courseNameIdentity": "艺术概论（1）",
+   "englishName": "General Introduction to Arts",
+   "credits": 2,
+   "description": "本课程以艺术基本理论为主要内容，系统地讲述艺术理论的主要方面。通过对艺术理论的系统学习，同学们可以提升艺术基本理论素养，强化知识背景，促进理论联系艺术实践的运用能力。",
+   "classId": "20260159",
+   "courseSiteId": "197312",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197312",
+   "fetchedAt": "2026-10-25T10:32:40Z"
+  },
+  {
    "courseId": "253313",
    "courseName": "视唱练耳",
    "courseNameIdentity": "视唱练耳（3）",
@@ -1158,7 +1275,58 @@
    "courseSiteId": "196806",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196806",
-   "fetchedAt": "2026-09-16T07:25:32Z"
+   "fetchedAt": "2026-10-25T10:32:40Z"
+  },
+  {
+   "courseId": "253426",
+   "courseName": "中国民族民间舞蹈",
+   "courseNameIdentity": "中国民族民间舞蹈（3）",
+   "englishName": "Chinese folk dance",
+   "credits": 2,
+   "description": "各民族民间舞概述，体态动律特点分析，基本功作分解、动作短句、训练组合，表演组合。中国民族民间舞课程是舞蹈学专业中一门专业发展必修课。通过本课程的教学，了解中国民族民间舞蹈文化和传统民族审美心理，掌握各民族舞蹈形态。锻炼学生舞蹈表现力，内心情感的表达以及肢体协调性。我们的学生是未来的中、小学舞蹈教育工作者，传播文化是他们肩负的责任，在未来的教育中舞蹈美育教育是教育教学的主体，如何培养新时代的舞蹈教育复合型人才是我们面临的新课题。根据师范院校的舞蹈教育特点，努力培养学生自己动手，以适应现时的教学要求，真正达到培养高规格、高水平、高质量的能教、会演、会编、善科研的高素质舞蹈教育专门人才为目的 .",
+   "classId": "006152$1",
+   "courseSiteId": "197313",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197313",
+   "fetchedAt": "2026-10-25T10:32:41Z"
+  },
+  {
+   "courseId": "253454",
+   "courseName": "学科课程与教学论·音乐",
+   "courseNameIdentity": "学科课程与教学论·音乐",
+   "englishName": "SUBJECT CURRICULUM AND TEACHING THEORY",
+   "credits": 2,
+   "description": "本课程在阐述教学理论的基础上详细的介绍了各学科教学的具体方法、过程、展现多层次、多种类的教学设计和方案，以培养适应新课程和新教材的的新型教师为出发点，突显未来教师如何更快更好的适应新课程理念下各学科的教学，具有较强的实用性和可操作性。",
+   "classId": "20250170",
+   "courseSiteId": "197314",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197314",
+   "fetchedAt": "2026-10-25T10:32:41Z"
+  },
+  {
+   "courseId": "253509",
+   "courseName": "文学基础知识与作品鉴赏",
+   "courseNameIdentity": "文学基础知识与作品鉴赏（1）",
+   "englishName": "Basic knowledge of literature and appreciation of works Ⅰ",
+   "credits": 2,
+   "classId": "20250166",
+   "courseSiteId": "197315",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197315",
+   "fetchedAt": "2026-10-25T10:32:42Z"
+  },
+  {
+   "courseId": "253637",
+   "courseName": "古典舞身韵",
+   "courseNameIdentity": "古典舞身韵（3）",
+   "englishName": "Classical dance",
+   "credits": 2,
+   "description": "中国古典舞在我国发展历史源远流长，同时也是我们民族文化的艺术结晶，要充分完美的体现出中国古典舞身韵的精髓，就需要深入了解它所包含的内在理念，通过“身韵”课的独特训练方法，使学生充分得以传统韵味和审美风格的熏陶，是培养学生要具有较高的艺术修养和真正领悟舞蹈本体和把握民族气质的重要性。",
+   "classId": "003411$1",
+   "courseSiteId": "197316",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197316",
+   "fetchedAt": "2026-10-25T10:32:42Z"
   },
   {
    "courseId": "253647",
@@ -1171,7 +1339,20 @@
    "courseSiteId": "196807",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196807",
-   "fetchedAt": "2026-09-16T07:25:33Z"
+   "fetchedAt": "2026-10-25T10:32:43Z"
+  },
+  {
+   "courseId": "253662",
+   "courseName": "音乐教育体系指导与实践",
+   "courseNameIdentity": "音乐教育体系指导与实践",
+   "englishName": "Research and practice on the system of music education",
+   "credits": 2,
+   "description": "学习国内外各种在音乐教学实践中被证明有成效的、值得借鉴的音乐和艺术课程教学法理论，通过对各种教学法实施过程的实际演练，使学生学会和应用先进教学的教学方法指导教学实践，并在此基础上编创创新性教学案例，获得从事音乐和艺术课程教学工作的基本能力。",
+   "classId": "006260H1",
+   "courseSiteId": "197317",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197317",
+   "fetchedAt": "2026-10-25T10:32:44Z"
   },
   {
    "courseId": "253687",
@@ -1184,7 +1365,46 @@
    "courseSiteId": "196808",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196808",
-   "fetchedAt": "2026-09-16T07:25:33Z"
+   "fetchedAt": "2026-10-25T10:32:44Z"
+  },
+  {
+   "courseId": "253723",
+   "courseName": "戏剧艺术史",
+   "courseNameIdentity": "戏剧艺术史Ⅰ",
+   "englishName": "the History of Dramatic Art",
+   "credits": 2,
+   "description": "本课程旨在重点讲述和放映一部分代表作供学生观摩。从感性认识到理性认识，把握戏剧影视发展的内在规律，懂得影视美学和戏剧美学要旨。第一学期讲述世界戏剧类型及演进，第二学期讲述中国话剧史。",
+   "classId": "20250166",
+   "courseSiteId": "197318",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197318",
+   "fetchedAt": "2026-10-25T10:32:45Z"
+  },
+  {
+   "courseId": "253755",
+   "courseName": "影视剧精品赏析",
+   "courseNameIdentity": "影视剧精品赏析Ⅰ",
+   "englishName": "Film and TV drama appreciation 1",
+   "credits": 2,
+   "description": "本课程与《中外戏剧影视精品解读》的内容有所重合，但对于影视作品的选取、讲解将更为详细。教师在中外电影史、电视剧史的长河中，选取各个时代、各个流派、各位作者最优秀的电影电视作品，引导学生进行鉴赏。 课程分为两个学期，第一学期主要讲解中外电影作品，第二学期主要讲解中外电视剧作品。",
+   "classId": "20240139",
+   "courseSiteId": "197319",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197319",
+   "fetchedAt": "2026-10-25T10:32:45Z"
+  },
+  {
+   "courseId": "253767",
+   "courseName": "影视艺术史（1）",
+   "courseNameIdentity": "影视艺术史（1）",
+   "englishName": "the history of film and television art",
+   "credits": 2,
+   "description": "电影史是播音主持专业的必修课，是深入理解电影的艺术传统，思想源流的必由之路。世界电影走过了一百多年的历程，其中不乏放之世界范围亦可自豪的杰作，也不乏粗制滥造之作。系统地了解电影的历史，才能更好地开创中国电影的未来。 中国电影史课程以中国电影的初创、早期、发展期、多元化时期、成熟期、十七年电影、文革时期电影、新时期电影和新世纪电影为纲目，系统地介绍和分析中国电影的基本概念及其不同形态，解决一系列有争议的问题，从而帮助学生总结中国电影的经验和规律，更深入地把握中国电影的内在精神，为其开辟更加广阔的知识世界。",
+   "classId": "20240140",
+   "courseSiteId": "197320",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197320",
+   "fetchedAt": "2026-10-25T10:32:46Z"
   },
   {
    "courseId": "253793",
@@ -1195,7 +1415,103 @@
    "courseSiteId": "196809",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196809",
-   "fetchedAt": "2026-09-16T07:25:34Z"
+   "fetchedAt": "2026-10-25T10:32:46Z"
+  },
+  {
+   "courseId": "253796",
+   "courseName": "出镜记者现场报道",
+   "courseNameIdentity": "出镜记者现场报道",
+   "credits": 3,
+   "classId": "20240140",
+   "courseSiteId": "197321",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197321",
+   "fetchedAt": "2026-10-25T10:32:47Z"
+  },
+  {
+   "courseId": "253798",
+   "courseName": "毕业作品创作",
+   "courseNameIdentity": "毕业作品创作",
+   "credits": 3,
+   "classId": "20230157",
+   "courseSiteId": "197228",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197228",
+   "fetchedAt": "2026-10-25T10:32:48Z"
+  },
+  {
+   "courseId": "253820",
+   "courseName": "舞蹈创编",
+   "courseNameIdentity": "舞蹈创编（3）",
+   "englishName": "Choreography of dance",
+   "credits": 2,
+   "description": "?积极研究当代舞蹈艺术的发展趋势，积极吸收各种舞蹈创作的先进经验，探索舞蹈艺术的开放性、实验性与当代审美文化及社会生活之间的联系，提高学生对当代生活的认知和现代舞蹈的创造性审美精神的理解，努力培养先进的舞蹈创作人才。 ?为培养符合当代文化市场需求的多功能复合型舞蹈艺术高级专业人才，在理论同实践紧密结合的原则指导下，将舞蹈编导的基础理论、基本技巧技法训练结合起来，融会贯通，提高学生专业素质，",
+   "classId": "090099$1",
+   "courseSiteId": "197322",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197322",
+   "fetchedAt": "2026-10-25T10:32:48Z"
+  },
+  {
+   "courseId": "253821",
+   "courseName": "歌曲分析与写作",
+   "courseNameIdentity": "歌曲分析与写作",
+   "englishName": "Music Structure and Composition",
+   "credits": 2,
+   "description": "歌曲旋律构成要素及其表现特性，歌词常识，乐思的形成与发展，单一部、单二部、单三部曲式的分析与写作，复合曲式的分析与写作，各种声乐体裁的特征、民间音乐的运用等。",
+   "classId": "20240142",
+   "courseSiteId": "197323",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197323",
+   "fetchedAt": "2026-10-25T10:32:49Z"
+  },
+  {
+   "courseId": "253862",
+   "courseName": "曲式分析基础",
+   "courseNameIdentity": "曲式分析基础",
+   "credits": 2,
+   "classId": "20240142",
+   "courseSiteId": "197211",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197211",
+   "fetchedAt": "2026-10-25T10:32:49Z"
+  },
+  {
+   "courseId": "253941",
+   "courseName": "中国民间舞文化",
+   "courseNameIdentity": "中国民间舞文化",
+   "englishName": "shanghaimusicpublishinghouse",
+   "credits": 2,
+   "description": "本课程是我系舞蹈学及舞蹈表演专业学生的学科基础理论课程。是以仍在流传的中国各民族民间舞蹈为研究对象的一门学科，其目的是使学生系统地、完善地了解中国民间舞蹈文化传承的特点、文化类型的划分，并掌握舞蹈文化的探索方法，以用于民间舞蹈的学习、研究和艺术实践。",
+   "classId": "20230156",
+   "courseSiteId": "197324",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197324",
+   "fetchedAt": "2026-10-25T10:32:50Z"
+  },
+  {
+   "courseId": "253954",
+   "courseName": "形体舞蹈",
+   "courseNameIdentity": "形体舞蹈（2）",
+   "englishName": "basic form2",
+   "credits": 2,
+   "description": "形体基础是建立在美学、生理学和艺术等科学理论指导下的人体运动方式,是表现美的人体运动。美是形体舞蹈给人特有的感受,它既强调外在美的锻炼,又强调内在美的培养,它的美学主要集中在动作美、人体美、乐感美、精神美。",
+   "classId": "20250168",
+   "courseSiteId": "197200",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197200",
+   "fetchedAt": "2026-10-25T10:32:50Z"
+  },
+  {
+   "courseId": "253992",
+   "courseName": "音乐课程教学法（2）",
+   "courseNameIdentity": "音乐课程教学法（2）",
+   "credits": 2,
+   "classId": "24982878",
+   "courseSiteId": "197325",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197325",
+   "fetchedAt": "2026-10-25T10:32:51Z"
   },
   {
    "courseId": "254319",
@@ -1208,7 +1524,7 @@
    "courseSiteId": "196737",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196737",
-   "fetchedAt": "2026-09-11T13:05:07Z"
+   "fetchedAt": "2026-10-25T10:32:51Z"
   },
   {
    "courseId": "254320",
