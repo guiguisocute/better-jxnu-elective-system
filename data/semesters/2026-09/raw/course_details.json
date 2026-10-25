@@ -1,8 +1,30 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-09-16T07:25:36Z",
+ "fetchedAt": "2026-10-25T07:13:52Z",
  "courses": [
+  {
+   "courseId": "001025",
+   "courseName": "职场礼仪",
+   "courseNameIdentity": "职场礼仪（数产）",
+   "credits": 2,
+   "classId": "080008H1",
+   "courseSiteId": "197222",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197222",
+   "fetchedAt": "2026-10-25T07:13:38Z"
+  },
+  {
+   "courseId": "001026",
+   "courseName": "艺术鉴赏",
+   "courseNameIdentity": "艺术鉴赏（数产）",
+   "credits": 2,
+   "classId": "080007H2",
+   "courseSiteId": "197266",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197266",
+   "fetchedAt": "2026-10-25T07:13:38Z"
+  },
   {
    "courseId": "002166",
    "courseName": "普通逻辑（公选）",
@@ -28,6 +50,17 @@
    "fetchedAt": "2026-07-23T07:46:07Z"
   },
   {
+   "courseId": "024008",
+   "courseName": "职业生涯规划与就业指导",
+   "courseNameIdentity": "职业生涯规划与就业指导",
+   "credits": 2,
+   "classId": "004792H2",
+   "courseSiteId": "197022",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197022",
+   "fetchedAt": "2026-10-25T07:13:39Z"
+  },
+  {
    "courseId": "024017",
    "courseName": "国家安全教育",
    "courseNameIdentity": "国家安全教育（1分）",
@@ -36,7 +69,18 @@
    "courseSiteId": "196792",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196792",
-   "fetchedAt": "2026-09-14T10:15:29Z"
+   "fetchedAt": "2026-10-25T07:13:39Z"
+  },
+  {
+   "courseId": "028042",
+   "courseName": "中华民族共同体概论",
+   "courseNameIdentity": "中华民族共同体概论（公共）",
+   "credits": 2,
+   "classId": "005776H3",
+   "courseSiteId": "196958",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196958",
+   "fetchedAt": "2026-10-25T07:13:40Z"
   },
   {
    "courseId": "028043",
@@ -47,7 +91,18 @@
    "courseSiteId": "195673",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195673",
-   "fetchedAt": "2026-09-14T12:28:28Z"
+   "fetchedAt": "2026-10-25T07:13:40Z"
+  },
+  {
+   "courseId": "049003",
+   "courseName": "大学生心理健康教育",
+   "courseNameIdentity": "大学生心理健康教育（上）",
+   "credits": 1,
+   "classId": "20260145",
+   "courseSiteId": "197118",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197118",
+   "fetchedAt": "2026-10-25T07:13:41Z"
   },
   {
    "courseId": "052036",
@@ -72,6 +127,30 @@
    "fetchedAt": "2026-07-23T07:46:11Z"
   },
   {
+   "courseId": "052074",
+   "courseName": "大学日语",
+   "courseNameIdentity": "大学日语Ⅰ（2分）",
+   "credits": 2,
+   "classId": "002583$1",
+   "courseSiteId": "196901",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196901",
+   "fetchedAt": "2026-10-25T07:13:41Z"
+  },
+  {
+   "courseId": "056001",
+   "courseName": "大学体育",
+   "courseNameIdentity": "大学体育Ⅰ",
+   "englishName": "Physical Education And Health",
+   "credits": 1,
+   "description": "体育与健康是高等学校的必修课程,是高等学校体育教学的基本组织形式和实现高等学校体育与健康目的与任务的重要途径.体育与健康课程是以大学生身体锻炼为主要手段,融入了健康教育的内容,突出了增进健康这一永恒的主题.增强学生身体素质,培养学生运动能力,强健体魄.",
+   "classId": "003986$1",
+   "courseSiteId": "196929",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196929",
+   "fetchedAt": "2026-10-25T07:13:42Z"
+  },
+  {
    "courseId": "056003",
    "courseName": "大学体育",
    "courseNameIdentity": "大学体育Ⅲ",
@@ -85,6 +164,83 @@
    "fetchedAt": "2026-07-23T07:46:12Z"
   },
   {
+   "courseId": "070001",
+   "courseName": "中华文化",
+   "courseNameIdentity": "中华文化",
+   "credits": 2,
+   "classId": "24984386",
+   "courseSiteId": "197267",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197267",
+   "fetchedAt": "2026-10-25T07:13:42Z"
+  },
+  {
+   "courseId": "070002",
+   "courseName": "基础历史",
+   "courseNameIdentity": "基础历史",
+   "credits": 2,
+   "classId": "20262001",
+   "courseSiteId": "196987",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196987",
+   "fetchedAt": "2026-10-25T07:13:43Z"
+  },
+  {
+   "courseId": "070003",
+   "courseName": "大学语文",
+   "courseNameIdentity": "大学语文Ⅰ",
+   "credits": 4,
+   "classId": "24984385",
+   "courseSiteId": "197103",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197103",
+   "fetchedAt": "2026-10-25T07:13:43Z"
+  },
+  {
+   "courseId": "070004",
+   "courseName": "高等数学",
+   "courseNameIdentity": "高等数学 Ⅰ",
+   "credits": 2,
+   "classId": "24984389",
+   "courseSiteId": "196870",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196870",
+   "fetchedAt": "2026-10-25T07:13:44Z"
+  },
+  {
+   "courseId": "070005",
+   "courseName": "大学英语",
+   "courseNameIdentity": "大学英语Ⅰ（预科）",
+   "credits": 4,
+   "classId": "24984383",
+   "courseSiteId": "197091",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197091",
+   "fetchedAt": "2026-10-25T07:13:44Z"
+  },
+  {
+   "courseId": "070006",
+   "courseName": "普通话与教师口语",
+   "courseNameIdentity": "普通话与教师口语（预科）",
+   "credits": 1,
+   "classId": "24984387",
+   "courseSiteId": "197035",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197035",
+   "fetchedAt": "2026-10-25T07:13:45Z"
+  },
+  {
+   "courseId": "070007",
+   "courseName": "基础物理",
+   "courseNameIdentity": "基础物理（预科）",
+   "credits": 2,
+   "classId": "20262002",
+   "courseSiteId": "197090",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=197090",
+   "fetchedAt": "2026-10-25T07:13:45Z"
+  },
+  {
    "courseId": "246021",
    "courseName": "中国共产党历史（2分）",
    "courseNameIdentity": "中国共产党历史（2分）",
@@ -93,7 +249,7 @@
    "courseSiteId": "195676",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195676",
-   "fetchedAt": "2026-09-16T07:25:29Z"
+   "fetchedAt": "2026-10-25T07:13:45Z"
   },
   {
    "courseId": "246106",
@@ -104,7 +260,7 @@
    "courseSiteId": "195677",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195677",
-   "fetchedAt": "2026-09-16T07:25:30Z"
+   "fetchedAt": "2026-10-25T07:13:46Z"
   },
   {
    "courseId": "248276",
@@ -118,6 +274,17 @@
    "fetchedAt": "2026-07-23T07:46:13Z"
   },
   {
+   "courseId": "248381",
+   "courseName": "地理科学与人工智能（2分）",
+   "courseNameIdentity": "地理科学与人工智能（2分）",
+   "credits": 2,
+   "classId": "20250030",
+   "courseSiteId": "191894",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=191894",
+   "fetchedAt": "2026-10-25T07:13:46Z"
+  },
+  {
    "courseId": "249262",
    "courseName": "心理学基础",
    "courseNameIdentity": "心理学基础（双专）",
@@ -126,7 +293,7 @@
    "courseSiteId": "195644",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195644",
-   "fetchedAt": "2026-09-12T02:59:40Z"
+   "fetchedAt": "2026-10-25T07:13:47Z"
   },
   {
    "courseId": "249263",
@@ -137,7 +304,7 @@
    "courseSiteId": "195595",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195595",
-   "fetchedAt": "2026-09-12T02:59:41Z"
+   "fetchedAt": "2026-10-25T07:13:47Z"
   },
   {
    "courseId": "249266",
@@ -148,7 +315,7 @@
    "courseSiteId": "195607",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195607",
-   "fetchedAt": "2026-09-12T02:59:41Z"
+   "fetchedAt": "2026-10-25T07:13:48Z"
   },
   {
    "courseId": "249267",
@@ -159,7 +326,7 @@
    "courseSiteId": "195582",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195582",
-   "fetchedAt": "2026-09-12T02:59:42Z"
+   "fetchedAt": "2026-10-25T07:13:48Z"
   },
   {
    "courseId": "249271",
@@ -170,7 +337,20 @@
    "courseSiteId": "195590",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195590",
-   "fetchedAt": "2026-09-12T02:59:42Z"
+   "fetchedAt": "2026-10-25T07:13:49Z"
+  },
+  {
+   "courseId": "250453",
+   "courseName": "教师职业道德与教育政策法规",
+   "courseNameIdentity": "教师职业道德与教育政策法规",
+   "englishName": "Teachers' professional ethics and educational policy",
+   "credits": 2,
+   "description": "该课是根据师范类专业培养目标及其专业特点而设立的。在本门课程中介绍了教师职业道德和教育法的基本原理，有关国家教育政策，以及教师职业道德修养的一般策略和法学思维。学生通过本门课程学习，有助于形成良好的教师职业道德素养，了解如何贯彻党和国家的教育政策，依法从事教育教学活动，并学会用法学思维解决教育问题和依法保护自己的合法权益。",
+   "classId": "20250055",
+   "courseSiteId": "193027",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193027",
+   "fetchedAt": "2026-10-25T07:13:49Z"
   },
   {
    "courseId": "250466",
@@ -194,7 +374,18 @@
    "courseSiteId": "194743",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194743",
-   "fetchedAt": "2026-09-14T10:15:29Z"
+   "fetchedAt": "2026-10-25T07:13:50Z"
+  },
+  {
+   "courseId": "250718",
+   "courseName": "心理学基础（小学教育）",
+   "courseNameIdentity": "心理学基础（小学教育）",
+   "credits": 2,
+   "classId": "20250070",
+   "courseSiteId": "194655",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=194655",
+   "fetchedAt": "2026-10-25T07:13:50Z"
   },
   {
    "courseId": "251018",
@@ -220,7 +411,7 @@
    "courseSiteId": "195224",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195224",
-   "fetchedAt": "2026-09-12T02:59:43Z"
+   "fetchedAt": "2026-10-25T07:13:51Z"
   },
   {
    "courseId": "251098",
@@ -232,7 +423,7 @@
    "courseSiteId": "195222",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195222",
-   "fetchedAt": "2026-09-12T02:59:43Z"
+   "fetchedAt": "2026-10-25T07:13:51Z"
   },
   {
    "courseId": "251184",
@@ -243,7 +434,7 @@
    "courseSiteId": "195292",
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=195292",
-   "fetchedAt": "2026-09-12T07:14:22Z"
+   "fetchedAt": "2026-10-25T07:13:52Z"
   },
   {
    "courseId": "251271",
