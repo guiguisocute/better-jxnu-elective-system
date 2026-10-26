@@ -1,7 +1,7 @@
 {
  "version": 1,
  "semester": "2026-09",
- "fetchedAt": "2026-10-25T16:03:49Z",
+ "fetchedAt": "2026-10-26T09:48:36Z",
  "courses": [
   {
    "courseId": "001025",
@@ -2772,6 +2772,17 @@
    "fetchedAt": "2026-10-25T13:51:49Z"
   },
   {
+   "courseId": "2650252",
+   "courseName": "雕塑造型Ⅰ",
+   "courseNameIdentity": "雕塑造型Ⅰ",
+   "credits": 3,
+   "classId": "20240063",
+   "courseSiteId": "192365",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=192365",
+   "fetchedAt": "2026-10-26T09:48:36Z"
+  },
+  {
    "courseId": "2650258",
    "courseName": "数码摄影技艺",
    "courseNameIdentity": "数码摄影技艺",
@@ -2979,6 +2990,17 @@
    "semester": "2026/9/1 0:00:00",
    "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=196776",
    "fetchedAt": "2026-10-25T14:57:43Z"
+  },
+  {
+   "courseId": "2650346",
+   "courseName": "泥塑人体",
+   "courseNameIdentity": "泥塑人体（3分）",
+   "credits": 3,
+   "classId": "20250088",
+   "courseSiteId": "193527",
+   "semester": "2026/9/1 0:00:00",
+   "sourceUrl": "https://jwc.jxnu.edu.cn/wsktNew/CourseInfor.aspx?CourseID=193527",
+   "fetchedAt": "2026-10-26T09:48:36Z"
   },
   {
    "courseId": "2650351",
