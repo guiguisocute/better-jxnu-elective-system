@@ -1,4 +1,26 @@
+import type { ReactNode } from "react";
+
 /** 共用品牌标识：小尺寸使用品牌交付的简化图标，深色底保留浅色底板。 */
+export const JUXING_PROMO_URL = "https://ai.daxueditu.com/?aff=zzh-xk";
+
+/** 品牌推广统一入口；保留 referrer，并避免触发外层页面交互。 */
+export function JuxingLink({ children, className = "", title = "飓星科技" }: { children: ReactNode; className?: string; title?: string }) {
+  return (
+    <a
+      href={JUXING_PROMO_URL}
+      target="_blank"
+      rel="noopener"
+      aria-label="飓星科技"
+      title={title}
+      onClick={(event) => event.stopPropagation()}
+      className={`no-underline transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${className}`}
+      style={{ color: "inherit", textDecoration: "none" }}
+    >
+      {children}
+    </a>
+  );
+}
+
 export const JUXING_TAGLINE = "学 AI，就上飓星科技";
 
 export function JuxingLogo({ plate = false, themed = false, size = 24 }: { plate?: boolean; themed?: boolean; size?: 24 | 28 | 32 }) {
@@ -22,21 +44,21 @@ export function JuxingLogo({ plate = false, themed = false, size = 24 }: { plate
 
 export function JuxingCobrand() {
   return (
-    <div className="sm:ml-0.5 flex shrink-0 items-center gap-2 sm:border-l border-white/40 sm:pl-3 sm:pr-1" title="江西飓星科技有限公司 · 技术支持" aria-label="飓星科技技术支持">
+    <JuxingLink className="sm:ml-0.5 flex shrink-0 items-center gap-2 sm:border-l border-white/40 sm:pl-3 sm:pr-1" title="江西飓星科技有限公司 · 技术支持">
       <JuxingLogo plate size={28} />
       <span className="hidden sm:inline whitespace-nowrap text-[13px] font-semibold text-white">飓星科技</span>
-    </div>
+    </JuxingLink>
   );
 }
 
 export function JuxingSupport({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex shrink-0 items-center gap-2.5 border-t border-gray-200 bg-card px-4 pt-2.5 pb-3 ${className}`} title="江西飓星科技有限公司">
+    <JuxingLink className={`flex shrink-0 items-center gap-2.5 border-t border-gray-200 bg-card px-4 pt-2.5 pb-3 ${className}`} title="江西飓星科技有限公司">
       <JuxingLogo plate size={32} />
       <div className="flex min-w-0 flex-col gap-px">
         <span className="text-xs font-medium text-gray-800">飓星科技 提供支持</span>
         <span className="text-[10px] text-gray-500">{JUXING_TAGLINE}</span>
       </div>
-    </div>
+    </JuxingLink>
   );
 }

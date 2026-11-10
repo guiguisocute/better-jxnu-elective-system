@@ -1,4 +1,4 @@
-import { JuxingLogo, JUXING_TAGLINE } from "./JuxingBrand";
+import { JuxingLink, JuxingLogo, JUXING_TAGLINE } from "./JuxingBrand";
 
 // 项目贡献者头像墙：GitHub 头像 + 悬停放大/红环、点击下沉动效 + 跳转主页。
 // 头像走 GitHub 的 <login>.png 端点，无需 API。落地首屏与侧栏底部共用。
@@ -32,20 +32,22 @@ export function Contributors({ className = "", showTagline = true }: { className
             </span>
           </a>
         ))}
-        <div className="flex w-16 flex-col items-center gap-1" title="江西飓星科技有限公司 · 技术支持">
+        <JuxingLink className="flex w-16 flex-col items-center gap-1" title="江西飓星科技有限公司 · 技术支持">
           <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-gray-200 bg-[#F3F1EC]">
             <JuxingLogo />
           </div>
           <span className="text-[11px] font-medium text-gray-800">飓星科技</span>
           <span className="text-[10px] text-gray-400">技术支持</span>
-        </div>
+        </JuxingLink>
       </div>
       {showTagline && (
         <div className="flex flex-col items-center gap-2.5 pt-3">
           <div className="h-px w-12 bg-gray-200" aria-hidden="true" />
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-            <JuxingLogo themed />
-            <span>{JUXING_TAGLINE}</span>
+          <div className="text-[11px] text-gray-400">
+            <JuxingLink className="-my-0.5 flex min-h-7 items-center gap-1.5">
+              <JuxingLogo themed />
+              <span>{JUXING_TAGLINE}</span>
+            </JuxingLink>
           </div>
         </div>
       )}
