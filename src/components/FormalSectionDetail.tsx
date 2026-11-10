@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Course, FormalSection } from "../types";
 import { parseSchedule, unselectedIncludeSlotsFromSchedule } from "../lib/scheduleParse";
@@ -12,8 +12,10 @@ import { EnrollmentCapacityBadge } from "./EnrollmentCapacityBadge";
 import { selectCourseURL } from "../lib/xkLinks";
 import { useAppConfig } from "../lib/appConfig";
 import { useCourseReviews } from "../hooks/useReviews";
+import { useCourseDetails } from "../hooks/useCourseDetails";
 import { DimensionBars } from "./ratings/DimensionBars";
-import { RatingSheet } from "./ratings/RatingSheet";
+
+const RatingSheet = lazy(() => import("./ratings/RatingSheet").then((m) => ({ default: m.RatingSheet })));
 
 interface Props {
   section: FormalSection;
@@ -64,6 +66,8 @@ export function FormalSectionDetail({
   pinned = false, onTogglePin, pinAlertEnabled = false,
 }: Props) {
   const { getDims, refresh } = useCourseReviews(section.id);
+  const { details } = useCourseDetails();
+  const detail = details[section.id];
   // 选课系统阶段前缀（Step4…）随后端运行配置走，见 lib/xkLinks。
   const { selectionStep } = useAppConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -312,17 +316,17 @@ export function FormalSectionDetail({
             {course?.englishName && (
               <InfoItem label="英文名称" value={course.englishName} span2 />
             )}
-            {course?.prereqDesc && (
-              <InfoItem label="先修课程" value={course.prereqDesc} span2 />
+            {detail?.prereqDesc && (
+              <InfoItem label="先修课程" value={detail.prereqDesc} span2 />
             )}
           </div>
 
           {/* 课程简介：正选自带 desc 优先（课程信息.内容简介），降级到预选 master 的 desc */}
-          {(section.desc || course?.desc) && (
+          {(detail?.formalDesc || detail?.desc) && (
             <div>
               <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">课程简介</h3>
               <p className="text-[13px] text-gray-700 whitespace-pre-line bg-gray-50 rounded-xl px-5 py-4" style={{ lineHeight: 1.8 }}>
-                {section.desc || course?.desc}
+                {detail?.formalDesc || detail?.desc}
               </p>
             </div>
           )}
@@ -489,16 +493,18 @@ export function FormalSectionDetail({
       </div>
 
       {sheetOpen && hasTeacherId && (
-        <RatingSheet
-          target={{
-            teacherId,
-            teacherName: teacherName || teacherId,
-            courseOptions: [{ id: section.id, name: section.name || section.id }],
-            initialCourseId: section.id,
-          }}
-          onClose={() => setSheetOpen(false)}
-          onSubmitted={() => void refresh()}
-        />
+        <Suspense fallback={null}>
+          <RatingSheet
+            target={{
+              teacherId,
+              teacherName: teacherName || teacherId,
+              courseOptions: [{ id: section.id, name: section.name || section.id }],
+              initialCourseId: section.id,
+            }}
+            onClose={() => setSheetOpen(false)}
+            onSubmitted={() => void refresh()}
+          />
+        </Suspense>
       )}
     </div>
   );

@@ -71,6 +71,8 @@ export interface StudentRecord {
   requiredCidsUpToReading?: string[];
   scheduleItems: StudentScheduleItem[];
   detailCourses: StudentDetailCourse[];
+  /** 离线快照写入时间（D1 updated_at）；实时结果为 null/缺省。 */
+  snapshotUpdatedAt?: string;
   /** 数据来源：live=VPS 教务实时抓取；snapshot=D1 离线快照兜底。缺省视为未知（旧接口）。 */
   source?: "live" | "snapshot";
 }
@@ -158,6 +160,7 @@ export function parseStudentRecord(input: string | Record<string, unknown>): Stu
       : undefined,
     scheduleItems,
     detailCourses,
+    snapshotUpdatedAt: str(obj.snapshotUpdatedAt) || undefined,
     source: obj.source === "live" || obj.source === "snapshot" ? obj.source : undefined,
   };
 }
@@ -356,7 +359,11 @@ export function computeImportExclusions(record: StudentRecord, planCourses: Plan
  * 脱敏：全程不涉及姓名。学号查不到统一 404。
  * 注意：源数据无成绩字段，detailCourses 一律视为已通过（isPassed 返回 true）。
  */
-export async function importStudentRecord(studentId: string, captchaToken = ""): Promise<StudentRecord> {
+export async function importStudentRecord(
+  studentId: string,
+  captchaToken = "",
+  onUpdate?: (record: StudentRecord) => void,
+): Promise<StudentRecord> {
   const sid = studentId.trim();
   if (!sid) throw new Error("请输入学号。");
   const devDemo = import.meta.env.DEV && /^(demo|local|test)$/i.test(sid);
@@ -364,12 +371,16 @@ export async function importStudentRecord(studentId: string, captchaToken = ""):
     const res = await fetch("/student-record-demo.json", { cache: "no-cache" });
     const rec = parseStudentRecord((await res.json()) as Record<string, unknown>);
     if (!rec) throw new Error("本地 demo 数据格式异常。");
+    onUpdate?.(rec);
     return rec;
   }
 
   let res: Response;
   try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/x-ndjson, application/json",
+    };
     if (captchaToken) headers["X-Human-Verification-Token"] = captchaToken;
     res = await fetch("/api/student-record", {
       method: "POST",
@@ -380,9 +391,9 @@ export async function importStudentRecord(studentId: string, captchaToken = ""):
     throw new Error("网络异常，稍后再试。");
   }
 
-  // 本地 dev 没起 Functions，/api/* 会回 index.html —— 用 content-type 判一下。
   const ct = res.headers.get("content-type") || "";
-  if (!ct.includes("application/json")) {
+  const isStream = ct.includes("application/x-ndjson");
+  if (!isStream && !ct.includes("application/json")) {
     if (import.meta.env.DEV) {
       throw new Error("本地 Vite 预览未连接学号库；请输入 demo 体验导入流程。");
     }
@@ -393,8 +404,37 @@ export async function importStudentRecord(studentId: string, captchaToken = ""):
   if (res.status === 404) throw new Error("没有该学号的记录。");
   if (!res.ok) throw new Error(`服务异常（${res.status}）。`);
 
+  if (isStream) {
+    if (!res.body) throw new Error("浏览器不支持流式导入。");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let latest: StudentRecord | null = null;
+    const consume = (line: string) => {
+      if (!line.trim()) return;
+      const rec = parseStudentRecord(JSON.parse(line) as Record<string, unknown>);
+      if (!rec) throw new Error("返回数据格式异常。");
+      latest = rec;
+      onUpdate?.(rec);
+    };
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) consume(line);
+      if (done) {
+        if (buffer) consume(buffer);
+        break;
+      }
+    }
+    if (!latest) throw new Error("返回数据格式异常。");
+    return latest;
+  }
+
   const data = (await res.json()) as Record<string, unknown>;
   const rec = parseStudentRecord(data);
   if (!rec) throw new Error("返回数据格式异常。");
+  onUpdate?.(rec);
   return rec;
 }

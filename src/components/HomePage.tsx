@@ -26,8 +26,6 @@ import { Contributors } from "./Contributors";
 import { JuxingCobrand, JuxingSupport } from "./JuxingBrand";
 import { ScheduleFilter } from "./ScheduleFilter";
 import { CourseTable } from "./CourseTable";
-import { CourseDetail } from "./CourseDetail";
-import { FormalSectionDetail } from "./FormalSectionDetail";
 import { Pagination } from "./Pagination";
 import { SimToggle } from "./sim/SimToggle";
 import { ConfirmDialog } from "./sim/ConfirmDialog";
@@ -38,6 +36,8 @@ import type { Course, DataSource, FormalSection, FormalGroup, RemainingRowState 
 // 懒加载把 ECharts 等重依赖从首屏 bundle 拆出去（浮层/弹窗短暂缺席可接受，fallback 空）。
 const SimPanel = lazy(() => import("./sim/SimPanel").then((m) => ({ default: m.SimPanel })));
 const OnboardingModal = lazy(() => import("./sim/OnboardingModal").then((m) => ({ default: m.OnboardingModal })));
+const CourseDetail = lazy(() => import("./CourseDetail").then((m) => ({ default: m.CourseDetail })));
+const FormalSectionDetail = lazy(() => import("./FormalSectionDetail").then((m) => ({ default: m.FormalSectionDetail })));
 
 const DATA_SOURCE_KEY = "jxnu_data_source";
 const FORMAL_AUTO_EXPAND_SECTION_LIMIT = 240;
@@ -107,11 +107,49 @@ function SidebarDisclaimer({ showSupport = true }: { showSupport?: boolean }) {
   );
 }
 
+function CourseListSkeleton({ error }: { error: string | null }) {
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-100 bg-white px-6 py-16 text-center">
+        <h2 className="text-base font-semibold text-gray-800">课程数据加载失败</h2>
+        <p className="mt-2 text-sm text-gray-400">{error}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2" aria-label="正在加载课程数据">
+      {Array.from({ length: 10 }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 rounded-xl border border-gray-100 bg-white px-5 py-4 animate-pulse">
+          <div className="h-3 w-16 rounded bg-gray-100" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-3.5 w-2/5 rounded bg-gray-100" />
+            <div className="h-2.5 w-3/5 rounded bg-gray-50" />
+          </div>
+          <div className="h-6 w-12 rounded bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function HomePage() {
+  const SEM_KEY = "jxnu_selected_semester";
+  const [semesterByDS, setSemesterByDS] = useState<Record<DataSource, string>>(() => {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(SEM_KEY) ?? "{}");
+      return { pre: "", formal: "", ...parsed };
+    } catch {
+      return { pre: "", formal: "" };
+    }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(SEM_KEY, JSON.stringify(semesterByDS)); } catch {}
+  }, [semesterByDS, SEM_KEY]);
+
   const { courses, loading, error, allDepts, allCredits, allPlans, courseTypes, subTags } = useCourseData();
   // overall 聚合仍供正选排序候补 / AI ratingOf 使用（列表 UI 已不再显示星级）。
   const { getTeacherOverall } = useAllReviews();
-  const formal = useFormalData();
+  const formal = useFormalData(semesterByDS.formal);
   // 运行时配置（public/app_config.json）：实时人数学期等；加载完成后自动重渲染。
   const appConfig = useAppConfig();
 
@@ -425,18 +463,6 @@ export function HomePage() {
   //   - 预选 视图只看 catalog 当前学期（preSemesters），不带「（测试）」后缀。
   //   - 正选/补退选共用同一份课表与学期选项。
   // 切换 dataSource 不会丢失另一侧的已选学期；sessionStorage 持久化整张 Record。
-  const SEM_KEY = "jxnu_selected_semester";
-  const [semesterByDS, setSemesterByDS] = useState<Record<DataSource, string>>(() => {
-    try {
-      const parsed = JSON.parse(sessionStorage.getItem(SEM_KEY) ?? "{}");
-      return { pre: "", formal: "", ...parsed };
-    } catch {
-      return { pre: "", formal: "" };
-    }
-  });
-  useEffect(() => {
-    try { sessionStorage.setItem(SEM_KEY, JSON.stringify(semesterByDS)); } catch {}
-  }, [semesterByDS]);
   const setSelectedSemester = useCallback(
     (v: string) => setSemesterByDS((p) => ({ ...p, [dataSource]: v })),
     [dataSource],
@@ -924,30 +950,6 @@ export function HomePage() {
     return () => window.removeEventListener("popstate", onPopState);
   }, [showMobileFilter]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-page">
-        <div className="w-10 h-10 border-3 border-red-200 border-t-red-500 rounded-full animate-spin" />
-        <p className="mt-4 text-gray-400 text-sm tracking-wide">正在加载课程数据...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md text-center">
-          <h2 className="text-base font-semibold text-gray-800 mb-2">加载失败</h2>
-          <p className="text-sm text-gray-400 mb-4">{error}</p>
-          <p className="text-xs text-gray-300">
-            请确保使用本地服务器运行：<br />
-            <code className="bg-gray-50 px-2 py-1 rounded text-red-500">npm run dev</code>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const desktopContentOffset = 40;
   // 表格工具栏吸附到 header 真实底边，并和 header 交叠 2px，避免 sticky 亚像素取整露出背景缝。
   const stickySeamOverlap = 2;
@@ -1215,34 +1217,36 @@ export function HomePage() {
         className={`xl:hidden fixed inset-0 z-50 transition-transform duration-300 ease-out ${(mobileCourse || mobileSection) ? "translate-y-0" : "translate-y-full"}`}
       >
         <div className="h-full bg-page overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-          {mobileCourse ? (
-            <CourseDetail
-              course={mobileCourse}
-              onClose={closeMobileCourse}
-              simMode={sim.mode === "sim"}
-              inCart={cart.has(mobileCourse.id)}
-              onToggleCart={() => handleToggleCart(mobileCourse.id)}
-              onRequestEnableSim={() => setEnableSimPrompt(true)}
-            />
-          ) : mobileSection ? (
-            <FormalSectionDetail
-              section={mobileSection}
-              relatedSections={formal.sections}
-              course={courses.find((c) => c.id === mobileSection.id)}
-              onClose={closeMobileCourse}
-              scheduleFilter={schedule.filter}
-              simMode={sim.mode === "sim"}
-              cartStatus={cartStatusOf(mobileSection)}
-              onToggleCart={() => handleToggleCartSection(mobileSection)}
-              onSwitchChosenSection={() => chosenSections.choose(mobileSection.id, sectionOptionKey(mobileSection))}
-              onRequestEnableSim={() => setEnableSimPrompt(true)}
-              enrolled={liveEnrollment.getEnrollment(mobileSection)}
-              enrollmentStale={liveEnrollment.status.stale}
-              pinned={pins.has(sectionPinKey(mobileSection))}
-              onTogglePin={() => pins.toggle(sectionPinKey(mobileSection))}
-              pinAlertEnabled={pins.alert.enabled}
-            />
-          ) : null}
+          <Suspense fallback={null}>
+            {mobileCourse ? (
+              <CourseDetail
+                course={mobileCourse}
+                onClose={closeMobileCourse}
+                simMode={sim.mode === "sim"}
+                inCart={cart.has(mobileCourse.id)}
+                onToggleCart={() => handleToggleCart(mobileCourse.id)}
+                onRequestEnableSim={() => setEnableSimPrompt(true)}
+              />
+            ) : mobileSection ? (
+              <FormalSectionDetail
+                section={mobileSection}
+                relatedSections={formal.sections}
+                course={courses.find((c) => c.id === mobileSection.id)}
+                onClose={closeMobileCourse}
+                scheduleFilter={schedule.filter}
+                simMode={sim.mode === "sim"}
+                cartStatus={cartStatusOf(mobileSection)}
+                onToggleCart={() => handleToggleCartSection(mobileSection)}
+                onSwitchChosenSection={() => chosenSections.choose(mobileSection.id, sectionOptionKey(mobileSection))}
+                onRequestEnableSim={() => setEnableSimPrompt(true)}
+                enrolled={liveEnrollment.getEnrollment(mobileSection)}
+                enrollmentStale={liveEnrollment.status.stale}
+                pinned={pins.has(sectionPinKey(mobileSection))}
+                onTogglePin={() => pins.toggle(sectionPinKey(mobileSection))}
+                pinAlertEnabled={pins.alert.enabled}
+              />
+            ) : null}
+          </Suspense>
         </div>
       </div>
 
@@ -1333,6 +1337,7 @@ export function HomePage() {
 
         {/* Center - course list */}
         <main className="flex-1 min-w-0">
+          {loading || error ? <CourseListSkeleton error={error} /> : (
           <CourseTable
             courses={filter.paginated}
             selectedId={selected?.id}
@@ -1375,9 +1380,10 @@ export function HomePage() {
             sidebarOpen={sidebarOpen}
             onExpandSidebar={() => setSidebarOpen(true)}
           />
+          )}
           {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染）。
               功能说明层显示时（无筛选）隐藏分页。 */}
-          {showHints ? null : isFormalMode ? (
+          {!loading && !error && (showHints ? null : isFormalMode ? (
             formal.available && visibleFormalSections.length > 0 && (
               <Pagination
                 page={safeFormalPage}
@@ -1401,7 +1407,7 @@ export function HomePage() {
                 }, 0);
               }}
             />
-          )}
+          ))}
         </main>
 
         {/* Desktop right sidebar - always visible */}
@@ -1409,42 +1415,44 @@ export function HomePage() {
           className="hidden xl:block w-[500px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-[-8px_0_24px_rgba(0,0,0,0.04)]"
           style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
         >
-          {selected ? (
-            <CourseDetail
-              course={selected}
-              onClose={() => { setSelected(null); setSelectedSectionKey(null); }}
-              simMode={sim.mode === "sim"}
-              inCart={cart.has(selected.id)}
-              onToggleCart={() => handleToggleCart(selected.id)}
-              onRequestEnableSim={() => setEnableSimPrompt(true)}
-            />
-          ) : selectedSection ? (
-            <FormalSectionDetail
-              section={selectedSection}
-              relatedSections={formal.sections}
-              course={courses.find((c) => c.id === selectedSection.id)}
-              onClose={() => { setSelectedSection(null); setSelectedSectionKey(null); }}
-              scheduleFilter={schedule.filter}
-              simMode={sim.mode === "sim"}
-              cartStatus={cartStatusOf(selectedSection)}
-              onToggleCart={() => handleToggleCartSection(selectedSection)}
-              onSwitchChosenSection={() => chosenSections.choose(selectedSection.id, sectionOptionKey(selectedSection))}
-              onRequestEnableSim={() => setEnableSimPrompt(true)}
-              enrolled={liveEnrollment.getEnrollment(selectedSection)}
-              enrollmentStale={liveEnrollment.status.stale}
-              pinned={pins.has(sectionPinKey(selectedSection))}
-              onTogglePin={() => pins.toggle(sectionPinKey(selectedSection))}
-              pinAlertEnabled={pins.alert.enabled}
-            />
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 px-8">
-              <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-              </svg>
-              <p className="text-sm font-medium text-gray-500">点击课程查看详情</p>
-              <p className="text-xs text-gray-400 mt-1">从左侧列表中选择一门课程</p>
-            </div>
-          )}
+          <Suspense fallback={null}>
+            {selected ? (
+              <CourseDetail
+                course={selected}
+                onClose={() => { setSelected(null); setSelectedSectionKey(null); }}
+                simMode={sim.mode === "sim"}
+                inCart={cart.has(selected.id)}
+                onToggleCart={() => handleToggleCart(selected.id)}
+                onRequestEnableSim={() => setEnableSimPrompt(true)}
+              />
+            ) : selectedSection ? (
+              <FormalSectionDetail
+                section={selectedSection}
+                relatedSections={formal.sections}
+                course={courses.find((c) => c.id === selectedSection.id)}
+                onClose={() => { setSelectedSection(null); setSelectedSectionKey(null); }}
+                scheduleFilter={schedule.filter}
+                simMode={sim.mode === "sim"}
+                cartStatus={cartStatusOf(selectedSection)}
+                onToggleCart={() => handleToggleCartSection(selectedSection)}
+                onSwitchChosenSection={() => chosenSections.choose(selectedSection.id, sectionOptionKey(selectedSection))}
+                onRequestEnableSim={() => setEnableSimPrompt(true)}
+                enrolled={liveEnrollment.getEnrollment(selectedSection)}
+                enrollmentStale={liveEnrollment.status.stale}
+                pinned={pins.has(sectionPinKey(selectedSection))}
+                onTogglePin={() => pins.toggle(sectionPinKey(selectedSection))}
+                pinAlertEnabled={pins.alert.enabled}
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 px-8">
+                <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                </svg>
+                <p className="text-sm font-medium text-gray-500">点击课程查看详情</p>
+                <p className="text-xs text-gray-400 mt-1">从左侧列表中选择一门课程</p>
+              </div>
+            )}
+          </Suspense>
         </aside>
       </div>
 

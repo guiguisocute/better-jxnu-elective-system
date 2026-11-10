@@ -32,7 +32,6 @@ export interface FormalSection {
   classroom: string;      // 教室代号
   capacity: number | null;// 容量（按课程号+班级名称从 openclass 精确回填；未匹配则 null）
   semester: string;       // 学期 key，例 "2026-09" / "2025-03"（YYYY-MM，秋=09 / 春=03）
-  desc: string;           // 课程简介（正选 课程信息.内容简介；详情页与 course.desc 二者取一）
   _search: string;
 }
 
@@ -53,6 +52,13 @@ export interface CoursePlan {
   semester: string;
 }
 
+export interface CourseDetails {
+  desc: string;
+  prereqId: string;
+  prereqDesc: string;
+  formalDesc?: string;
+}
+
 export interface Course {
   id: string;
   name: string;
@@ -60,9 +66,6 @@ export interface Course {
   credits: number;
   dept: string;
   semester: string;
-  prereqId: string;
-  prereqDesc: string;
-  desc: string;
   tags: string[];
   teachers: Teacher[];
   isDegreeCourse: boolean;

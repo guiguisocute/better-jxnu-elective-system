@@ -9,10 +9,24 @@ interface Env {
 const DIMS = ["overall", "assess", "attendance", "difficulty", "teaching"] as const;
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const started = performance.now();
+  const cacheUrl = new URL(context.request.url);
+  cacheUrl.search = "";
+  const cacheKey = new Request(cacheUrl, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    const response = new Response(cached.body, { status: cached.status, headers: cached.headers });
+    response.headers.set("X-Reviews-Cache", "HIT");
+    response.headers.set("Server-Timing", `edge;dur=${(performance.now() - started).toFixed(1)}`);
+    return response;
+  }
+
+  const queryStarted = performance.now();
   const select = DIMS.map((d) => `AVG(${d}) AS ${d}_avg, COUNT(${d}) AS ${d}_count`).join(", ");
   const { results } = await context.env.DB.prepare(
     `SELECT course_id, teacher_id, ${select} FROM reviews WHERE status = 'approved' GROUP BY course_id, teacher_id`
   ).all<Record<string, string | number | null>>();
+  const queryMs = performance.now() - queryStarted;
 
   const grouped: Record<string, Record<string, Record<string, { avg: number; count: number }>>> = {};
   for (const row of results ?? []) {
@@ -28,5 +42,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     (grouped[cid] ??= {})[tid] = dims;
   }
 
-  return Response.json(grouped, { headers: { "Cache-Control": "no-cache" } });
+  const response = Response.json(grouped, {
+    headers: {
+      "Cache-Control": "public, max-age=30, s-maxage=60, stale-while-revalidate=30",
+      "Server-Timing": `d1;dur=${queryMs.toFixed(1)}, total;dur=${(performance.now() - started).toFixed(1)}`,
+      "X-Reviews-Cache": "MISS",
+    },
+  });
+  context.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
 };

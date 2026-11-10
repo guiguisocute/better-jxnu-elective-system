@@ -1,4 +1,4 @@
-import { verifyCaptcha } from "../lib/captcha";
+import { verifyCaptcha } from "../lib/captcha.ts";
 
 interface Env {
   DB: D1Database;
@@ -23,8 +23,8 @@ interface Env {
 }
 
 // POST /api/student-record { "sid": "xxx" }
-//   - 优先实时：带 secret 打 VPS（LIVE_URL），成功则返回 source:"live" 并后台回写 D1 保鲜。
-//   - 回落：VPS 超时/报错/未配置 → 查 D1 快照，返回 source:"snapshot"。
+//   - 接受 NDJSON 时先推送 D1 快照（含 updated_at），同一请求再查询 VPS 并推送实时结果。
+//   - 旧 JSON 客户端保持实时优先、快照兜底；实时成功会后台回写 D1 保鲜。
 //   - 脱敏：全程不涉及姓名（VPS 侧已剥，库里也不存）。
 //   - 学号只放请求体，不进入浏览器历史、Referer 或代理默认 access log。
 //   - 防遍历交给 Cloudflare WAF 限流（控制台规则），代码侧不实现。
@@ -42,6 +42,7 @@ interface Row {
   total_earned: number | null;
   taken_count: number | null;
   record_json: string;
+  updated_at: string | null;
 }
 
 // VPS 返回体：{ source, row:{className,planKey,totalEarned,takenCount}, record:{…StudentRecord} }
@@ -58,7 +59,7 @@ interface LivePayload {
 
 /** 把一条 record（StudentRecord 形状）+ 行级字段拼成前端契约响应（与 D1 分支同形状 + source）。 */
 function shapeResponse(record: Record<string, unknown>, row: {
-  className: string | null; planKey: string | null; totalEarned: number | null; taken_count?: number | null; takenCount?: number | null;
+  className: string | null; planKey: string | null; totalEarned: number | null; taken_count?: number | null; takenCount?: number | null; updated_at?: string | null;
 }, source: "live" | "snapshot") {
   return {
     studentId: record.studentId ?? null,
@@ -77,6 +78,7 @@ function shapeResponse(record: Record<string, unknown>, row: {
     requiredCidsUpToReading: record.requiredCidsUpToReading ?? [],
     scheduleItems: record.scheduleItems ?? [],
     detailCourses: record.detailCourses ?? [],
+    snapshotUpdatedAt: source === "snapshot" ? row.updated_at ?? null : null,
     source,
   };
 }
@@ -129,6 +131,14 @@ async function fetchLive(env: Env, sid: string): Promise<LivePayload | null> {
   }
 }
 
+async function readSnapshot(env: Env, sid: string): Promise<{ record: Record<string, unknown>; row: Row } | null> {
+  const row = await studentDB(env).prepare(
+    "SELECT student_id, class_name, plan_key, total_earned, taken_count, record_json, updated_at FROM student_records WHERE student_id = ?"
+  ).bind(sid).first<Row>();
+  if (!row) return null;
+  return { record: JSON.parse(row.record_json) as Record<string, unknown>, row };
+}
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (new URL(context.request.url).search) {
     return Response.json({ error: "query parameters are not allowed" }, { status: 400 });
@@ -166,7 +176,44 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "human verification failed" }, { status: 403 });
   }
 
-  // 1) 实时优先
+  const acceptsStream = (context.request.headers.get("Accept") || "").includes("application/x-ndjson");
+  if (acceptsStream) {
+    let snapshot: { record: Record<string, unknown>; row: Row } | null;
+    try {
+      snapshot = await readSnapshot(context.env, sid);
+    } catch {
+      return Response.json({ error: "corrupt record" }, { status: 500 });
+    }
+    if (snapshot) {
+      const snapshotPayload = shapeResponse(snapshot.record, {
+        className: snapshot.row.class_name,
+        planKey: snapshot.row.plan_key,
+        totalEarned: snapshot.row.total_earned,
+        taken_count: snapshot.row.taken_count,
+        updated_at: snapshot.row.updated_at,
+      }, "snapshot");
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(encoder.encode(`${JSON.stringify(snapshotPayload)}\n`));
+          const live = await fetchLive(context.env, sid);
+          if (live) {
+            controller.enqueue(encoder.encode(`${JSON.stringify(shapeResponse(live.record, live.row, "live"))}\n`));
+            context.waitUntil(upsertD1(context.env, sid, live));
+          }
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "application/x-ndjson; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+  }
+
   const live = await fetchLive(context.env, sid);
   if (live) {
     context.waitUntil(upsertD1(context.env, sid, live));
@@ -176,28 +223,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  // 2) 回落 D1 快照
-  const row = await studentDB(context.env).prepare(
-    "SELECT student_id, class_name, plan_key, total_earned, taken_count, record_json FROM student_records WHERE student_id = ?"
-  ).bind(sid).first<Row>();
-
-  if (!row) {
-    return Response.json({ error: "not found" }, { status: 404 });
-  }
-
-  let record: Record<string, unknown>;
+  let snapshot: { record: Record<string, unknown>; row: Row } | null;
   try {
-    record = JSON.parse(row.record_json) as Record<string, unknown>;
+    snapshot = await readSnapshot(context.env, sid);
   } catch {
     return Response.json({ error: "corrupt record" }, { status: 500 });
   }
+  if (!snapshot) {
+    return Response.json({ error: "not found" }, { status: 404 });
+  }
 
   return Response.json(
-    shapeResponse(record, {
-      className: row.class_name,
-      planKey: row.plan_key,
-      totalEarned: row.total_earned,
-      taken_count: row.taken_count,
+    shapeResponse(snapshot.record, {
+      className: snapshot.row.class_name,
+      planKey: snapshot.row.plan_key,
+      totalEarned: snapshot.row.total_earned,
+      taken_count: snapshot.row.taken_count,
+      updated_at: snapshot.row.updated_at,
     }, "snapshot"),
     { headers: { "Cache-Control": "no-store" } },
   );

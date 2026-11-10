@@ -69,8 +69,11 @@ better-jxnu-elective-system/
 │   │                                          需要时去 git 历史里翻）
 │
 └── public/                                ← 前端 fetch 产物（committed）
-    ├── courses.json                       ← 当前学期预选视图（catalog only）
-    ├── formal_sections.json               ← 全部已抓 sections（前端按 semester 过滤）
+    ├── data_manifest.json                 ← 轻量清单，指向带内容哈希的数据 URL
+    ├── data/courses.<hash>.json           ← 轻量课程列表（不含简介/先修说明）
+    ├── data/course_details.<hash>.json    ← 按需加载的课程详情字段
+    ├── data/formal_sections.<sem>.<hash>.json ← 单学期课表
+    ├── courses.json / formal_sections.json ← 旧聚合路径，仅供 Go 安全闸和外部兼容
     ├── plan_courses.json                  ← master/plan_courses.json 的拷贝（sim 模式懒加载）
     ├── app_config.json                    ← build_config.json 的运行期投影（测试学期/功能开关等）
     └── major_requirements.json            ← master/major_requirements.json 的拷贝
@@ -195,23 +198,13 @@ type MajorRequirement = {
 
 ## 6. Public 产物 schema（前端 fetch）
 
-### 6.1 `public/courses.json`
-**含义切换**：不再是"全部 master 课程"，而是**当前学期预选可选课程**。
-即只包含 当前学期 `preselect_catalog` 的 cid 集合，从 master 取定义，再叠上当学期师课绑定。
+### 6.1 `public/data_manifest.json` + `public/data/`
+前端先重新验证轻量 manifest，再读取其中的内容哈希 URL。课程列表仍是当前学期 catalog 命中课程 + formal 教师补全，但不含 `desc` / `prereqId` / `prereqDesc`；这些字段集中在 `course_details.<hash>.json`，首次打开详情时加载。正选简介若与 master 不同，保存为 `formalDesc`。
 
-→ "当前学期"通过 `data/semesters/_latest` 指向（或 build 脚本读 `meta.json` 找最新）。
+`public/_headers` 给 `/data/*` 设置一年 `immutable` 缓存；manifest 保持重新验证。构建会清理本目录中旧的同前缀哈希文件，重复构建不产生额外状态。
 
-```ts
-type Course = MasterCourse & {
-  teachers: Teacher[];   // 来自当前学期 preselect_catalog 的候选教师
-  semester: string;      // 学校在 catalog 里写的"开课学期"字符串
-  _search: string;
-};
-```
-
-### 6.2 `public/formal_sections.json`
-**多学期合并**：每学期读取唯一的 `formal_schedule.json`；仅在它不存在时读取历史 `addDrop_schedule.json` 兜底，绝不把二者叠加。前端按 `semester` 字段过滤。
-等总大小到 10MB 再考虑按学期拆 URL。
+### 6.2 单学期 `formal_sections.<sem>.<hash>.json`
+每学期读取唯一的 `formal_schedule.json`；仅在它不存在时读取历史 `addDrop_schedule.json` 兜底，绝不把二者叠加。前端按 manifest 只下载选中学期，切换学期时复用已加载文件。旧 `public/formal_sections.json` 仍输出全学期轻量聚合，专供 Go 安全闸与外部兼容，不再由前端读取。
 
 ### 6.3 `public/major_requirements.json`
 master/major_requirements.json 的副本（前端可 fetch）。

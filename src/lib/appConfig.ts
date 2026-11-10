@@ -104,29 +104,44 @@ function normalize(raw: unknown, d: AppConfig = APP_CONFIG_DEFAULTS): AppConfig 
 }
 
 let loadStarted = false;
+const RUNTIME_CONFIG_TIMEOUT_MS = 3_000;
+
+function applyConfig(staticConfig: AppConfig, runtimeRaw: unknown = null) {
+  snapshot = normalize(runtimeRaw, staticConfig);
+  setTestSemesters(snapshot.testSemesters);
+  notify();
+}
 
 /** 应用挂载时调用一次（main.tsx）；重复调用/StrictMode 双执行都只 fetch 一次。 */
 export function loadAppConfig(): void {
   if (loadStarted) return;
   loadStarted = true;
-  void (async () => {
-    // 静态产物负责测试学期/功能开关；VPS 运行配置覆盖两个日常字段，保存后无需
-    // 等待 Cloudflare Pages 重新构建。任一来源失败都独立回落，不互相拖累。
-    // BACKEND_CONFIG_API 为空 = fork 还没填后端地址（见 .env）。直接跳过这一路，
-    // 只用静态产物；否则空串会被当成同源相对路径打出一个必然 404 的请求。
-    const [staticResult, runtimeResult] = await Promise.allSettled([
-      fetch("/app_config.json", { cache: "no-cache" }).then(readJson),
-      BACKEND_CONFIG_API
-        ? fetch(BACKEND_CONFIG_API, { cache: "no-cache", headers: { Accept: "application/json" } }).then(readJson)
-        : Promise.reject(new Error("backend config url not configured")),
-    ]);
-    const staticRaw = staticResult.status === "fulfilled" ? staticResult.value : null;
-    const runtimeRaw = runtimeResult.status === "fulfilled" ? runtimeResult.value : null;
-    const staticConfig = normalize(staticRaw);
-    snapshot = normalize(runtimeRaw, staticConfig);
-    setTestSemesters(snapshot.testSemesters); // 注入 term.ts 的测试学期集合
-    notify();
-  })();
+
+  let staticConfig = APP_CONFIG_DEFAULTS;
+  let runtimeRaw: unknown = null;
+  void fetch("/app_config.json", { cache: "no-cache" })
+    .then(readJson)
+    .then((raw) => {
+      staticConfig = normalize(raw);
+      applyConfig(staticConfig, runtimeRaw);
+    })
+    .catch(() => {});
+
+  if (!BACKEND_CONFIG_API) return;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), RUNTIME_CONFIG_TIMEOUT_MS);
+  void fetch(BACKEND_CONFIG_API, {
+    cache: "no-cache",
+    headers: { Accept: "application/json" },
+    signal: controller.signal,
+  })
+    .then(readJson)
+    .then((raw) => {
+      runtimeRaw = raw;
+      applyConfig(staticConfig, runtimeRaw);
+    })
+    .catch(() => {})
+    .finally(() => window.clearTimeout(timeout));
 }
 
 /** 组件侧读取运行时配置；加载完成后自动触发重渲染。 */

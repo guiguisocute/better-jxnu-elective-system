@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCourseData } from "../hooks/useCourseData";
@@ -17,7 +17,9 @@ import { ThemeToggle } from "./ThemeToggle";
 import { DimensionBars } from "./ratings/DimensionBars";
 import { ReviewCard } from "./ratings/ReviewCard";
 import { ReviewMasonry } from "./ratings/ReviewMasonry";
-import { RatingSheet, type RatingSheetTarget } from "./ratings/RatingSheet";
+import type { RatingSheetTarget } from "./ratings/RatingSheet";
+
+const RatingSheet = lazy(() => import("./ratings/RatingSheet").then((m) => ({ default: m.RatingSheet })));
 
 type ViewMode = "course" | "teacher";
 type SortMode = "latest" | "helpful" | "best";
@@ -863,11 +865,13 @@ export function RatingsPage() {
       )}
 
       {sheet && (
-        <RatingSheet
-          target={sheet}
-          onClose={() => setSheet(null)}
-          onSubmitted={() => void refreshRows()}
-        />
+        <Suspense fallback={null}>
+          <RatingSheet
+            target={sheet}
+            onClose={() => setSheet(null)}
+            onSubmitted={() => void refreshRows()}
+          />
+        </Suspense>
       )}
     </div>
   );

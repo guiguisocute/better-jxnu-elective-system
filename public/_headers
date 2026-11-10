@@ -1,0 +1,23 @@
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/data/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/data_manifest.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/app_config.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/courses.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/formal_sections.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/plan_courses.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/major_requirements.json
+  Cache-Control: public, max-age=0, must-revalidate

@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Course } from "../types";
 import { TagBadge } from "./TagBadge";
 import { CopyIdButton } from "./CopyIdButton";
 import { useCourseReviews } from "../hooks/useReviews";
+import { useCourseDetails } from "../hooks/useCourseDetails";
 import { DimensionBars } from "./ratings/DimensionBars";
-import { RatingSheet, type RatingSheetTarget } from "./ratings/RatingSheet";
+import type { RatingSheetTarget } from "./ratings/RatingSheet";
 import { formatSemesterLabel } from "../lib/term";
+
+const RatingSheet = lazy(() => import("./ratings/RatingSheet").then((m) => ({ default: m.RatingSheet })));
 
 interface Props {
   course: Course;
@@ -21,6 +24,8 @@ interface Props {
 
 export function CourseDetail({ course, onClose, simMode = false, inCart = false, onToggleCart, onRequestEnableSim }: Props) {
   const { getDims, refresh } = useCourseReviews(course.id);
+  const { details } = useCourseDetails();
+  const detail = details[course.id];
   const [sheet, setSheet] = useState<RatingSheetTarget | null>(null);
   const [plansExpanded, setPlansExpanded] = useState(false);
 
@@ -136,17 +141,17 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
             {course.englishName && (
               <InfoItem label="英文名称" value={course.englishName} span2 />
             )}
-            {course.prereqDesc && (
-              <InfoItem label="先修课程" value={course.prereqDesc} span2 />
+            {detail?.prereqDesc && (
+              <InfoItem label="先修课程" value={detail.prereqDesc} span2 />
             )}
           </div>
 
           {/* Description */}
-          {course.desc && (
+          {detail?.desc && (
             <div>
               <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">课程简介</h3>
               <p className="text-[13px] text-gray-700 whitespace-pre-line bg-gray-50 rounded-xl px-5 py-4" style={{ lineHeight: 1.8 }}>
-                {course.desc}
+                {detail.desc}
               </p>
             </div>
           )}
@@ -335,11 +340,13 @@ export function CourseDetail({ course, onClose, simMode = false, inCart = false,
       </div>
 
       {sheet && (
-        <RatingSheet
-          target={sheet}
-          onClose={() => setSheet(null)}
-          onSubmitted={() => void refresh()}
-        />
+        <Suspense fallback={null}>
+          <RatingSheet
+            target={sheet}
+            onClose={() => setSheet(null)}
+            onSubmitted={() => void refresh()}
+          />
+        </Suspense>
       )}
     </div>
   );

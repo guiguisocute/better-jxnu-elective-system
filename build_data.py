@@ -16,6 +16,7 @@ raw 三类输入：
 字段优先级 merge 规则见 ARCHITECTURE.md §4。每次执行是覆盖式重算，零状态。
 """
 
+import hashlib
 import json
 import re
 import os
@@ -44,6 +45,9 @@ PUBLIC_FORMAL_FILE = os.path.join(PUBLIC_DIR, "formal_sections.json")
 PUBLIC_REQS_FILE = os.path.join(PUBLIC_DIR, "major_requirements.json")
 PUBLIC_PLAN_COURSES_FILE = os.path.join(PUBLIC_DIR, "plan_courses.json")
 PUBLIC_APP_CONFIG_FILE = os.path.join(PUBLIC_DIR, "app_config.json")
+PUBLIC_DATA_DIR = os.path.join(PUBLIC_DIR, "data")
+PUBLIC_MANIFEST_FILE = os.path.join(PUBLIC_DIR, "data_manifest.json")
+DETAIL_FIELDS = ("desc", "prereqId", "prereqDesc")
 
 # 课程性质归一化（公共必修 → 公共必修课，与 catalog 一致）
 NATURE_NORMALIZE = {"公共必修": "公共必修课"}
@@ -879,13 +883,22 @@ def build_sections_for_semester(
     return sections
 
 
-def build_public(semesters: dict, master: dict) -> None:
-    """生成前端 fetch 的 3 个 JSON。
+def compact_json_bytes(data) -> bytes:
+    return json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
-    - courses.json：当前学期 preselect_catalog 命中的 master 课程 + 该学期师课绑定
-    - formal_sections.json：全部学期正选/补退选共用 section（formal 优先，旧 addDrop 兜底）
-    - major_requirements.json：master 副本
-    """
+
+def write_versioned_json(prefix: str, data) -> str:
+    payload = compact_json_bytes(data)
+    digest = hashlib.sha256(payload).hexdigest()[:12]
+    filename = f"{prefix}.{digest}.json"
+    path = os.path.join(PUBLIC_DATA_DIR, filename)
+    with open(path, "wb") as f:
+        f.write(payload)
+    return f"/data/{filename}"
+
+
+def build_public(semesters: dict, master: dict) -> None:
+    """生成轻量首屏、按需详情和按学期课表；旧聚合路径仅保留给后端校验。"""
     current_sem = find_current_semester(semesters)
     master_by_id = {c["id"]: c for c in master["courses"]}
     teachers_by_id = {t["id"]: t for t in master["teachers"]}
@@ -1043,11 +1056,51 @@ def build_public(semesters: dict, master: dict) -> None:
                 existing["teachersFromFormal"] = True
                 existing["_search"] = build_search_course(existing, formal_teachers)
 
+    course_details = {
+        c["id"]: {field: c.get(field, "") for field in DETAIL_FIELDS}
+        for c in master["courses"]
+    }
+    for section in public_sections:
+        detail = course_details.get(section["id"])
+        if detail is not None and section.get("desc") and section["desc"] != detail["desc"]:
+            detail["formalDesc"] = section["desc"]
+
+    light_courses = [
+        {key: value for key, value in course.items() if key not in DETAIL_FIELDS}
+        for course in public_courses
+    ]
+    light_sections = [
+        {key: value for key, value in section.items() if key != "desc"}
+        for section in public_sections
+    ]
+
     os.makedirs(PUBLIC_DIR, exist_ok=True)
-    with open(PUBLIC_COURSES_FILE, "w", encoding="utf-8") as f:
-        json.dump(public_courses, f, ensure_ascii=False, separators=(",", ":"))
-    with open(PUBLIC_FORMAL_FILE, "w", encoding="utf-8") as f:
-        json.dump(public_sections, f, ensure_ascii=False, separators=(",", ":"))
+    os.makedirs(PUBLIC_DATA_DIR, exist_ok=True)
+    for filename in os.listdir(PUBLIC_DATA_DIR):
+        if filename.startswith(("courses.", "course_details.", "formal_sections.")) and filename.endswith(".json"):
+            os.remove(os.path.join(PUBLIC_DATA_DIR, filename))
+
+    sections_by_semester = defaultdict(list)
+    for section in light_sections:
+        sections_by_semester[section["semester"]].append(section)
+    manifest = {
+        "version": 1,
+        "currentSemester": current_label,
+        "courses": write_versioned_json("courses", light_courses),
+        "courseDetails": write_versioned_json("course_details", course_details),
+        "formalSections": {
+            semester: write_versioned_json(f"formal_sections.{semester}", rows)
+            for semester, rows in sorted(sections_by_semester.items())
+        },
+    }
+    with open(PUBLIC_MANIFEST_FILE, "wb") as f:
+        f.write(compact_json_bytes(manifest))
+
+    # 旧路径继续供 Go 同步安全闸和外部消费者使用；前端只读上面的哈希产物。
+    with open(PUBLIC_COURSES_FILE, "wb") as f:
+        f.write(compact_json_bytes(light_courses))
+    with open(PUBLIC_FORMAL_FILE, "wb") as f:
+        f.write(compact_json_bytes(light_sections))
     with open(PUBLIC_REQS_FILE, "w", encoding="utf-8") as f:
         json.dump(master["reqs"], f, ensure_ascii=False, separators=(",", ":"))
     with open(PUBLIC_PLAN_COURSES_FILE, "w", encoding="utf-8") as f:

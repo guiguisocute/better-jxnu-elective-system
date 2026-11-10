@@ -1,45 +1,47 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormalSection } from "../types";
+import { loadDataJson, loadDataManifest } from "../lib/dataClient";
 
-// 正选 / 补退选共用同一份课表和同一个前端入口。
-export function useFormalData() {
+export function useFormalData(selectedSemester?: string) {
   const [sections, setSections] = useState<FormalSection[]>([]);
+  const [allSemesters, setAllSemesters] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/formal_sections.json")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+    setLoading(true);
+    setError(null);
+    loadDataManifest()
+      .then((manifest) => {
+        if (cancelled) return Promise.resolve([] as FormalSection[]);
+        const semesters = Object.keys(manifest.formalSections).sort((a, b) => b.localeCompare(a));
+        setAllSemesters(semesters);
+        const semester = selectedSemester && manifest.formalSections[selectedSemester]
+          ? selectedSemester
+          : manifest.currentSemester && manifest.formalSections[manifest.currentSemester]
+            ? manifest.currentSemester
+            : semesters[0];
+        return semester ? loadDataJson<FormalSection[]>(manifest.formalSections[semester]) : Promise.resolve([]);
       })
-      .then((data: FormalSection[]) => {
+      .then((data) => {
         if (cancelled) return;
         setSections(data);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         if (cancelled) return;
         setError(err.message);
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [nonce]);
+  }, [selectedSemester, nonce]);
 
-  /** 加载失败后重新拉取（评价页错误态的重试入口） */
   const reload = useCallback(() => {
-    setError(null);
-    setLoading(true);
     setNonce((n) => n + 1);
   }, []);
 
   const available = !loading && !error && sections.length > 0;
-  // 降序：最近的学期排在最上（下拉框首项）。YYYY-MM 字典序 == 时间序。
-  const allSemesters = useMemo(
-    () => [...new Set(sections.map((s) => s.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a)),
-    [sections],
-  );
   return { sections, loading, error, reload, available, allSemesters };
 }

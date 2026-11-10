@@ -181,12 +181,13 @@ export function OnboardingModal({
     setEditingPlan(false);
     setImportLoading(true);
     try {
-      const rec = await importStudentRecord(importSid, importCaptchaToken);
-      const matched = !!(rec.planKey && allPlans.includes(rec.planKey));
-      const plan = matched ? rec.planKey! : selectedPlan;
-      const sug = deriveInputsFromRecord(rec, plan ? coursesOf(plan) : undefined);
-      setPreview({ rec, sug });
-      setEdit({ totalEarned: sug.totalEarned, electiveThisSem: sug.electiveThisSem });
+      await importStudentRecord(importSid, importCaptchaToken, (rec) => {
+        const matched = !!(rec.planKey && allPlans.includes(rec.planKey));
+        const plan = matched ? rec.planKey! : selectedPlan;
+        const sug = deriveInputsFromRecord(rec, plan ? coursesOf(plan) : undefined);
+        setPreview({ rec, sug });
+        setEdit({ totalEarned: sug.totalEarned, electiveThisSem: sug.electiveThisSem });
+      });
     } catch (e) {
       setImportErr((e as Error).message);
     } finally {
@@ -1099,9 +1100,13 @@ export function OnboardingModal({
                         </span>
                       ) : preview.rec.source === "snapshot" ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-1.5 py-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />离线快照·可能非最新
+                          <span className={`w-1.5 h-1.5 rounded-full bg-gray-400 ${importLoading ? "animate-pulse" : ""}`} />
+                          {importLoading ? "离线快照·正在刷新实时数据" : "离线快照·可能非最新"}
                         </span>
                       ) : null}
+                      {preview.rec.snapshotUpdatedAt && preview.rec.source === "snapshot" && (
+                        <span className="w-full text-[10px] font-normal text-gray-400">快照更新于 {preview.rec.snapshotUpdatedAt}</span>
+                      )}
                     </div>
                     <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px] items-center">
                       <div className="text-gray-500">培养方案</div>
