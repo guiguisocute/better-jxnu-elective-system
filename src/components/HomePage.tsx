@@ -23,6 +23,7 @@ import { acquireScrollLock } from "../lib/scrollLock";
 import { usePinnedCourses, usePinAvailabilityAlert, sectionPinKey } from "../hooks/usePinnedCourses";
 import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
+import { JuxingCobrand, JuxingSupport } from "./JuxingBrand";
 import { ScheduleFilter } from "./ScheduleFilter";
 import { CourseTable } from "./CourseTable";
 import { CourseDetail } from "./CourseDetail";
@@ -84,7 +85,7 @@ function GithubIcon({ className = "w-4 h-4" }: { className?: string }) {
 }
 
 /** 侧栏底部的浅灰说明文字（含内联 GitHub 链接）+ 贡献者展示，跟随筛选项滚动到底才会出现。 */
-function SidebarDisclaimer() {
+function SidebarDisclaimer({ showSupport = true }: { showSupport?: boolean }) {
   return (
     <>
       <p className="mt-10 mb-2 px-2 text-center text-[12px] leading-relaxed text-gray-400">
@@ -100,7 +101,8 @@ function SidebarDisclaimer() {
         </a>
         。
       </p>
-      <Contributors className="mt-6 mb-1" />
+      <Contributors className="mt-6 mb-1" showTagline={false} />
+      {showSupport && <JuxingSupport className="mt-5" />}
     </>
   );
 }
@@ -959,13 +961,14 @@ export function HomePage() {
       <header ref={headerRef} className="sticky top-0 z-40">
         {/* Layer 1: Red status bar —— relative z-10 让其底部投影盖在下方搜索行之上（见 index.css .bg-header） */}
         <div className="bg-header relative z-10 pt-[env(safe-area-inset-top)]">
-          <div className="max-w-[2000px] mx-auto px-4 md:px-6 flex items-center justify-between py-2.5">
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="max-w-[2000px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between py-2.5">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
               <img src="/img/JXNUlogo.png" alt="JXNU" className="w-7 h-7 rounded-lg object-contain shrink-0" />
               <h1 className="text-sm font-bold tracking-tight text-brand-fg truncate">JXNU选课PLUS</h1>
               <span className="text-xs hidden sm:inline shrink-0" style={{ color: "rgba(255,255,255,0.8)" }}>江西师范大学</span>
+              <JuxingCobrand />
             </div>
-            <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 md:gap-2.5 shrink-0">
               {/* 课程评价子页面入口 */}
               <Link
                 to="/ratings"
@@ -1268,10 +1271,10 @@ export function HomePage() {
         {sidebarOpen && !leftAsDrawer && (
           <aside
             ref={setLeftFilterEl}
-            className="w-[360px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-sm"
+            className="w-[360px] shrink-0 flex flex-col overflow-hidden rounded-t-xl bg-white border border-gray-100 shadow-sm"
             style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
           >
-            <div className="px-6 py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-medium tracking-wider text-gray-400 uppercase">筛选</span>
                 <button
@@ -1322,8 +1325,9 @@ export function HomePage() {
                 foldGroups={foldGroups}
                 onToggleFoldGroups={toggleFoldGroups}
               />
-              <SidebarDisclaimer />
+              <SidebarDisclaimer showSupport={false} />
             </div>
+            <JuxingSupport />
           </aside>
         )}
 
