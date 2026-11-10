@@ -32,3 +32,12 @@ func TestLiveHealthResponseIsMinimal(t *testing.T) {
 	servers := &Servers{live: &LiveStudentService{env: Environment{XKUsername: "configured", XKPassword: "configured"}}}
 	assertMinimalHealthResponse(t, servers.liveHandler(), http.StatusOK, true)
 }
+
+func TestLiveHealthAcceptsTunnelPrefix(t *testing.T) {
+	servers := &Servers{live: &LiveStudentService{env: Environment{XKUsername: "configured", XKPassword: "configured"}}}
+	w := httptest.NewRecorder()
+	servers.liveHandler().ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/live/healthz", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("prefixed health status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
