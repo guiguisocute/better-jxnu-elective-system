@@ -312,3 +312,7 @@ npm run dev   # 抽查「预选」「正选/补退选」两个入口
 - **学期下拉排序**：`useFormalData.allSemesters` 与 `HomePage.preSemesters` 均按 YYYY-MM **降序**（最近学期排最上 = 下拉首项）。
 - **正选与补退选合并**：两阶段课表已确认完全一致，前后端永久共用 formal 数据；仅容量嗅探 URL 在阶段切换时人工调整。
 - **教师跨课程聚合**：master/teachers.json 是否带 `taughtCourses: cid[]`？需要算但便于"教师所授课程"查询。暂不加，等真实需求出现。
+
+## 2026级部分课程参考
+
+`master_raw/jxjh_2026_courses.json` 由构建器补入实际有课程的2026级专业，不修改原 `training_plan.json`。来源仅提供课程性质/开课学期，不提供完整毕业要求；派生要求标记 `isPartial=true`，两个最低学分字段为 `null`，前端显示未知并隐藏毕业比例。详见 [REFERENCE_2026.md](REFERENCE_2026.md)。其他年级与完整方案优先保留。

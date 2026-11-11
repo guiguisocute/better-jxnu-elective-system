@@ -376,7 +376,7 @@ export function buildCreditPlan(
   const requiredBlock = mkBlock(
     "required",
     "必修",
-    requirement ? requiredTotal : null,
+    requirement && !requirement.isPartial ? requiredTotal : null,
     [
       // 段名带上具体学期号：这些名字会出现在环图 tooltip 和进度条里，
       // 而「本学期」到底指哪一学期在寒暑假期间并不显然。
@@ -402,7 +402,7 @@ export function buildCreditPlan(
       { key: "majorElective", label: "专业限选", value: purpleEarned, color: SEG_COLOR.majorElective },
     ],
     electivePlanned,
-    requirement
+    requirement?.minMajorElective != null
       ? { label: "专业限选", required: minMajorElective, earned: majorElectiveEarned, planned: cartMajorElective, color: SEG_COLOR.majorElective }
       : null,
   );

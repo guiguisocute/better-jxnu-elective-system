@@ -88,8 +88,11 @@ export interface MajorRequirement {
   year: string;
   major: string;
   directions: string[];
-  minTotal: number;
-  minMajorElective: number;
+  /** null = 未提供毕业要求，不得按0学分已达标显示。 */
+  minTotal: number | null;
+  minMajorElective: number | null;
+  /** 仅课程性质参考，不代表完整毕业培养要求。 */
+  isPartial?: boolean;
   byNature: Record<string, { count: number; sumXf: number }>;
 }
 

@@ -429,7 +429,7 @@ export function OnboardingModal({
         <div className="px-4 sm:px-7 mt-2 grid grid-cols-3 sm:grid-cols-5 gap-1.5 shrink-0">
           {STEPS.map((s, i) => {
             const n = i + 1;
-            const noMajorElective = (requirement?.minMajorElective ?? 0) === 0;
+            const noMajorElective = requirement?.minMajorElective === 0;
             const filled = [
               !!selectedPlan,                                                   // 1 方案
               totalEarned > 0 || electiveThisSem > 0,                           // 2 已修学分
@@ -496,8 +496,9 @@ export function OnboardingModal({
               <PlanSelector value={selectedPlan} onChange={onSelectPlan} options={allPlans} />
               {requirement ? (
                 <div className="mt-3 rounded-xl bg-indigo-50/50 border border-indigo-100 p-3 text-[12px] text-indigo-700">
-                  已识别：<span className="font-semibold">{selectedPlan}</span> · 毕业最低 {requirement.minTotal} 学分
-                  {requirement.minMajorElective > 0 && <> · 专业限选 ≥ {requirement.minMajorElective}</>}
+                  已识别：<span className="font-semibold">{selectedPlan}</span> · 毕业最低 {requirement.minTotal == null ? "学分未知" : `${requirement.minTotal} 学分`}
+                  {(requirement.minMajorElective ?? 0) > 0 && <> · 专业限选 ≥ {requirement.minMajorElective}</>}
+                  {requirement.isPartial && <p className="mt-2 leading-5">当前仅预填课程性质参考，毕业学分要求尚未提供，不计算达标进度；多方向课程请结合所属方向核对。</p>}
                 </div>
               ) : selectedPlan ? (
                 <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 p-3 text-[12px] text-amber-700">
@@ -628,11 +629,14 @@ export function OnboardingModal({
           {/* Step 3 — 已修专业限选 */}
           {step === 3 && (
             <div className="min-h-[320px]">
+              {requirement?.isPartial && (
+                <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700">2026级方案为课程性质参考，毕业最低学分与专业限选要求未知，暂不计算毕业达标进度。</p>
+              )}
               {requirement && (
                 <div className="flex items-center justify-between mb-2 px-3 py-2 rounded-xl bg-indigo-50/50 border border-indigo-100 text-[12px]">
                   <span className="text-indigo-700">专业限选已勾</span>
                   <span className="font-mono font-bold text-indigo-700">
-                    {takenMajorElectiveCredits} / {requirement.minMajorElective} 学分
+                    {takenMajorElectiveCredits} / {requirement.minMajorElective ?? "未知"} 学分
                   </span>
                 </div>
               )}

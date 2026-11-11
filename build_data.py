@@ -33,6 +33,7 @@ MASTER_DIR = os.path.join("data", "master")
 PUBLIC_DIR = "public"
 
 TRAINING_PLAN_FILE = os.path.join(MASTER_RAW_DIR, "training_plan.json")
+TRAINING_PLAN_2026_REFERENCE_FILE = os.path.join(MASTER_RAW_DIR, "jxjh_2026_courses.json")
 BUILD_CONFIG_FILE = os.path.join("data", "build_config.json")
 COURSE_NATURE_OVERRIDES_FILE = os.path.join("data", "course_nature_overrides.json")
 
@@ -248,11 +249,38 @@ def load_semesters() -> dict:
     return out
 
 
+def merge_2026_course_reference(plans: list, raw: dict) -> list:
+    """仅补充实际有课程的2026级方案，完整方案优先，不借用往届毕业学分要求。"""
+    if not isinstance(raw, dict) or raw.get("年级") != "2026" or not isinstance(raw.get("方案"), list):
+        raise ValueError("2026参考文件必须包含年级=2026和方案列表")
+    merged = list(plans)
+    existing = {(p.get("年级"), p.get("专业")) for p in plans}
+    seen = set()
+    for plan in raw["方案"]:
+        if not isinstance(plan, dict) or plan.get("年级") != "2026" or not plan.get("专业"):
+            raise ValueError("参考方案必须有2026年级和专业名称")
+        key = ("2026", plan["专业"])
+        if key in seen:
+            raise ValueError(f"2026参考方案重复：{plan['专业']}")
+        seen.add(key)
+        if not isinstance(plan.get("课程"), list):
+            raise ValueError(f"参考方案课程必须为列表：{plan['专业']}")
+        if key in existing or not plan["课程"]:
+            continue
+        merged.append({**plan, "仅课程性质参考": True,
+                       "毕业最低学分": None, "专业限选最低学分": None})
+    return merged
+
+
 def load_training_plan() -> list:
-    if not os.path.exists(TRAINING_PLAN_FILE):
-        return []
-    with open(TRAINING_PLAN_FILE, encoding="utf-8") as f:
-        return json.load(f)
+    plans = []
+    if os.path.exists(TRAINING_PLAN_FILE):
+        with open(TRAINING_PLAN_FILE, encoding="utf-8") as f:
+            plans = json.load(f)
+    if os.path.exists(TRAINING_PLAN_2026_REFERENCE_FILE):
+        with open(TRAINING_PLAN_2026_REFERENCE_FILE, encoding="utf-8") as f:
+            plans = merge_2026_course_reference(plans, json.load(f))
+    return plans
 
 
 def find_current_semester(semesters: dict) -> str:
@@ -272,6 +300,10 @@ def parse_training_plan(raw_plans: list):
     degree_ids: set = set()
     credits_votes: dict = defaultdict(Counter)
     names_by_id: dict = {}
+    # 参考文件只补性质/归属；已有完整方案定义的课程名、学分不受新参考票数影响。
+    authoritative_cids = {(c.get("课程号") or "").strip()
+                         for p in raw_plans if not p.get("仅课程性质参考")
+                         for c in p.get("课程", [])}
 
     for plan in raw_plans:
         year = (plan.get("年级") or "").strip()
@@ -295,6 +327,8 @@ def parse_training_plan(raw_plans: list):
                 natures_by_id[cid].add(nature)
             if is_degree:
                 degree_ids.add(cid)
+            if plan.get("仅课程性质参考") and cid in authoritative_cids:
+                continue
             try:
                 xf = int(float((c.get("学分") or "").strip()))
                 if xf > 0:
@@ -327,9 +361,10 @@ def build_major_requirements(raw_plans: list) -> list:
             "year": year,
             "major": major,
             "directions": list(p.get("方向列表") or []),
-            "minTotal": p.get("毕业最低学分") or 0,
-            "minMajorElective": p.get("专业限选最低学分") or 0,
+            "minTotal": None if p.get("仅课程性质参考") else (p.get("毕业最低学分") or 0),
+            "minMajorElective": None if p.get("仅课程性质参考") else (p.get("专业限选最低学分") or 0),
             "byNature": p.get("按性质汇总") or {},
+            **({"isPartial": True} if p.get("仅课程性质参考") else {}),
         }
     return list(by_key.values())
 

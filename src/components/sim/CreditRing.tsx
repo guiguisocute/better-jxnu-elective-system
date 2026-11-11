@@ -22,26 +22,27 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
   const chartRef = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
   const isDark = resolved === "dark";
+  const requirementKnown = view.minTotal != null;
 
   useEffect(() => {
-    if (!elRef.current) return;
+    if (!requirementKnown || !elRef.current) return;
     const chart = echarts.init(elRef.current);
     chartRef.current = chart;
     return () => {
       chart.dispose();
       chartRef.current = null;
     };
-  }, []);
+  }, [requirementKnown]);
 
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart) return;
+    if (!chart || view.minTotal == null) return;
     chart.resize({ width: size, height: size });
 
     const proj = view.projection.value;
     // tooltip 里写具体学期号（"2026-09理论"），别让用户去猜「下学期」是哪一学期。
     const nextSemName = view.nextSemKey || "下学期";
-    const denom = view.minTotal ?? Math.max(1, view.earned + proj + 1);
+    const denom = view.minTotal;
     const inner = Math.max(0, size / 2 - stroke);
     const outer = size / 2;
 
@@ -152,6 +153,15 @@ export function CreditRing({ view, size = 120, stroke = 12 }: Props) {
       ],
     }, { replaceMerge: ["series"] });
   }, [view, size, stroke, isDark]);
+
+  if (!requirementKnown) {
+    return (
+      <div className="inline-flex flex-col items-center justify-center rounded-full border border-dashed border-gray-200 text-center" style={{ width: size, height: size }}>
+        <span className="text-xs font-medium text-gray-600">毕业学分未知</span>
+        <span className="mt-1 text-[10px] text-gray-400">暂不计算进度</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative inline-flex" style={{ width: size, height: size }}>
