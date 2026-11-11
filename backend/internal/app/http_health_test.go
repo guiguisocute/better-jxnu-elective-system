@@ -23,9 +23,17 @@ func assertMinimalHealthResponse(t *testing.T, handler http.Handler, wantStatus 
 	}
 }
 
-func TestPublicHealthResponseIsMinimal(t *testing.T) {
+func TestPublicHealthReportsStartingWithoutFailure(t *testing.T) {
 	servers := &Servers{enrollment: &EnrollmentService{}}
-	assertMinimalHealthResponse(t, servers.publicHandler(), http.StatusServiceUnavailable, false)
+	w := httptest.NewRecorder()
+	servers.publicHandler().ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	var payload map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if w.Code != http.StatusOK || payload["status"] != "starting" || payload["ok"] != true {
+		t.Fatalf("startup health = %d %#v", w.Code, payload)
+	}
 }
 
 func TestLiveHealthResponseIsMinimal(t *testing.T) {

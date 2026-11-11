@@ -216,7 +216,7 @@ func (s *EnrollmentService) Run(ctx context.Context) {
 		cfg := s.config.Get()
 		target := cfg.LiveEnrollmentTarget()
 		if target == "" {
-			s.disableForPreselect(started, cfg.EnrollmentRefreshSeconds)
+			s.pause(started, cfg.EnrollmentRefreshSeconds)
 			if !s.wait(ctx, time.Duration(cfg.EnrollmentRefreshSeconds)*time.Second) {
 				return
 			}
@@ -267,8 +267,8 @@ func (s *EnrollmentService) wait(ctx context.Context, wait time.Duration) bool {
 	}
 }
 
-func (s *EnrollmentService) disableForPreselect(now time.Time, interval int) {
-	message := "当前默认阶段为预选：预选目录不含实时人数，KKAP 轮询已按阶段关闭"
+func (s *EnrollmentService) pause(now time.Time, interval int) {
+	message := "未配置正选实时人数目标学期，采集已暂停"
 	s.mu.Lock()
 	// 这条是阶段语义，不是故障详情，对外照原样显示。
 	s.state = enrollmentState{
@@ -305,7 +305,7 @@ func (s *EnrollmentService) finishAttempt(snapshot *EnrollmentSnapshot, err erro
 		s.state.Error = nil
 		s.state.PublicError = nil
 	}
-	s.state.OK = s.state.Snapshot != nil
+	s.state.OK = s.state.Snapshot != nil && err == nil
 	s.reencodeLocked()
 	s.mu.Unlock()
 }
@@ -336,10 +336,67 @@ func (s *EnrollmentService) reencodeLocked() {
 	s.full = encodeResponse(full)
 }
 
-func (s *EnrollmentService) Responses() (full, health encodedResponse, ok bool) {
+// publicHealthLocked exposes business health, never raw upstream errors or URLs.
+// Freshness is evaluated on every request, even if the poller has stalled.
+func (s *EnrollmentService) publicHealthLocked(now time.Time, cfg RuntimeConfig) (map[string]any, bool) {
+	target := cfg.LiveEnrollmentTarget()
+	status, healthy := "starting", true
+	var lastSuccess any
+	if target == "" {
+		status = "paused"
+	} else if snapshot := s.state.Snapshot; snapshot != nil && snapshot.Semester == target {
+		lastSuccess = snapshot.FetchedAt
+		stamp, err := time.Parse(time.RFC3339, snapshot.FetchedAt)
+		limit := time.Duration(cfg.EnrollmentRefreshSeconds*3) * time.Second
+		if limit < time.Minute {
+			limit = time.Minute
+		}
+		if err != nil || now.Sub(stamp) > limit {
+			status, healthy = "stale", false
+		} else {
+			status = "ok"
+		}
+	}
+	if target != "" && s.state.Error != nil {
+		status, healthy = "error", false
+	}
+	var publicError any
+	if !healthy {
+		publicError = publicEnrollmentErrorMessage
+	}
+	return map[string]any{"ok": healthy, "status": status, "semester": target,
+		"lastSuccessAt": lastSuccess, "refreshing": s.state.Refreshing, "error": publicError}, healthy
+}
+
+func (s *EnrollmentService) responseConfig() RuntimeConfig {
+	if s.config == nil {
+		return DefaultRuntimeConfig()
+	}
+	return s.config.Get()
+}
+
+func (s *EnrollmentService) HealthResponse() (encodedResponse, bool) {
+	cfg := s.responseConfig()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.full, s.health, s.state.OK
+	payload, healthy := s.publicHealthLocked(time.Now(), cfg)
+	return encodeResponse(payload), healthy
+}
+
+func (s *EnrollmentService) Responses() (full, health encodedResponse, ok bool) {
+	cfg := s.responseConfig()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	payload, healthy := s.publicHealthLocked(time.Now(), cfg)
+	if cfg.LiveEnrollmentTarget() == "" {
+		paused := encodeResponse(payload)
+		return paused, paused, true
+	}
+	current := s.state.Snapshot != nil && s.state.Snapshot.Semester == cfg.LiveEnrollmentTarget()
+	if !current || !healthy {
+		return encodeResponse(payload), s.health, false
+	}
+	return s.full, s.health, healthy && s.state.OK
 }
 
 func (s *EnrollmentService) Status() enrollmentState {

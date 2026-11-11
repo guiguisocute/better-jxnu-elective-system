@@ -209,13 +209,13 @@ func (a *AdminServer) dashboard(w http.ResponseWriter, r *http.Request, session 
 	liveTarget := cfg.LiveEnrollmentTarget()
 	enrollmentState := "等待首份快照"
 	if liveTarget == "" {
-		enrollmentState = "按预选阶段关闭"
+		enrollmentState = "未配置正选目标，已暂停"
 	} else if enrollment.OK {
 		enrollmentState = "正常"
 	}
 	liveTargetLabel := liveTarget
 	if liveTargetLabel == "" {
-		liveTargetLabel = "预选不提供实时人数"
+		liveTargetLabel = "未配置正选实时人数学期"
 	}
 	body := fmt.Sprintf(`<section class="hero"><div><p class="eyebrow">JXNU 选课 PLUS</p><h1>后端控制中心</h1><p>这里显示的是业务状态，不需要记端口、env 名或 systemd 命令。</p></div><a class="button" href="/settings">修改日常设置</a></section>
 <div class="grid three"><section class="card"><span class="status %s"></span><h2>实时人数</h2><p class="big">%s</p><p>%s · %d 个教学班</p></section><section class="card"><span class="status %s"></span><h2>学号实时课表</h2><p class="big">%s</p><p>缓存 %v 条 · %s</p></section><section class="card"><span class="status %s"></span><h2>自动同步</h2><p class="big">%s</p><p>%s</p></section></div>
@@ -247,7 +247,7 @@ func (a *AdminServer) settings(w http.ResponseWriter, r *http.Request, session a
 		return `<input name="` + name + `" list="semester-target-options" value="` + template.HTMLEscapeString(value) + `" pattern="\d{4}-(03|09)" required><p class="hint">教务映射：` + template.HTMLEscapeString(value) + ` → ` + template.HTMLEscapeString(academicTermLabel(value)) + `</p>`
 	}
 	body := `<section class="hero"><div><p class="eyebrow">日常只需要这一页</p><h1>展示与查询设置</h1><p>默认展示阶段同时决定当前自动任务使用哪条采集管线；三个阶段的目标与 raw 永久分开。</p></div></section><form method="post" action="/action/save-daily" class="stack">` + csrf(session) +
-		`<section class="card"><h2>1. 网站默认打开哪个阶段？</h2><p class="hint">保存后，该阶段对应的采集与实时人数策略生效；正选和补退选共用同一个入口、课表和目标学期。</p><div class="choices">` + radio("defaultDataSource", "pre", "预选", "CAS 课程目录；无实时人数", cfg.DefaultDataSource) + radio("defaultDataSource", "formal", "正选/补退选", "同一 KKAP 课表；容量 URL 按时间手动切换", cfg.DefaultDataSource) + `</div></section>` +
+		`<section class="card"><h2>1. 网站默认打开哪个阶段？</h2><p class="hint">默认阶段只影响展示和目录同步；正选实时人数独立按正选目标学期持续采集。</p><div class="choices">` + radio("defaultDataSource", "pre", "预选", "CAS 课程目录；无实时人数", cfg.DefaultDataSource) + radio("defaultDataSource", "formal", "正选/补退选", "同一 KKAP 课表；容量 URL 按时间手动切换", cfg.DefaultDataSource) + `</div></section>` +
 		`<section class="card"><h2>2. 预选数据写入哪个学期？ ` + activeBadge(cfg.DefaultDataSource == "pre") + `</h2><p class="hint">目标文件：<code>raw/preselect_catalog.json</code>。它只能由选课系统 CAS 页面提供；KKAP 无法代替。当前联网采集器保持关闭，系统只接收已有/手工 raw，也绝不探测人数或容量。</p>` + targetField("preselectSemester", cfg.PreselectSemester) + `</section>` +
 		`<section class="card"><h2>3. 正选/补退选数据写入哪个学期？ ` + activeBadge(cfg.DefaultDataSource == "formal") + `</h2><p class="hint">唯一目标文件：<code>raw/formal_schedule.json</code>。两个时段的课程课表完全一致；阶段变化只在高级设置里切换容量嗅探 URL。</p>` + targetField("selectionSemester", cfg.SelectionSemester) + `</section>` +
 		`<datalist id="semester-target-options">` + options(targetSemesters, "") + `</datalist>` +
@@ -265,9 +265,9 @@ func (a *AdminServer) operations(w http.ResponseWriter, r *http.Request, session
 	if profile.DataSource == "pre" {
 		acquireButton = "检查预选 raw 并构建"
 	}
-	liveCard := `<section class="card"><h2>实时人数</h2><p>当前阶段会按 ` + template.HTMLEscapeString(profile.Semester) + ` 刷新 KKAP 人数。</p><form method="post" action="/action/refresh-enrollment">` + csrf(session) + `<button class="button">立即刷新人数</button></form></section>`
-	if !profile.LiveEnrollment {
-		liveCard = `<section class="card"><h2>实时人数</h2><p class="hint">预选目录没有实时人数语义，后端与前端轮询均已自动关闭；无需配置一个假的“实时人数学期”。</p></section>`
+	liveCard := `<section class="card"><h2>实时人数</h2><p>独立按正选学期 ` + template.HTMLEscapeString(cfg.LiveEnrollmentTarget()) + ` 刷新 KKAP 人数，不受首页默认阶段影响。</p><form method="post" action="/action/refresh-enrollment">` + csrf(session) + `<button class="button">立即刷新人数</button></form></section>`
+	if cfg.LiveEnrollmentTarget() == "" {
+		liveCard = `<section class="card"><h2>实时人数</h2><p class="hint">未配置正选实时人数目标学期，人数采集已暂停。预选目录本身始终不显示实时人数。</p></section>`
 	}
 	body := fmt.Sprintf(`<section class="hero"><div><p class="eyebrow">任务与检查</p><h1>自动构建与数据同步</h1><p>当前只运行 <b>%s</b> 管线：%s → %s。</p></div><a class="button" href="/logs?source=sync">查看同步日志</a></section>
 <section class="card"><h2>最近一次任务：%s</h2><p>%s</p><dl class="facts"><div><dt>阶段</dt><dd>%s</dd></div><div><dt>开始</dt><dd>%s</dd></div><div><dt>结束</dt><dd>%s</dd></div><div><dt>目标学期</dt><dd>%s</dd></div><div><dt>预选课程</dt><dd>%d</dd></div><div><dt>产物教学班</dt><dd>%d</dd></div><div><dt>课程详情缓存</dt><dd>%d 门</dd></div></dl><div class="action-row"><form method="post" action="/action/sync">%s<button class="button primary">%s</button></form><form method="post" action="/action/build">%s<button class="button">仅构建现有 raw</button></form></div></section>

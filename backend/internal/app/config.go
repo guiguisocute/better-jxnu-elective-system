@@ -195,14 +195,10 @@ func (c RuntimeConfig) SelectionStep() string {
 	return match[1]
 }
 
-// LiveEnrollmentTarget is derived from the active display stage. Preselect has
-// no live headcount semantics, so returning an empty target disables polling.
+// LiveEnrollmentTarget always follows the formal/add-drop term, independently
+// of the homepage display stage or preselection catalog acquisition.
 func (c RuntimeConfig) LiveEnrollmentTarget() string {
-	profile := c.ActiveAcquisitionProfile()
-	if !profile.LiveEnrollment {
-		return ""
-	}
-	return profile.Semester
+	return strings.TrimSpace(c.SelectionSemester)
 }
 
 func (c RuntimeConfig) Validate() error {

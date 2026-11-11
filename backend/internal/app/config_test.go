@@ -161,7 +161,7 @@ func TestActiveAcquisitionProfileSeparatesPreselectFromSharedSelection(t *testin
 	cfg.SelectionSemester = "2026-09"
 	cfg.DefaultDataSource = "pre"
 	pre := cfg.ActiveAcquisitionProfile()
-	if pre.RawFilename != "preselect_catalog.json" || pre.KKAPEnabled || pre.LiveEnrollment || cfg.LiveEnrollmentTarget() != "" {
+	if pre.RawFilename != "preselect_catalog.json" || pre.KKAPEnabled || pre.LiveEnrollment || cfg.LiveEnrollmentTarget() != "2026-09" {
 		t.Fatalf("pre profile = %#v", pre)
 	}
 	cfg.DefaultDataSource = "formal"

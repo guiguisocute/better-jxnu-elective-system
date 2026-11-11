@@ -87,12 +87,12 @@ func (s *Servers) publicHandler() http.Handler {
 		if !methodAllowed(w, r, http.MethodGet) {
 			return
 		}
-		_, _, ok := s.enrollment.Responses()
+		health, ok := s.enrollment.HealthResponse()
 		status := http.StatusOK
 		if !ok {
 			status = http.StatusServiceUnavailable
 		}
-		writeJSON(w, map[string]bool{"ok": ok}, status, s.corsOrigin(r))
+		s.writeEncoded(w, r, health, status, true)
 	})
 	mux.HandleFunc("/api/enrollments", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -246,7 +246,7 @@ func (s *Servers) writeEncoded(w http.ResponseWriter, r *http.Request, response 
 	w.Header().Set("Cache-Control", "no-cache, max-age=0")
 	w.Header().Set("ETag", response.etag)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if r.Header.Get("If-None-Match") == response.etag {
+	if status == http.StatusOK && r.Header.Get("If-None-Match") == response.etag {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
