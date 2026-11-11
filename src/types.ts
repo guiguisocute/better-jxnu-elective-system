@@ -69,6 +69,8 @@ export interface Course {
   credits: number;
   dept: string;
   semester: string;
+  /** 学校原始开课要求：不限 / 每学年第1、2学期，不是数据所属学期。 */
+  offeringTerm?: string;
   tags: string[];
   /** 经人工清单确认的全局附加性质；不覆盖培养方案，不改变毕业学分口径。 */
   extraNatureTags?: KnownCourseNature[];

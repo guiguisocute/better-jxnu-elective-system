@@ -883,9 +883,9 @@ export function CourseTable({
           </div>
         </div>
 
-        {!isFormal && preselectionStatus ? preselectionStatus : isFormal && showHints && formalAvailable && !formalLoading ? (
+        {!isFormal && preselectionStatus && !showHints ? preselectionStatus : isFormal && showHints && formalAvailable && !formalLoading ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
-        ) : !isFormal && showHints && courses.length > 0 ? (
+        ) : !isFormal && showHints ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
         ) : isFormal ? (
           /* 正选 / 补退选视图 —— 不用 overflow-x-auto 包，避免破坏 sticky thead 的定位上下文。
@@ -1197,9 +1197,9 @@ export function CourseTable({
           </div>
         )}
 
-        {!isFormal && preselectionStatus ? preselectionStatus : isFormal && showHints && formalAvailable && !formalLoading ? (
+        {!isFormal && preselectionStatus && !showHints ? preselectionStatus : isFormal && showHints && formalAvailable && !formalLoading ? (
           <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />
-        ) : !isFormal && showHints && courses.length > 0 ? (
+        ) : !isFormal && showHints ? (
           <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />
         ) : isFormal ? (
           formalLoading ? (

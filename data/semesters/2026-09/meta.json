@@ -3,6 +3,6 @@
   "startDate": "2026-09-01",
   "endDate": "2027-01-15",
   "fetchedAt": "2026-06-28",
-  "isCurrent": true,
+  "isCurrent": false,
   "note": "预选目录(preselect_catalog)、开班状态(openclass_status)与正式课表(formal_schedule)均为 2026 真实数据。正选/补退选以 formal_schedule 为准，已包含课程号、教师、教学班、星期、节次与教室；openclass_status 保留作课程/教师补充及无正式课表时的兜底。该学期不显示「（测试）」后缀。"
 }

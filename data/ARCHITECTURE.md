@@ -316,3 +316,9 @@ npm run dev   # 抽查「预选」「正选/补退选」两个入口
 ## 2026级部分课程参考
 
 `master_raw/jxjh_2026_courses.json` 由构建器补入实际有课程的2026级专业，不修改原 `training_plan.json`。来源仅提供课程性质/开课学期，不提供完整毕业要求；派生要求标记 `isPartial=true`，两个最低学分字段为 `null`，前端显示未知并隐藏毕业比例。详见 [REFERENCE_2026.md](REFERENCE_2026.md)。其他年级与完整方案优先保留。
+
+## 历史预选目录与开课要求
+
+`Course.semester` 必须取 `data/semesters/<sem>/meta.label`，不能取学校 raw 的「开课学期」（值可能是“不限”或“每学年第N学期”）；原始要求保存在 `offeringTerm`，详情页继续展示。
+
+manifest 的 `preselectionCourses` 按学期指向 `preselection_courses.<sem>.<hash>.json`。切换历史预选才加载该文件；当前学期复用已加载的课程数据，不把所有历史课程拼到首屏。2027-03为默认预选（当前真实目录6705门），2026-09保留全部5928门预选课程。没有目录时，更新中页只在进入列表后作为兜底，小乌龟落地页始终保留。未来 currentSemester 切换到2027-03也不会移除历史目录；正选文件保持独立且不变。

@@ -4,6 +4,8 @@ export interface DataManifest {
   courses: string;
   courseDetails: string;
   formalSections: Record<string, string>;
+  /** 预选目录按学期独立加载，旧 manifest 缺失时兼容 currentSemester。 */
+  preselectionCourses?: Record<string, string>;
 }
 
 const jsonPromises = new Map<string, Promise<unknown>>();

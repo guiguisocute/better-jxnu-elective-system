@@ -34,7 +34,12 @@ export function useCourseData() {
     setNonce((n) => n + 1);
   }, []);
 
-  const options = useMemo(() => {
+  const options = useMemo(() => courseOptions(courses), [courses]);
+
+  return { courses, loading, error, reload, ...options, courseTypes: COURSE_TYPES };
+}
+
+export function courseOptions(courses: Course[]) {
     const allDepts = [...new Set(courses.map((c) => c.dept).filter(Boolean))].sort();
     const allCredits = [...new Set(courses.map((c) => c.credits))].filter((c) => c > 0).sort((a, b) => a - b);
     const allTags = [...new Set(courses.flatMap((c) => c.tags))].sort();
@@ -53,7 +58,4 @@ export function useCourseData() {
       allPlans,
       subTags: allTags.filter((t) => !COURSE_TYPES.includes(t)),
     };
-  }, [courses]);
-
-  return { courses, loading, error, reload, ...options, courseTypes: COURSE_TYPES };
 }

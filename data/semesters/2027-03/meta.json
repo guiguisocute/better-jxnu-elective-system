@@ -2,6 +2,7 @@
   "label": "2027-03",
   "startDate": "2027-03-01",
   "endDate": "2027-07-15",
-  "isCurrent": false,
-  "note": "预选待发布；真实 catalog 到位后由 jxnu-sync 自动切为 current，不复用往期数据。"
+  "fetchedAt": "2026-11-11",
+  "isCurrent": true,
+  "note": "2027春预选目录。选课系统 Step1/AddCourseSearch 用关键字 0-9 收齐课程号，再读 AddCourse.aspx?kch= 补教师、简介、先修和系统提示。公选课四个分类和教师教育课程单独打了标签。这一学期还没有正式课表。"
 }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { useCourseData } from "../hooks/useCourseData";
+import { usePreselectionData } from "../hooks/usePreselectionData";
+import { useCourseData, courseOptions } from "../hooks/useCourseData";
 import { useCourseFilter } from "../hooks/useCourseFilter";
 import { useFormalData } from "../hooks/useFormalData";
 import { useAllReviews } from "../hooks/useReviews";
@@ -25,7 +26,7 @@ import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { JuxingCobrand, JuxingSupport } from "./JuxingBrand";
 import { ScheduleFilter } from "./ScheduleFilter";
-import { preselectionSemesters, catalogForSemester } from "../lib/preselection";
+import { preselectionSemesters } from "../lib/preselection";
 import { PreselectionUpdating } from "./PreselectionUpdating";
 import { CourseTable } from "./CourseTable";
 import { Pagination } from "./Pagination";
@@ -149,7 +150,7 @@ export function HomePage() {
     try { sessionStorage.setItem(SEM_KEY, JSON.stringify(semesterByDS)); } catch {}
   }, [semesterByDS, SEM_KEY]);
 
-  const { courses, loading, error, allDepts, allCredits, allPlans, courseTypes, subTags } = useCourseData();
+  const { courses, loading, error, ...baseOptions } = useCourseData();
   // overall 聚合仍供正选排序候补 / AI ratingOf 使用（列表 UI 已不再显示星级）。
   const { getTeacherOverall } = useAllReviews();
   const formal = useFormalData(semesterByDS.formal);
@@ -198,12 +199,15 @@ export function HomePage() {
   // 它们不在当学期 catalog 里，学生预选阶段实际选不到，不应出现在预选列表。
   // coursesById/cartCourses 仍用 courses 全集（正选 任意选修 tag 派生需要它们）。
   const preSemester = semesterByDS.pre || appConfig.phaseSemesters.pre;
-  const preCourses = useMemo(
-    () => catalogForSemester(courses, preSemester),
-    [courses, preSemester],
-  );
-  // 真实目录为空与搜索无结果严格区分，不把往期课程伪装成新学期。
-  const preUpdating = !loading && !error && preCourses.length === 0;
+  const preselection = usePreselectionData(preSemester, dataSource === "pre", courses, loading, error);
+  const preCourses = preselection.courses;
+  const preOptions = useMemo(() => courseOptions(preCourses), [preCourses]);
+  const { allDepts, allCredits, allPlans, subTags } = dataSource === "pre" && preCourses.length > 0 ? preOptions : baseOptions;
+  const courseTypes = baseOptions.courseTypes;
+  const listLoading = dataSource === "pre" ? preselection.loading : loading;
+  const listError = dataSource === "pre" ? preselection.error : error;
+  // 真正没有目录与筛选无结果严格区分；切换历史学期时只加载对应文件。
+  const preUpdating = !preselection.loading && !preselection.error && preCourses.length === 0;
   const filter = useCourseFilter(preCourses, sim.mode === "sim" ? credit.takenCids : undefined);
   // 桥接：filter.filters.plan 变更 → 同步到 currentPlan（多一次 render，仅 plan 切换时发生）。
   useEffect(() => {
@@ -479,8 +483,8 @@ export function HomePage() {
 
   // 预选侧 allSemesters：从 courses.json 派生（catalog 当前学期，通常只 1 个），过滤掉非 YYYY-MM 形态。
   const preSemesters = useMemo(
-    () => preselectionSemesters(appConfig.phaseSemesters.pre, courses.filter((c) => c.inPre !== false).map((c) => c.semester)),
-    [courses, appConfig.phaseSemesters.pre],
+    () => preselectionSemesters(appConfig.phaseSemesters.pre, preselection.allSemesters),
+    [preselection.allSemesters, appConfig.phaseSemesters.pre],
   );
   const allSemesters = dataSource === "pre" ? preSemesters : formal.allSemesters;
   const selectedSemester = dataSource === "pre" ? preSemester : semesterByDS.formal;
@@ -1059,6 +1063,8 @@ export function HomePage() {
                     <span> 个班级</span>
                   </>
                 )
+              ) : preselection.loading ? (
+                <span>加载中...</span>
               ) : preUpdating ? (
                 <span className="text-brand">预选数据更新中</span>
               ) : (
@@ -1348,7 +1354,7 @@ export function HomePage() {
 
         {/* Center - course list */}
         <main className="flex-1 min-w-0">
-          {loading || error ? <CourseListSkeleton error={error} /> : (
+          {(listLoading || listError) && !(dataSource === "pre" && showHints) ? <CourseListSkeleton error={listError} /> : (
           <CourseTable
             preselectionStatus={preUpdating ? (
               <PreselectionUpdating semester={preSemester} onViewHistory={() => changeDataSource("formal")} />
@@ -1397,7 +1403,7 @@ export function HomePage() {
           )}
           {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染）。
               功能说明层显示时（无筛选）隐藏分页。 */}
-          {!loading && !error && !(dataSource === "pre" && preUpdating) && (showHints ? null : isFormalMode ? (
+          {!listLoading && !listError && !(dataSource === "pre" && preUpdating) && (showHints ? null : isFormalMode ? (
             formal.available && visibleFormalSections.length > 0 && (
               <Pagination
                 page={safeFormalPage}
@@ -1425,7 +1431,7 @@ export function HomePage() {
         </main>
 
         {/* 新学期目录未发布时不显示无意义的详情占位栏。 */}
-        {!(dataSource === "pre" && preUpdating) && <aside
+        {!(dataSource === "pre" && preUpdating && !showHints) && <aside
           className="hidden xl:block w-[500px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-[-8px_0_24px_rgba(0,0,0,0.04)]"
           style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
         >

@@ -989,6 +989,31 @@ def write_versioned_json(prefix: str, data) -> str:
     return f"/data/{filename}"
 
 
+def build_preselection_courses(catalog: list, master_by_id: dict, semester: str) -> list:
+    """数据学期取目录，raw「开课学期」实际是不限/每学年第N学期，另存开课要求。"""
+    result = []
+    for row in catalog:
+        cid = (row.get("课程号") or "").strip()
+        if not cid or cid not in master_by_id:
+            continue
+        teachers = [{"dept": (t.get("单位") or "").strip(),
+                     "id": (t.get("教号") or "").strip(),
+                     "name": (t.get("姓名") or "").strip(),
+                     "gender": (t.get("性别") or "").strip()}
+                    for t in (row.get("教师") or [])]
+        base = dict(master_by_id[cid])
+        # 历史目录保留当时课程名称与开课单位，避免被下一学期目录串改。
+        if not base.get("plans") and row.get("课程名称"):
+            base["name"] = row["课程名称"].strip()
+        if row.get("课程管理单位"):
+            base["dept"] = row["课程管理单位"].strip()
+        course = {**base, "teachers": teachers, "semester": semester,
+                  "offeringTerm": (row.get("开课学期") or "").strip(), "inPre": True}
+        course["_search"] = build_search_course(course, teachers)
+        result.append(course)
+    return result
+
+
 def build_public(semesters: dict, master: dict) -> None:
     """生成轻量首屏、按需详情和按学期课表；旧聚合路径仅保留给后端校验。"""
     current_sem = find_current_semester(semesters)
@@ -999,31 +1024,10 @@ def build_public(semesters: dict, master: dict) -> None:
         if current_sem else None
     )
 
-    public_courses = []
-    if current_sem and "preselect_catalog" in semesters.get(current_sem, {}):
-        cat = semesters[current_sem]["preselect_catalog"] or []
-        for c in cat:
-            cid = (c.get("课程号") or "").strip()
-            if not cid or cid not in master_by_id:
-                continue
-            base = master_by_id[cid]
-            teachers = [
-                {
-                    "dept": (t.get("单位") or "").strip(),
-                    "id": (t.get("教号") or "").strip(),
-                    "name": (t.get("姓名") or "").strip(),
-                    "gender": (t.get("性别") or "").strip(),
-                }
-                for t in (c.get("教师") or [])
-            ]
-            course = {
-                **base,
-                "teachers": teachers,
-                "semester": (c.get("开课学期") or "").strip(),
-                "inPre": True,
-            }
-            course["_search"] = build_search_course(course, teachers)
-            public_courses.append(course)
+    public_courses = build_preselection_courses(
+        semesters.get(current_sem, {}).get("preselect_catalog", []) or [],
+        master_by_id, current_label,
+    ) if current_sem else []
 
     # formal_sections：所有学期正选/补退选共用课表。学期标签 = 目录名（权威源）。
     public_sections = []
@@ -1031,6 +1035,11 @@ def build_public(semesters: dict, master: dict) -> None:
     for sem in sorted(semesters.keys()):
         data = semesters[sem]
         sem_label = data.get("meta", {}).get("label") or sem
+        semester_master = dict(master_by_id)
+        for row in data.get("preselect_catalog", []) or []:
+            cid = (row.get("课程号") or "").strip()
+            if cid in semester_master and row.get("课程管理单位"):
+                semester_master[cid] = {**semester_master[cid], "dept": row["课程管理单位"].strip()}
         # (cid, teacher_name) → teacher_id：先取 catalog，再用 schedule 自带的 任课老师.UserNum 补强。
         # 后者让「催课表新增了但 catalog 缺录」的老师也能拿到教号，正选/补退选评分按钮才会出现。
         t_lookup: dict = {}
@@ -1076,7 +1085,7 @@ def build_public(semesters: dict, master: dict) -> None:
             capacity_lookup = {**oc_lookup, **xk_lookup}
             public_sections.extend(build_sections_for_semester(
                 rows,
-                master_by_id,
+                semester_master,
                 t_lookup,
                 sem_label,
                 unmatched_foreign_teachers,
@@ -1085,7 +1094,7 @@ def build_public(semesters: dict, master: dict) -> None:
         elif data.get("openclass_status"):
             public_sections.extend(
                 build_sections_from_openclass(
-                    data["openclass_status"], master_by_id, t_lookup, sem_label,
+                    data["openclass_status"], semester_master, t_lookup, sem_label,
                 )
             )
 
@@ -1169,15 +1178,48 @@ def build_public(semesters: dict, master: dict) -> None:
     os.makedirs(PUBLIC_DIR, exist_ok=True)
     os.makedirs(PUBLIC_DATA_DIR, exist_ok=True)
     for filename in os.listdir(PUBLIC_DATA_DIR):
-        if filename.startswith(("courses.", "course_details.", "formal_sections.")) and filename.endswith(".json"):
+        if filename.startswith(("courses.", "preselection_courses.", "course_details.", "formal_sections.")) and filename.endswith(".json"):
             os.remove(os.path.join(PUBLIC_DATA_DIR, filename))
 
     sections_by_semester = defaultdict(list)
     for section in light_sections:
         sections_by_semester[section["semester"]].append(section)
+    # 历史预选逐学期持久化；首屏只下载选中学期，不把所有目录并入 courses.json。
+    preselection_urls = {}
+    for sem, data in sorted(semesters.items()):
+        catalog = data.get("preselect_catalog") or []
+        if not catalog:
+            continue
+        label = data.get("meta", {}).get("label") or sem
+        rows = ([c for c in light_courses if c.get("inPre") is not False]
+                if sem == current_sem else
+                build_preselection_courses(catalog, master_by_id, label))
+        if sem != current_sem:
+            # 历史目录空教师时，仍保留原有正式课表补全策略。
+            for course in rows:
+                if not course["teachers"]:
+                    teachers = {}
+                    for section in sections_by_semester.get(label, []):
+                        if section["id"] != course["id"] or not section.get("teacher"):
+                            continue
+                        tid = section.get("teacherId", "")
+                        tr = teachers_by_id.get(tid, {})
+                        teachers.setdefault(tid or section["teacher"], {
+                            "id": tid, "name": section["teacher"],
+                            "gender": tr.get("gender", ""),
+                            "dept": next(iter(tr.get("depts", [])), ""),
+                        })
+                    if teachers:
+                        course["teachers"] = list(teachers.values())
+                        course["teachersFromFormal"] = True
+                        course["_search"] = build_search_course(course, course["teachers"])
+        rows = [{k: v for k, v in c.items() if k not in DETAIL_FIELDS} for c in rows]
+        preselection_urls[label] = write_versioned_json(f"preselection_courses.{label}", rows)
+
     manifest = {
         "version": 1,
         "currentSemester": current_label,
+        "preselectionCourses": preselection_urls,
         "courses": write_versioned_json("courses", light_courses),
         "courseDetails": write_versioned_json("course_details", course_details),
         "formalSections": {
