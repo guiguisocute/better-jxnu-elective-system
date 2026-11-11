@@ -1,3 +1,6 @@
+import type { CourseNature, KnownCourseNature } from "./lib/courseNatures";
+export type { CourseNature, KnownCourseNature } from "./lib/courseNatures";
+
 export interface Teacher {
   dept: string;
   id: string;
@@ -47,7 +50,7 @@ export interface CoursePlan {
   year: string;
   major: string;
   direction: string;
-  nature: string;
+  nature: CourseNature;
   isDegree: boolean;
   semester: string;
 }
@@ -67,6 +70,8 @@ export interface Course {
   dept: string;
   semester: string;
   tags: string[];
+  /** 经人工清单确认的全局附加性质；不覆盖培养方案，不改变毕业学分口径。 */
+  extraNatureTags?: KnownCourseNature[];
   teachers: Teacher[];
   isDegreeCourse: boolean;
   plans: CoursePlan[];
@@ -93,7 +98,7 @@ export interface MajorRequirement {
 export interface PlanCourse {
   cid: string;
   name: string;
-  nature: string;
+  nature: CourseNature;
   credits: number;
   semester: string; // "第N学期"，可能为空
   isDegree: boolean;

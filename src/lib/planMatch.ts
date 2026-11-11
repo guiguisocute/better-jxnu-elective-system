@@ -21,6 +21,7 @@ const NATURE_TAGS = new Set<string>([
   "专业必修",
   "专业选修",
   "专业限选",
+  "计算机限选",
   "专业任选",
   "大学英语特色课",
   "教师教育必修",
@@ -68,6 +69,8 @@ export function displayTags(course: Course, selectedPlan: string): string[] {
   const matchedNatures = new Set(matched.map((p) => p.nature).filter(Boolean));
   const anyDegree = matched.some((p) => p.isDegree);
   const kept = course.tags.filter((t) => {
+    // 人工清单的附加性质是全局分类，不因切换培养方案而消失。
+    if (course.extraNatureTags?.some((tag) => tag === t)) return true;
     if (NATURE_TAGS.has(t)) return matchedNatures.has(t);
     if (t === "学位课") return anyDegree;
     return true;

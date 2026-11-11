@@ -1,18 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { COURSE_TYPE_OPTIONS } from "../lib/courseNatures";
 import type { Course } from "../types";
 import { loadDataJson, loadDataManifest } from "../lib/dataClient";
 
-const COURSE_TYPES = [
-  "公选课",
-  "公共必修课",
-  "教师教育课程",
-  "专业主干",
-  "专业限选",
-  "专业任选",
-  "专业类基础",
-  "大学英语特色课",
-  "任意选修",
-];
+const COURSE_TYPES = COURSE_TYPE_OPTIONS;
 
 export function useCourseData() {
   const [courses, setCourses] = useState<Course[]>([]);

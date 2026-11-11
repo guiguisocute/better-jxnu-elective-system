@@ -9,6 +9,7 @@ const TAG_COLORS: Record<string, string> = {
   "其他": "text-gray-500 border-gray-200 bg-gray-50/50",
   // 培养方案课程性质（真实出现的值；"公共必修" 已在 build_data.py 归一化为 "公共必修课"）
   "专业主干": "text-blue-700 border-blue-300 bg-blue-50/60",
+  "计算机限选": "text-[#0F766E] border-[#99F6E4] bg-[#F0FDFA] dark:text-[#5EEAD4] dark:border-[#115E59] dark:bg-[#0C302D]",
   "专业限选": "text-indigo-600 border-indigo-200 bg-indigo-50/60",
   "专业任选": "text-sky-500 border-sky-200 bg-sky-50/40",
   "专业类基础": "text-cyan-600 border-cyan-200 bg-cyan-50/50",

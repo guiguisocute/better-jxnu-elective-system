@@ -1295,7 +1295,7 @@ function ElectiveAuditTable({ courses, term, electiveBlock }: {
       const k = ELECTIVE_LABEL(c.nature);
       m.set(k, [...(m.get(k) ?? []), c]);
     }
-    const order = ["专业限选", "专业任选", "教师教育选修", "大学英语特色课", "公选课 / 任选"];
+    const order = ["专业限选", "计算机限选", "专业任选", "教师教育选修", "大学英语特色课", "公选课 / 任选"];
     return [...m.keys()]
       .sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
       .map((k) => {

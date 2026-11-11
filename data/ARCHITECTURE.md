@@ -121,7 +121,7 @@ better-jxnu-elective-system/
 | 课程名 | training_plan > preselect_catalog > course_details > formal_schedule | training_plan 命名最规范；详情页只补空值 |
 | 课程英文名 | course_details > formal_schedule `课程信息.课程英文名称`（最新非空值） | 同一 cid 跨现有学期无冲突；进入英文搜索索引 |
 | 学分 | training_plan > preselect_catalog > course_details > formal_schedule | CAS 课程简介页补公开课表缺失值，不覆盖培养方案/catalog 的非零真值 |
-| 课程性质（专业主干/限选 等） | **仅** training_plan | 其他 raw 没这字段 |
+| 课程性质（专业主干/限选 等） | training_plan；已确认人工清单可附加 tag | `data/course_nature_overrides.json` 只补标签，不覆盖方案性质/学分；见 COURSE_NATURE_OVERRIDES.md |
 | 学位课 isDegree | **仅** training_plan（`学位课程` 字段非空） | 同上 |
 | 开课学院 dept | preselect_catalog > formal_schedule.单位名称 | training_plan 无此字段 |
 | 简介 desc | preselect_catalog > course_details > formal_schedule `课程信息.内容简介` | catalog 通常更完整，其余来源只补空值 |
@@ -154,6 +154,7 @@ type MasterCourse = {
   prereqDesc: string;
   isDegreeCourse: boolean;
   tags: string[];              // 前缀派生 + nature tags（不含通用 学位课，由 isDegreeCourse 控）
+  extraNatureTags?: string[];   // 人工清单确认的全局附加性质（当前空映射不输出该字段）
   plans: CoursePlan[];         // 培养方案归属（年级×专业×方向×性质）
   // 不含 teachers — 师课绑定移到 section 层
 };

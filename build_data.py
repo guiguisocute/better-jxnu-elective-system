@@ -34,6 +34,7 @@ PUBLIC_DIR = "public"
 
 TRAINING_PLAN_FILE = os.path.join(MASTER_RAW_DIR, "training_plan.json")
 BUILD_CONFIG_FILE = os.path.join("data", "build_config.json")
+COURSE_NATURE_OVERRIDES_FILE = os.path.join("data", "course_nature_overrides.json")
 
 MASTER_COURSES_FILE = os.path.join(MASTER_DIR, "courses.json")
 MASTER_TEACHERS_FILE = os.path.join(MASTER_DIR, "teachers.json")
@@ -50,7 +51,9 @@ PUBLIC_MANIFEST_FILE = os.path.join(PUBLIC_DIR, "data_manifest.json")
 DETAIL_FIELDS = ("desc", "prereqId", "prereqDesc")
 
 # 课程性质归一化（公共必修 → 公共必修课，与 catalog 一致）
-NATURE_NORMALIZE = {"公共必修": "公共必修课"}
+NATURE_NORMALIZE = {"公共必修": "公共必修课", "计算机限选": "计算机限选"}
+# 附加性质仅消费已确认的外部清单；当前文件为空，禁止按名称关键字猜测。
+EXTRA_COURSE_NATURES = frozenset({"计算机限选"})
 
 # 容量数据开关：openclass_status 的「每班容量」是预选阶段的不可信值。
 # 关闭后 openclass 来源的 section.capacity 置 null；formal_capacity（正选/补退选
@@ -373,6 +376,56 @@ def build_plan_courses(raw_plans: list) -> dict:
     return {k: list(v.values()) for k, v in by_key.items()}
 
 
+def load_course_nature_overrides(path=COURSE_NATURE_OVERRIDES_FILE) -> dict:
+    """人工清单入口：课程号优先，名称必须唯一且精确匹配；保留课程号前导零。"""
+    if not os.path.exists(path):
+        return {"version": 1, "byCourseId": {}, "byCourseName": {}}
+    with open(path, encoding="utf-8") as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict) or raw.get("version") != 1:
+        raise ValueError("课程性质映射必须是 version=1 的对象")
+    if set(raw) - {"version", "byCourseId", "byCourseName"}:
+        raise ValueError("课程性质映射含未知字段")
+    for field in ("byCourseId", "byCourseName"):
+        rows = raw.get(field, {})
+        if not isinstance(rows, dict):
+            raise ValueError(f"{field} 必须是对象")
+        for key, tags in rows.items():
+            if not isinstance(key, str) or not key.strip() or key != key.strip():
+                raise ValueError(f"{field} 的课程号/名称必须是非空且无首尾空格的字符串")
+            if not isinstance(tags, list) or any(not isinstance(t, str) or t not in EXTRA_COURSE_NATURES for t in tags):
+                raise ValueError(f"{field}[{key}] 只能包含已支持的附加性质：计算机限选")
+    return raw
+
+
+def apply_course_nature_overrides(courses: list, overrides: dict) -> None:
+    """只添加确认过的标签，不创造课程、不改 plans/nature/学分，不猜测同名课程。"""
+    by_id = {c["id"]: c for c in courses}
+    by_name = defaultdict(list)
+    for c in courses:
+        by_name[c["name"]].append(c)
+    additions = {}
+    id_rows = overrides.get("byCourseId", {})
+    for cid, tags in id_rows.items():
+        if cid not in by_id:
+            raise ValueError(f"附加性质课程号未找到：{cid}；请先核对清单/导入课程原始数据")
+        additions[cid] = tags
+    for name, tags in overrides.get("byCourseName", {}).items():
+        matches = by_name.get(name, [])
+        if len(matches) != 1:
+            raise ValueError(f"附加性质课程名必须唯一精确匹配：{name}（匹配 {len(matches)} 门）；请改用课程号")
+        cid = matches[0]["id"]
+        if cid not in id_rows:  # 课程号显式配置优先于名称（包括显式空列表）
+            additions[cid] = tags
+    # 完成全部匹配校验后才修改，失败不产生半批标注。
+    for cid, tags in additions.items():
+        if not tags:
+            continue
+        course = by_id[cid]
+        course["extraNatureTags"] = sorted(set(course.get("extraNatureTags", [])) | set(tags))
+        course["tags"] = list(dict.fromkeys([*course["tags"], *tags]))
+
+
 # ============ Stage 3: master ============
 
 def build_master(semesters: dict, training_plan: list) -> dict:
@@ -624,6 +677,8 @@ def build_master(semesters: dict, training_plan: list) -> dict:
 
     reqs = build_major_requirements(training_plan)
     plan_courses = build_plan_courses(training_plan)
+
+    apply_course_nature_overrides(courses, load_course_nature_overrides())
 
     os.makedirs(MASTER_DIR, exist_ok=True)
     with open(MASTER_COURSES_FILE, "w", encoding="utf-8") as f:
