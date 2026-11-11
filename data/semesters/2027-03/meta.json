@@ -1,0 +1,7 @@
+{
+  "label": "2027-03",
+  "startDate": "2027-03-01",
+  "endDate": "2027-07-15",
+  "isCurrent": false,
+  "note": "预选待发布；真实 catalog 到位后由 jxnu-sync 自动切为 current，不复用往期数据。"
+}

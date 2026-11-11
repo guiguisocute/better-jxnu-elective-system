@@ -16,6 +16,8 @@ export interface AppFeatureFlags {
 export interface AppConfig {
   /** 新会话默认进入的选课阶段；用户在当前会话主动切换后优先尊重用户选择。 */
   defaultDataSource: "pre" | "formal";
+  /** 各阶段目标学期：即使目录尚未发布也必须可选择。 */
+  phaseSemesters: { pre: string; formal: string };
   /** 测试学期集合（正选/补退选视图加「（测试）」后缀），加载成功后注入 term.ts。 */
   testSemesters: string[];
   /** 实时人数只在该学期开启（HomePage 的 enabled 比较）。 */
@@ -30,7 +32,8 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
-  defaultDataSource: "formal",
+  defaultDataSource: "pre",
+  phaseSemesters: { pre: "2027-03", formal: "2026-09" },
   testSemesters: [],
   liveEnrollmentSemester: LIVE_ENROLLMENT_SEMESTER,
   selectionStep: "",
@@ -77,7 +80,14 @@ function normalize(raw: unknown, d: AppConfig = APP_CONFIG_DEFAULTS): AppConfig 
   const flags = (
     data.featureFlags && typeof data.featureFlags === "object" ? data.featureFlags : {}
   ) as Record<string, unknown>;
+  const phases = (data.phaseSemesters && typeof data.phaseSemesters === "object" ? data.phaseSemesters : {}) as Record<string, unknown>;
+  const semester = (value: unknown, fallback: string) =>
+    typeof value === "string" && /^\d{4}-(03|09)$/.test(value) ? value : fallback;
   return {
+    phaseSemesters: {
+      pre: semester(phases.pre, d.phaseSemesters.pre),
+      formal: semester(phases.formal, d.phaseSemesters.formal),
+    },
     defaultDataSource:
       data.defaultDataSource === "pre" || data.defaultDataSource === "formal"
         ? data.defaultDataSource

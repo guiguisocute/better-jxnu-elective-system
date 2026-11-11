@@ -40,6 +40,7 @@ function soloKey(g: FormalGroup): string {
 }
 
 interface Props {
+  preselectionStatus?: React.ReactNode;
   courses: Course[];
   selectedId?: string;
   onSelect: (course: Course) => void;
@@ -713,7 +714,7 @@ export function CourseTable({
   selectedSectionKey = null,
   pinnedKeys, isPinned, pinAlert, onUpdatePinAlert, onClearPins, getRemainingState,
   simMode = false, cartHas, onToggleCart, scheduleFilter, coursesById,
-  showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar,
+  showHints = false, onShowAll, onEnterSim, sidebarOpen, onExpandSidebar, preselectionStatus,
 }: Props) {
   // 同课程号折叠的展开态：按课程号存「显式覆盖」（true=展开 / false=收起）。
   // 未覆盖的组取默认值 defaultExpandFormal（有搜索词时默认展开，否则默认收起）。
@@ -882,7 +883,7 @@ export function CourseTable({
           </div>
         </div>
 
-        {isFormal && showHints && formalAvailable && !formalLoading ? (
+        {!isFormal && preselectionStatus ? preselectionStatus : isFormal && showHints && formalAvailable && !formalLoading ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
         ) : !isFormal && showHints && courses.length > 0 ? (
           <FeatureHints variant="desktop" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} sidebarOpen={sidebarOpen} onExpandSidebar={onExpandSidebar} />
@@ -1196,7 +1197,7 @@ export function CourseTable({
           </div>
         )}
 
-        {isFormal && showHints && formalAvailable && !formalLoading ? (
+        {!isFormal && preselectionStatus ? preselectionStatus : isFormal && showHints && formalAvailable && !formalLoading ? (
           <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />
         ) : !isFormal && showHints && courses.length > 0 ? (
           <FeatureHints variant="mobile" dataSource={dataSource} simActive={simMode} onShowAll={() => onShowAll?.()} onEnterSim={() => onEnterSim?.()} />

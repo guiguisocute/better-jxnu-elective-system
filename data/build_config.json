@@ -1,9 +1,14 @@
 {
   "testSemesters": [],
   "mirrorSemesters": {},
-  "liveEnrollmentSemester": "2026-09",
+  "liveEnrollmentSemester": "",
   "featureFlags": {
     "studentImport": true,
     "aiPick": true
+  },
+  "defaultDataSource": "pre",
+  "phaseSemesters": {
+    "pre": "2027-03",
+    "formal": "2026-09"
   }
 }

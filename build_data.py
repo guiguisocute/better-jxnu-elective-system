@@ -119,6 +119,8 @@ def load_build_config() -> dict:
     live_raw = raw.get("liveEnrollmentSemester")
     live = live_raw if isinstance(live_raw, str) else DEFAULT_BUILD_CONFIG["liveEnrollmentSemester"]
     return {
+        "defaultDataSource": raw.get("defaultDataSource", "formal"),
+        "phaseSemesters": raw.get("phaseSemesters", {"pre": "2026-09", "formal": "2026-09"}),
         "testSemesters": tests,
         "mirrorSemesters": mirror,
         "liveEnrollmentSemester": live,
@@ -1107,6 +1109,8 @@ def build_public(semesters: dict, master: dict) -> None:
         json.dump(master["planCourses"], f, ensure_ascii=False, separators=(",", ":"))
     # 前端运行时配置（src/lib/appConfig.ts 消费）。mirrorSemesters 是纯构建期概念，不外发。
     app_config = {
+        "defaultDataSource": BUILD_CONFIG["defaultDataSource"],
+        "phaseSemesters": BUILD_CONFIG["phaseSemesters"],
         "testSemesters": BUILD_CONFIG["testSemesters"],
         "liveEnrollmentSemester": BUILD_CONFIG["liveEnrollmentSemester"],
         "featureFlags": BUILD_CONFIG["featureFlags"],

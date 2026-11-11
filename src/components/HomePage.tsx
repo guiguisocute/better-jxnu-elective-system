@@ -25,6 +25,8 @@ import { FilterBar } from "./FilterBar";
 import { Contributors } from "./Contributors";
 import { JuxingCobrand, JuxingSupport } from "./JuxingBrand";
 import { ScheduleFilter } from "./ScheduleFilter";
+import { preselectionSemesters, catalogForSemester } from "../lib/preselection";
+import { PreselectionUpdating } from "./PreselectionUpdating";
 import { CourseTable } from "./CourseTable";
 import { Pagination } from "./Pagination";
 import { SimToggle } from "./sim/SimToggle";
@@ -39,7 +41,8 @@ const OnboardingModal = lazy(() => import("./sim/OnboardingModal").then((m) => (
 const CourseDetail = lazy(() => import("./CourseDetail").then((m) => ({ default: m.CourseDetail })));
 const FormalSectionDetail = lazy(() => import("./FormalSectionDetail").then((m) => ({ default: m.FormalSectionDetail })));
 
-const DATA_SOURCE_KEY = "jxnu_data_source";
+// 新预选季一次性迁移旧会话，之后仍尊重用户主动切换。
+const DATA_SOURCE_KEY = "jxnu_data_source:2027-03-pre";
 const FORMAL_AUTO_EXPAND_SECTION_LIMIT = 240;
 const FORMAL_AUTO_EXPAND_GROUP_LIMIT = 30;
 // 左栏能以内联形式共存于三栏布局的最小视口宽（右详情栏常驻 500px）。
@@ -55,7 +58,7 @@ function storedDataSource(): DataSource | null {
 }
 
 function loadDataSource(fallback: DataSource): DataSource {
-  // 默认进「正选」（学期由下方兜底 effect 落到最新 = 2026-09）；
+  // 默认阶段来自运行时配置；
   // 同会话内已切换的选择仍被 sessionStorage 尊重。
   return storedDataSource() ?? fallback;
 }
@@ -133,7 +136,7 @@ function CourseListSkeleton({ error }: { error: string | null }) {
 }
 
 export function HomePage() {
-  const SEM_KEY = "jxnu_selected_semester";
+  const SEM_KEY = "jxnu_selected_semester:2027-03-pre";
   const [semesterByDS, setSemesterByDS] = useState<Record<DataSource, string>>(() => {
     try {
       const parsed = JSON.parse(sessionStorage.getItem(SEM_KEY) ?? "{}");
@@ -194,7 +197,13 @@ export function HomePage() {
   // inPre === false 的 282 门是 build_data.py 用 formal 真实老师补全的 master 条目（含 25 门零分课），
   // 它们不在当学期 catalog 里，学生预选阶段实际选不到，不应出现在预选列表。
   // coursesById/cartCourses 仍用 courses 全集（正选 任意选修 tag 派生需要它们）。
-  const preCourses = useMemo(() => courses.filter((c) => c.inPre !== false), [courses]);
+  const preSemester = semesterByDS.pre || appConfig.phaseSemesters.pre;
+  const preCourses = useMemo(
+    () => catalogForSemester(courses, preSemester),
+    [courses, preSemester],
+  );
+  // 真实目录为空与搜索无结果严格区分，不把往期课程伪装成新学期。
+  const preUpdating = !loading && !error && preCourses.length === 0;
   const filter = useCourseFilter(preCourses, sim.mode === "sim" ? credit.takenCids : undefined);
   // 桥接：filter.filters.plan 变更 → 同步到 currentPlan（多一次 render，仅 plan 切换时发生）。
   useEffect(() => {
@@ -470,22 +479,22 @@ export function HomePage() {
 
   // 预选侧 allSemesters：从 courses.json 派生（catalog 当前学期，通常只 1 个），过滤掉非 YYYY-MM 形态。
   const preSemesters = useMemo(
-    () => [...new Set(courses.map((c) => c.semester).filter((s) => /^\d{4}-(03|09)$/.test(s)))].sort((a, b) => b.localeCompare(a)),
-    [courses],
+    () => preselectionSemesters(appConfig.phaseSemesters.pre, courses.filter((c) => c.inPre !== false).map((c) => c.semester)),
+    [courses, appConfig.phaseSemesters.pre],
   );
   const allSemesters = dataSource === "pre" ? preSemesters : formal.allSemesters;
-  const selectedSemester = semesterByDS[dataSource];
+  const selectedSemester = dataSource === "pre" ? preSemester : semesterByDS.formal;
 
   // 当前激活 dataSource 的 slot 若为空 / 不在选项中，按当前学期 → 最新可选项兜底。
   // 仅惰性初始化当前激活那一个槽位（不预填三个，避免对 formal 未就绪时的竞争）。
   useEffect(() => {
     if (allSemesters.length === 0) return;
     if (selectedSemester && allSemesters.includes(selectedSemester)) return;
-    const target = currentSemester();
+    const target = dataSource === "pre" ? appConfig.phaseSemesters.pre : currentSemester();
     const sorted = sortSemesters(allSemesters);
     const next = allSemesters.includes(target) ? target : sorted[sorted.length - 1];
     setSelectedSemester(next);
-  }, [allSemesters, selectedSemester, dataSource, setSelectedSemester]);
+  }, [allSemesters, selectedSemester, dataSource, setSelectedSemester, appConfig.phaseSemesters.pre]);
 
   // 应用与预选同一套筛选器（filter.filters）：search / credits / dept / type / tag。
   // FormalSection 没有 plans 字段，故 plan 维度跳过；其余字段名一致可直接复用。
@@ -1050,10 +1059,12 @@ export function HomePage() {
                     <span> 个班级</span>
                   </>
                 )
+              ) : preUpdating ? (
+                <span className="text-brand">预选数据更新中</span>
               ) : (
                 <>
                   <span className="font-semibold text-gray-700">{filter.filtered.length}</span>
-                  <span> / {courses.length} 门</span>
+                  <span> / {preCourses.length} 门</span>
                 </>
               )}
             </div>
@@ -1339,6 +1350,9 @@ export function HomePage() {
         <main className="flex-1 min-w-0">
           {loading || error ? <CourseListSkeleton error={error} /> : (
           <CourseTable
+            preselectionStatus={preUpdating ? (
+              <PreselectionUpdating semester={preSemester} onViewHistory={() => changeDataSource("formal")} />
+            ) : undefined}
             courses={filter.paginated}
             selectedId={selected?.id}
             onSelect={handleSelect}
@@ -1383,7 +1397,7 @@ export function HomePage() {
           )}
           {/* 分页：预选用 filter.page；正选/补退选有独立分页（数据集大不能一次性渲染）。
               功能说明层显示时（无筛选）隐藏分页。 */}
-          {!loading && !error && (showHints ? null : isFormalMode ? (
+          {!loading && !error && !(dataSource === "pre" && preUpdating) && (showHints ? null : isFormalMode ? (
             formal.available && visibleFormalSections.length > 0 && (
               <Pagination
                 page={safeFormalPage}
@@ -1410,8 +1424,8 @@ export function HomePage() {
           ))}
         </main>
 
-        {/* Desktop right sidebar - always visible */}
-        <aside
+        {/* 新学期目录未发布时不显示无意义的详情占位栏。 */}
+        {!(dataSource === "pre" && preUpdating) && <aside
           className="hidden xl:block w-[500px] shrink-0 overflow-y-auto rounded-t-xl bg-white border border-gray-100 shadow-[-8px_0_24px_rgba(0,0,0,0.04)]"
           style={{ position: "sticky", top: stickyTop, height: `calc(100vh - ${stickyTop}px)` }}
         >
@@ -1453,7 +1467,7 @@ export function HomePage() {
               </div>
             )}
           </Suspense>
-        </aside>
+        </aside>}
       </div>
 
       {/* 模拟选课：右下角悬浮圆环 + 展开面板 */}
